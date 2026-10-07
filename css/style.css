@@ -591,6 +591,182 @@ button:focus-visible {
 }
 
 /* ==========================================
+   MINECRAFT DUNGEONS HUB & INVENTORY UI
+   ========================================== */
+.home-dungeons-hub {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.home-inv-trigger {
+    width: 100%;
+    background: var(--panel);
+    border: 3px solid #000;
+    box-shadow: inset 3px 3px 0 var(--panel-light), inset -3px -3px 0 #1a1a1a, 0 4px 0 #1a1a1a;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    text-align: left;
+    position: relative;
+    top: 0;
+    transition: background-color 0.05s steps(2);
+}
+
+.home-inv-trigger:hover {
+    background: #3a3a3a;
+}
+
+.home-inv-trigger:active {
+    top: 4px;
+    box-shadow: inset 3px 3px 0 #1a1a1a, inset -3px -3px 0 var(--panel-light);
+}
+
+.hit-icon {
+    font-family: var(--font-pixel);
+    font-size: 20px;
+    background: #8b8b8b;
+    color: #fff;
+    border: 3px solid #000;
+    box-shadow: inset 2px 2px 0 #c9c9c9, inset -2px -2px 0 #555;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    text-shadow: 2px 2px 0 #3f3f3f;
+}
+
+.hit-title {
+    font-family: var(--font-pixel);
+    font-size: 11px;
+    color: #55ff55;
+    margin-bottom: 4px;
+}
+
+.hit-desc {
+    font-size: 17px;
+    color: var(--text-muted);
+}
+
+.modal-inventory-card {
+    max-width: 680px;
+    width: 95%;
+}
+
+.mc-inv-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+    border-bottom: 3px solid #000;
+    padding-bottom: 8px;
+}
+
+.mc-inv-tab {
+    font-family: var(--font-body);
+    font-size: 20px;
+    color: #fff;
+    background: var(--stone);
+    border: 3px solid #000;
+    box-shadow: inset 2px 2px 0 #c9c9c9, inset -2px -2px 0 #555;
+    padding: 4px 14px;
+    cursor: pointer;
+}
+
+.mc-inv-tab.active {
+    background: #5da83e;
+    color: #fff;
+    box-shadow: inset 2px 2px 0 #80df59, inset -2px -2px 0 #3b6d26;
+}
+
+.mc-sec-title {
+    font-family: var(--font-pixel);
+    font-size: 11px;
+    color: #fcdb05;
+    margin-bottom: 8px;
+    text-shadow: 2px 2px 0 #3f3a00;
+}
+
+.mc-inventory-grid {
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    gap: 6px;
+    background: #1e1e1e;
+    border: 3px solid #000;
+    padding: 8px;
+}
+
+.mc-slot {
+    aspect-ratio: 1 / 1;
+    background: #8b8b8b;
+    border: 2px solid #373737;
+    box-shadow: inset 2px 2px 0 #373737, inset -2px -2px 0 #c6c6c6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: pointer;
+}
+
+.mc-slot.active {
+    outline: 3px solid #55ff55;
+    outline-offset: -3px;
+    background: #a0a0a0;
+}
+
+.mc-slot-num {
+    position: absolute;
+    bottom: 2px;
+    right: 3px;
+    font-size: 12px;
+    color: #fff;
+    text-shadow: 1px 1px 0 #000;
+}
+
+.crafting-table-ui {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    background: #1e1e1e;
+    border: 3px solid #000;
+    padding: 14px;
+    margin-bottom: 12px;
+}
+
+.crafting-3x3 {
+    display: grid;
+    grid-template-columns: repeat(3, 44px);
+    grid-template-rows: repeat(3, 44px);
+    gap: 4px;
+}
+
+.c-slot {
+    background: #8b8b8b;
+    border: 2px solid #373737;
+    box-shadow: inset 2px 2px 0 #373737, inset -2px -2px 0 #c6c6c6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.c-slot-big {
+    width: 60px;
+    height: 60px;
+}
+
+.crafting-arrow {
+    font-family: var(--font-pixel);
+    font-size: 18px;
+    color: #fcdb05;
+}
+
+/* ==========================================
    MODALS (Minecraft inventory panel look)
    ========================================== */
 .modal-backdrop {

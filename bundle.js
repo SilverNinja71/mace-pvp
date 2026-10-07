@@ -215,24 +215,44 @@
   }
   
   // ------------------------------------------
-  // DIRT BACKGROUND (what the Minecraft menus use)
+  // DIRT BACKGROUND WITH TOP GRASS (Minecraft dirt block)
+  // Clean pixel art without noisy random specks
   // ------------------------------------------
   function applyMinecraftBackground() {
       const c = pxCanvas(16, 16);
       const ctx = c.getContext("2d");
-      const base = ["#5b4129", "#503824", "#654a30", "#483221", "#6b4e33"];
-      for (let y = 0; y < 16; y++) {
-          for (let x = 0; x < 16; x++) {
-              const i = Math.floor(pxNoise(x, y, 3) * base.length);
-              ctx.fillStyle = base[i];
-              ctx.fillRect(x, y, 1, 1);
-          }
-      }
-      // A few darker pebbles
-      ctx.fillStyle = "#3a2a1b";
-      for (let k = 0; k < 10; k++) {
-          ctx.fillRect(Math.floor(pxNoise(k, 1, 9) * 16), Math.floor(pxNoise(k, 2, 9) * 16), 1, 1);
-      }
+      
+      // Rich blocky dirt colors (clean Minecraft-style palette)
+      ctx.fillStyle = "#866043"; // Main warm brown dirt
+      ctx.fillRect(0, 0, 16, 16);
+      
+      // Blocky dirt patches
+      ctx.fillStyle = "#725037";
+      ctx.fillRect(1, 4, 3, 3);
+      ctx.fillRect(8, 6, 4, 3);
+      ctx.fillRect(3, 11, 4, 3);
+      ctx.fillRect(11, 12, 3, 3);
+  
+      ctx.fillStyle = "#5c3d28";
+      ctx.fillRect(2, 5, 2, 2);
+      ctx.fillRect(9, 7, 2, 2);
+      ctx.fillRect(4, 12, 2, 2);
+      ctx.fillRect(12, 13, 2, 2);
+  
+      ctx.fillStyle = "#9c7250";
+      ctx.fillRect(6, 2, 3, 2);
+      ctx.fillRect(13, 5, 2, 2);
+      ctx.fillRect(0, 9, 2, 2);
+      ctx.fillRect(8, 11, 2, 2);
+  
+      // Green grass block top row (2px grass with dangling roots)
+      ctx.fillStyle = "#4c9e32";
+      ctx.fillRect(0, 0, 16, 2);
+      ctx.fillStyle = "#3e8529";
+      ctx.fillRect(2, 2, 2, 1);
+      ctx.fillRect(7, 2, 2, 2);
+      ctx.fillRect(12, 2, 2, 1);
+  
       document.documentElement.style.setProperty("--dirt", `url(${c.toDataURL()})`);
   }
   
@@ -1681,10 +1701,10 @@
               this.user.username = suggested || "GooglePlayer";
           }
   
-          if (picture) {
-              this.user.avatarType = "url";
-              this.user.avatarUrl = picture;
-          }
+          // Always keep Steve's head as avatar
+          this.user.avatarType = "preset";
+          this.user.avatarVal = "steve";
+          this.user.avatarUrl = null;
   
           this.saveUser();
           return this.user;
@@ -2908,11 +2928,9 @@
               defender.dashing = false;
               defender.dashAttack = false;
   
-              defender.xVel = (defenderCenter > attackerCenter) ? 7 : -7;
-              defender.yVel = -7;
-  
-              attacker.yVel = attacker.weaponStats?.hitLaunch || CORE_PHYSICS.hitLaunch;
-              attacker.onGround = false;
+              // Attacker lands firmly on the ground without huge recoil boost or self-damage
+              attacker.yVel = 0;
+              attacker.onGround = true;
               attacker.dashReady = true;
   
               attacker.stats.damageDealt += finalDamage;
@@ -3036,73 +3054,143 @@
           this.ctx.scale(this.dpr, this.dpr);
       }
   
-      setStyle(style) {
-          this.graphicStyle = style;
+      setBiome(biome) {
+          this.biome = biome || "overworld";
       }
   
       drawBackground() {
           const ctx = this.ctx;
           this.frameCount++;
+          const biome = this.biome || "overworld";
   
-          if (this.graphicStyle === "classic") {
-              ctx.fillStyle = "rgb(135, 206, 235)";
+          if (biome === "nether") {
+              // Nether: Deep crimson-orange fog and netherrack peaks
+              ctx.fillStyle = "#330808";
               ctx.fillRect(0, 0, this.width, this.height);
-              return;
-          }
   
-          // Flat Minecraft sky (no gradient)
-          ctx.fillStyle = "#79a6ff";
-          ctx.fillRect(0, 0, this.width, this.height);
+              // Lava river glow at horizon
+              ctx.fillStyle = "#cf4417";
+              ctx.fillRect(0, 310, this.width, this.height - 310);
   
-          // Blocky distant hills (stepped, flat colors)
-          ctx.fillStyle = "#5f8f4f";
-          const hills = [[0, 320], [80, 296], [160, 272], [240, 296], [320, 320], [400, 296], [480, 264], [560, 288], [640, 312], [720, 288]];
-          for (const [hx, hy] of hills) {
-              ctx.fillRect(hx, hy, 80, this.height - hy);
-          }
+              // Netherrack pillars & jagged stalagmites
+              ctx.fillStyle = "#5c1818";
+              const pillars = [[0, 260], [100, 220], [220, 270], [340, 230], [460, 280], [580, 210], [700, 250]];
+              for (const [px, py] of pillars) {
+                  ctx.fillRect(px, py, 90, this.height - py);
+              }
   
-          // Drifting blocky clouds
-          ctx.fillStyle = "#ffffff";
-          for (const cloud of this.clouds) {
-              cloud.x += cloud.speed;
-              if (cloud.x > this.width + 100) cloud.x = -150;
+              // Floating ash particles
+              ctx.fillStyle = "#ff7b25";
+              for (let i = 0; i < 15; i++) {
+                  const ax = (Math.sin(this.frameCount * 0.02 + i * 1.5) * 400 + 400 + i * 27) % this.width;
+                  const ay = (this.frameCount * 0.4 + i * 31) % 360;
+                  ctx.fillRect(ax, ay, 3, 3);
+              }
+          } else if (biome === "end") {
+              // The End: Void darkness with obsidian pillars
+              ctx.fillStyle = "#0c0714";
+              ctx.fillRect(0, 0, this.width, this.height);
   
-              const cx = Math.round(cloud.x / 8) * 8;
-              const cy = Math.round(cloud.y / 8) * 8;
-              ctx.fillRect(cx, cy, cloud.w, 16);
-              ctx.fillRect(cx + 16, cy - 8, Math.round(cloud.w * 0.6 / 8) * 8, 8);
-              ctx.fillStyle = "#dfe9ff";
-              ctx.fillRect(cx, cy + 16, cloud.w, 4);
+              // Distant purple void clouds
+              ctx.fillStyle = "#221338";
+              ctx.fillRect(0, 280, this.width, this.height - 280);
+  
+              // Tall Obsidian Spikes
+              ctx.fillStyle = "#15151e";
+              ctx.fillRect(80, 140, 50, 250);
+              ctx.fillRect(320, 90, 60, 300);
+              ctx.fillRect(600, 160, 55, 230);
+  
+              // Ender crystal glow at top of middle pillar
+              const glow = (Math.sin(this.frameCount * 0.1) > 0) ? "#e066ff" : "#b030d0";
+              ctx.fillStyle = glow;
+              ctx.fillRect(342, 75, 16, 15);
+          } else {
+              // Overworld: Flat Minecraft sky (no gradient)
+              ctx.fillStyle = "#79a6ff";
+              ctx.fillRect(0, 0, this.width, this.height);
+  
+              // Blocky distant hills (stepped, flat colors)
+              ctx.fillStyle = "#5f8f4f";
+              const hills = [[0, 320], [80, 296], [160, 272], [240, 296], [320, 320], [400, 296], [480, 264], [560, 288], [640, 312], [720, 288]];
+              for (const [hx, hy] of hills) {
+                  ctx.fillRect(hx, hy, 80, this.height - hy);
+              }
+  
+              // Drifting blocky clouds
               ctx.fillStyle = "#ffffff";
+              for (const cloud of this.clouds) {
+                  cloud.x += cloud.speed;
+                  if (cloud.x > this.width + 100) cloud.x = -150;
+  
+                  const cx = Math.round(cloud.x / 8) * 8;
+                  const cy = Math.round(cloud.y / 8) * 8;
+                  ctx.fillRect(cx, cy, cloud.w, 16);
+                  ctx.fillRect(cx + 16, cy - 8, Math.round(cloud.w * 0.6 / 8) * 8, 8);
+                  ctx.fillStyle = "#dfe9ff";
+                  ctx.fillRect(cx, cy + 16, cloud.w, 4);
+                  ctx.fillStyle = "#ffffff";
+              }
           }
       }
   
       drawPlatforms() {
           const ctx = this.ctx;
+          const biome = this.biome || "overworld";
   
           for (const p of PLATFORMS_CONFIG) {
-              if (this.graphicStyle === "classic") {
-                  ctx.fillStyle = "rgb(70, 70, 70)";
+              if (biome === "nether") {
+                  // Netherrack platform with red nether brick
+                  ctx.fillStyle = "#632222";
                   ctx.fillRect(p.x, p.y, p.w, p.h);
-                  continue;
-              }
+                  ctx.fillStyle = "#4a1414";
+                  for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                      ctx.fillRect(bx, p.y, 2, p.h);
+                  }
+                  ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
   
-              // Stone block platform with pixel brick lines
-              ctx.fillStyle = "#7d7d7d";
-              ctx.fillRect(p.x, p.y, p.w, p.h);
-              ctx.fillStyle = "#5f5f5f";
-              for (let bx = p.x; bx < p.x + p.w; bx += 16) {
-                  ctx.fillRect(bx, p.y, 2, p.h);
-              }
-              ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
-              if (p.h > 12) ctx.fillRect(p.x, p.y + Math.floor(p.h / 2), p.w, 2);
+                  // Crimson nylium top fringe
+                  ctx.fillStyle = "#9e1b2f";
+                  ctx.fillRect(p.x, p.y, p.w, 6);
+                  ctx.fillStyle = "#731120";
+                  for (let gx = p.x; gx < p.x + p.w; gx += 8) {
+                      ctx.fillRect(gx, p.y + 6, 4, 3);
+                  }
+              } else if (biome === "end") {
+                  // End stone platform with purpur/obsidian trim
+                  ctx.fillStyle = "#dfddaa";
+                  ctx.fillRect(p.x, p.y, p.w, p.h);
+                  ctx.fillStyle = "#b5b279";
+                  for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                      ctx.fillRect(bx, p.y, 2, p.h);
+                  }
+                  ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
   
-              // Grass top (ground) or lighter stone cap (floating)
-              ctx.fillStyle = p.y >= 380 ? "#5da83e" : "#a4a4a4";
-              ctx.fillRect(p.x, p.y, p.w, 6);
-              ctx.fillStyle = p.y >= 380 ? "#3f7d2a" : "#808080";
-              for (let gx = p.x; gx < p.x + p.w; gx += 8) {
-                  ctx.fillRect(gx, p.y + 6, 4, 2);
+                  // Purpur top cap
+                  ctx.fillStyle = "#995a94";
+                  ctx.fillRect(p.x, p.y, p.w, 5);
+                  ctx.fillStyle = "#6d3b6a";
+                  for (let gx = p.x; gx < p.x + p.w; gx += 8) {
+                      ctx.fillRect(gx, p.y + 5, 4, 2);
+                  }
+              } else {
+                  // Overworld: Stone block platform with grass top
+                  ctx.fillStyle = "#7d7d7d";
+                  ctx.fillRect(p.x, p.y, p.w, p.h);
+                  ctx.fillStyle = "#5f5f5f";
+                  for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                      ctx.fillRect(bx, p.y, 2, p.h);
+                  }
+                  ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
+                  if (p.h > 12) ctx.fillRect(p.x, p.y + Math.floor(p.h / 2), p.w, 2);
+  
+                  // Grass top (ground) or stone cap (floating)
+                  ctx.fillStyle = p.y >= 380 ? "#5da83e" : "#a4a4a4";
+                  ctx.fillRect(p.x, p.y, p.w, 6);
+                  ctx.fillStyle = p.y >= 380 ? "#3f7d2a" : "#808080";
+                  for (let gx = p.x; gx < p.x + p.w; gx += 8) {
+                      ctx.fillRect(gx, p.y + 6, 4, 2);
+                  }
               }
           }
       }
@@ -3403,28 +3491,6 @@
           ctx.translate(centerX, centerY);
           ctx.scale(f.squashX || 1.0, f.squashY || 1.0);
           ctx.translate(-centerX, -centerY);
-  
-          if (this.graphicStyle === "classic") {
-              ctx.fillStyle = f.isPlayer ? "rgb(0, 255, 0)" : `rgb(${fallbackColor[0]}, ${fallbackColor[1]}, ${fallbackColor[2]})`;
-              ctx.fillRect(f.x, f.y, f.w, f.h);
-              if (f.slamming) {
-                  ctx.strokeStyle = "rgb(255, 150, 0)";
-                  ctx.lineWidth = 3;
-                  ctx.beginPath();
-                  ctx.arc(centerX, centerY, 17.5, 0, Math.PI * 2);
-                  ctx.stroke();
-              }
-              ctx.restore();
-              return;
-          }
-  
-          // Shadow on ground
-          if (f.onGround) {
-              ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
-              ctx.beginPath();
-              ctx.ellipse(centerX, f.y + f.h + 1, f.w * 0.6, 3, 0, 0, Math.PI * 2);
-              ctx.fill();
-          }
   
           // Draw weapon
           this.drawWeapons(f, 1.0);
@@ -4361,6 +4427,7 @@
           this.setupEventListeners();
           this.setupCustomBotForm();
           this.setupAuthUI();
+          this.setupInventoryUI();
           this.setupArmoryUI();
           this.setupSkinsUI();
           this.setupArenaUI();
@@ -4476,29 +4543,44 @@
               this.updateMuteButton(sound.muted);
           }
   
-          // Graphic style toggle
-          if (this.styleBtn) {
-              this.styleBtn.addEventListener("click", () => {
-                  const current = this.game.renderer.graphicStyle;
-                  const next = current === "enhanced" ? "classic" : "enhanced";
-                  this.game.renderer.setStyle(next);
-                  this.styleBtn.textContent = next === "enhanced" ? "Style: Enhanced" : "Style: Classic";
+          // Theme / Biome Toggle (Overworld -> Nether -> End)
+          this.themeBtn = document.getElementById("btn-theme");
+          this.currentBiome = "overworld";
+          if (this.themeBtn) {
+              this.themeBtn.addEventListener("click", () => {
+                  const biomes = ["overworld", "nether", "end"];
+                  const nextIdx = (biomes.indexOf(this.currentBiome) + 1) % biomes.length;
+                  this.currentBiome = biomes[nextIdx];
+                  const capitalized = this.currentBiome.charAt(0).toUpperCase() + this.currentBiome.slice(1);
+                  this.themeBtn.textContent = `Theme: ${capitalized}`;
+                  this.game.renderer.setBiome(this.currentBiome);
                   sound.playClick();
               });
           }
+  
+          // Inventory [i] triggers & shortcut
+          this.inventoryBtn = document.getElementById("btn-inventory");
+          this.homeInventoryBtn = document.getElementById("btn-home-inventory");
+          this.inventoryModal = document.getElementById("inventory-modal");
+  
+          if (this.inventoryBtn) this.inventoryBtn.addEventListener("click", () => this.openInventoryModal());
+          if (this.homeInventoryBtn) this.homeInventoryBtn.addEventListener("click", () => this.openInventoryModal());
+  
+          window.addEventListener("keydown", (e) => {
+              if (e.key === "i" || e.key === "I") {
+                  const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : "";
+                  if (activeTag !== "input" && activeTag !== "textarea") {
+                      this.toggleInventoryModal();
+                  }
+              }
+          });
   
           // Navigation buttons
           if (this.homeBtn) this.homeBtn.addEventListener("click", () => this.game.goHome());
           if (this.restartBtn) this.restartBtn.addEventListener("click", () => this.game.restartMatch());
           if (this.pauseBtn) this.pauseBtn.addEventListener("click", () => this.game.togglePause());
-          if (this.statsBtn) this.statsBtn.addEventListener("click", () => this.openStatsModal());
           if (this.userProfileBtn) this.userProfileBtn.addEventListener("click", () => this.openAuthModal());
           if (this.downloadBtn) this.downloadBtn.addEventListener("click", () => this.downloadGame());
-  
-          // Header Action buttons
-          if (this.armoryBtn) this.armoryBtn.addEventListener("click", () => this.openWeaponsModal());
-          if (this.skinsBtn) this.skinsBtn.addEventListener("click", () => this.openSkinsModal());
-          if (this.arenaBtn) this.arenaBtn.addEventListener("click", () => this.openArenaModal());
           if (this.leaderboardBtn) this.leaderboardBtn.addEventListener("click", () => this.openLeaderboardModal());
   
           // Home screen arena banner
@@ -4531,6 +4613,16 @@
               });
           });
   
+          // Automatically close ANY opened modal when clicking outside the window (on backdrop)
+          document.querySelectorAll(".modal-backdrop").forEach((backdrop) => {
+              backdrop.addEventListener("click", (e) => {
+                  if (e.target === backdrop || !e.target.closest(".modal-card")) {
+                      backdrop.classList.add("hidden");
+                      sound.playClick();
+                  }
+              });
+          });
+  
           this.setupTouchButtons();
       }
   
@@ -4558,10 +4650,9 @@
           }
       }
   
-      // Cube avatar uses Steve's or Alex's head (other presets map to a matching block head)
+      // Always show Steve's head as the cube avatar
       avatarHeadId(user) {
-          if (user.avatarType === "preset" && user.avatarVal) return presetHeadId(user.avatarVal);
-          return user.skinId === "alex" ? "alex" : "steve";
+          return "steve";
       }
   
       updateHomeProfile(user) {
@@ -4672,35 +4763,18 @@
               };
           }
   
-          // Avatar Picker
+          // Avatar Picker - Always Steve's Head
           const avatarPickerContainer = document.getElementById("avatar-picker-grid");
           if (avatarPickerContainer) {
-              avatarPickerContainer.innerHTML = "";
-              if (isGoogle && user.avatarUrl) {
-                  const googleAvatarEl = document.createElement("div");
-                  googleAvatarEl.className = `avatar-choice ${user.avatarType === 'url' ? 'selected' : ''}`;
-                  googleAvatarEl.innerHTML = `<img src="${user.avatarUrl}" alt="Google Avatar">`;
-                  googleAvatarEl.addEventListener("click", () => {
-                      auth.setAvatar("url", null, user.avatarUrl);
-                      sound.playClick();
-                      this.renderAuthModalContent();
-                  });
-                  avatarPickerContainer.appendChild(googleAvatarEl);
-              }
-  
-              AVATAR_PRESETS.forEach((preset) => {
-                  const isSelected = (user.avatarType === 'preset' && user.avatarVal === preset.id);
-                  const el = document.createElement("div");
-                  el.className = `avatar-choice ${isSelected ? 'selected' : ''}`;
-                                  el.innerHTML = headImgHTML(presetHeadId(preset.id), 40);
-                  el.title = preset.name;
-                  el.addEventListener("click", () => {
-                      auth.setAvatar("preset", preset.id);
-                      sound.playClick();
-                      this.renderAuthModalContent();
-                  });
-                  avatarPickerContainer.appendChild(el);
-              });
+              avatarPickerContainer.innerHTML = `
+                  <div class="avatar-choice selected" style="cursor:default;" title="Minecraft Steve">
+                      ${cubeHTML("steve", 48)}
+                  </div>
+                  <div style="display:flex; flex-direction:column; justify-content:center; margin-left:10px;">
+                      <span style="font-weight:bold; color:var(--text-primary); font-size:14px;">Steve's Cube Head</span>
+                      <span style="font-size:12px; color:var(--text-muted);">Hero Avatar</span>
+                  </div>
+              `;
           }
   
           // Career Stats
@@ -4826,18 +4900,216 @@
       }
   
       // ==========================================
-      // MINECRAFT ARMORY & WEAPON UPGRADES
+      // UNIFIED MINECRAFT INVENTORY, CRAFTING, ARMORY & SKINS
       // ==========================================
   
-      setupArmoryUI() {
-          // Will be rendered on opening
+      setupInventoryUI() {
+          this.tabWeapons = document.getElementById("tab-inv-weapons");
+          this.tabCraft = document.getElementById("tab-inv-craft");
+          this.tabSkins = document.getElementById("tab-inv-skins");
+  
+          this.panelWeapons = document.getElementById("inv-panel-weapons");
+          this.panelCraft = document.getElementById("inv-panel-craft");
+          this.panelSkins = document.getElementById("inv-panel-skins");
+  
+          this.tabWeapons?.addEventListener("click", () => this.switchInventoryTab("weapons"));
+          this.tabCraft?.addEventListener("click", () => this.switchInventoryTab("craft"));
+          this.tabSkins?.addEventListener("click", () => this.switchInventoryTab("skins"));
+      }
+  
+      setupArmoryUI() {}
+      setupSkinsUI() {}
+  
+      switchInventoryTab(tab) {
+          [this.tabWeapons, this.tabCraft, this.tabSkins].forEach(t => t?.classList.remove("active"));
+          [this.panelWeapons, this.panelCraft, this.panelSkins].forEach(p => p?.classList.add("hidden"));
+  
+          if (tab === "craft") {
+              this.tabCraft?.classList.add("active");
+              this.panelCraft?.classList.remove("hidden");
+              this.renderCraftingTabContent();
+          } else if (tab === "skins") {
+              this.tabSkins?.classList.add("active");
+              this.panelSkins?.classList.remove("hidden");
+              this.renderSkinsModalContent();
+          } else {
+              this.tabWeapons?.classList.add("active");
+              this.panelWeapons?.classList.remove("hidden");
+              this.renderHotbarSlots();
+              this.renderWeaponsModalContent();
+          }
+          sound.playClick();
+      }
+  
+      openInventoryModal(tab = "weapons") {
+          if (!this.inventoryModal) return;
+          this.inventoryModal.classList.remove("hidden");
+          this.switchInventoryTab(tab);
+      }
+  
+      toggleInventoryModal() {
+          if (!this.inventoryModal) return;
+          if (this.inventoryModal.classList.contains("hidden")) {
+              this.openInventoryModal("weapons");
+          } else {
+              this.inventoryModal.classList.add("hidden");
+              sound.playClick();
+          }
       }
   
       openWeaponsModal() {
-          if (!this.weaponsModal) return;
-          this.renderWeaponsModalContent();
-          this.weaponsModal.classList.remove("hidden");
-          sound.playClick();
+          this.openInventoryModal("weapons");
+      }
+  
+      openSkinsModal() {
+          this.openInventoryModal("skins");
+      }
+  
+      // Minecraft Hotbar & Blank Inventory Slots
+      renderHotbarSlots() {
+          const container = document.getElementById("mc-hotbar-slots");
+          if (!container) return;
+          container.innerHTML = "";
+  
+          const user = auth.getUser();
+          const unlocked = user.unlockedWeapons || ["mace", "spear"];
+          const equipped = user.equippedWeapon || "mace";
+  
+          // Render 9 slots (Minecraft standard hotbar)
+          for (let i = 0; i < 9; i++) {
+              const slot = document.createElement("div");
+              slot.className = "mc-slot";
+              const weaponId = unlocked[i];
+  
+              if (weaponId && WEAPON_TYPES[weaponId]) {
+                  const w = WEAPON_TYPES[weaponId];
+                  if (weaponId === equipped) {
+                      slot.classList.add("active");
+                  }
+                  slot.title = `${w.name} (${weaponId === equipped ? 'Equipped' : 'Click to Equip'})`;
+                  slot.innerHTML = `
+                      ${weaponIconHTML(weaponId, 28)}
+                      <span class="mc-slot-num">${i + 1}</span>
+                  `;
+                  slot.addEventListener("click", () => {
+                      auth.equipWeapon(weaponId);
+                      sound.playClick();
+                      this.renderHotbarSlots();
+                      this.renderWeaponsModalContent();
+                  });
+              } else {
+                  slot.classList.add("empty");
+                  slot.title = `Blank Inventory Slot ${i + 1}`;
+                  slot.innerHTML = `<span class="mc-slot-num" style="opacity:0.35;">${i + 1}</span>`;
+              }
+              container.appendChild(slot);
+          }
+      }
+  
+      // Minecraft 3x3 Crafting Table & Enchanting Station
+      renderCraftingTabContent() {
+          const user = auth.getUser();
+          const equipped = user.equippedWeapon || "mace";
+          const w = WEAPON_TYPES[equipped] || WEAPON_TYPES.mace;
+  
+          // Center slot holds the equipped weapon
+          const centerSlot = document.getElementById("craft-center-slot");
+          if (centerSlot) {
+              centerSlot.innerHTML = `${weaponIconHTML(equipped, 32)}`;
+              centerSlot.title = `Current Weapon: ${w.name}`;
+          }
+  
+          // Result slot holds the upgraded / enchanted result
+          const resultSlot = document.getElementById("craft-result-slot");
+          if (resultSlot) {
+              resultSlot.innerHTML = `
+                  <div style="position:relative; display:flex; align-items:center; justify-content:center; width:100%; height:100%;">
+                      ${weaponIconHTML(equipped, 40)}
+                      <span style="position:absolute; bottom:2px; right:3px; font-size:10px; color:#55ff55; font-weight:bold; text-shadow:1px 1px 0 #000;">ENCH</span>
+                  </div>
+              `;
+              resultSlot.title = `Enchanted ${w.name}`;
+          }
+  
+          // Populate surrounding crafting slots with authentic Minecraft ingredients
+          const craftSlots = document.querySelectorAll(".crafting-3x3 .c-slot:not(.c-slot-center)");
+          const ingredients = ["Lapis", "Breeze", "Amethyst", "Diamond", "Gold", "Obsidian", "Netherite", "Emerald"];
+          craftSlots.forEach((slot, idx) => {
+              if (!slot.innerHTML) {
+                  const ingName = ingredients[idx % ingredients.length];
+                  slot.title = `Crafting Catalyst: ${ingName}`;
+                  slot.innerHTML = `<span style="font-size:9px; color:#aaa; font-family:var(--font-pixel); text-shadow:1px 1px 0 #000;">${ingName[0]}</span>`;
+              }
+          });
+  
+          // Populate Enchantment Upgrades for the equipped weapon
+          const container = document.getElementById("crafting-upgrades-container");
+          if (!container) return;
+          container.innerHTML = "";
+  
+          const gold = user.gold || 0;
+  
+          const infoCard = document.createElement("div");
+          infoCard.className = "weapon-shop-card equipped";
+          infoCard.innerHTML = `
+              <div class="weapon-shop-header">
+                  <div class="ws-left">
+                      <span class="ws-icon">${weaponIconHTML(w.id, 32)}</span>
+                      <div>
+                          <div class="ws-title">${w.name} (Active in Crafting Grid)</div>
+                          <div class="ws-cat">Tier Upgrades & Enchantments Table</div>
+                      </div>
+                  </div>
+                  <div class="ws-right">
+                      <span class="badge-equipped">IN CRAFTING BENCH</span>
+                  </div>
+              </div>
+              <div class="ws-desc">Select enchantments below to upgrade damage, wind propulsion and knockback for this weapon using Gold.</div>
+          `;
+          container.appendChild(infoCard);
+  
+          if (w.upgrades && w.upgrades.length > 0) {
+              w.upgrades.forEach(u => {
+                  const curLvl = user.weaponUpgrades[u.id] || 0;
+                  const isMax = curLvl >= u.maxLevel;
+                  const cost = u.costPerLevel * (curLvl + 1);
+  
+                  const upgCard = document.createElement("div");
+                  upgCard.className = "weapon-shop-card";
+                  upgCard.innerHTML = `
+                      <div class="weapon-shop-header">
+                          <div class="ws-left">
+                              <div>
+                                  <div class="ws-title" style="color:#55ff55;">${u.name}</div>
+                                  <div class="ws-cat">Tier ${curLvl}/${u.maxLevel}</div>
+                              </div>
+                          </div>
+                          <div class="ws-right">
+                              ${isMax ? 
+                                  `<span class="badge-max">MAX ENCHANTED</span>` : 
+                                  `<button class="btn-ctrl btn-craft-upgrade" data-upg="${u.id}" data-cost="${cost}" ${gold < cost ? 'disabled' : ''}>
+                                      Enchant (${cost} G)
+                                  </button>`
+                              }
+                          </div>
+                      </div>
+                      <div class="ws-desc">${u.desc}</div>
+                  `;
+                  container.appendChild(upgCard);
+              });
+  
+              container.querySelectorAll(".btn-craft-upgrade").forEach(btn => {
+                  btn.onclick = () => {
+                      const res = auth.upgradeWeapon(btn.dataset.upg, parseInt(btn.dataset.cost));
+                      if (res.success) {
+                          sound.playWin();
+                          this.renderCraftingTabContent();
+                      } else {
+                          alert(res.error);
+                      }
+                  };
+              });
+          }
       }
   
       renderWeaponsModalContent() {
@@ -4855,37 +5127,6 @@
   
               const card = document.createElement("div");
               card.className = `weapon-shop-card ${isEquipped ? 'equipped' : ''}`;
-  
-              let upgradesHtml = "";
-              if (w.upgrades && w.upgrades.length > 0) {
-                  upgradesHtml = `
-                      <div class="weapon-upgrades-section">
-                          <div class="wu-header">Minecraft Enchantments</div>
-                          <div class="wu-list">
-                              ${w.upgrades.map(u => {
-                                  const curLvl = user.weaponUpgrades[u.id] || 0;
-                                  const isMax = curLvl >= u.maxLevel;
-                                  const cost = u.costPerLevel * (curLvl + 1);
-                                  return `
-                                      <div class="wu-row">
-                                          <div>
-                                              <span class="wu-name">${u.name}</span>
-                                              <span class="wu-level">Tier ${curLvl}/${u.maxLevel}</span>
-                                              <div class="wu-desc">${u.desc}</div>
-                                          </div>
-                                          ${isMax ? 
-                                              `<span class="badge-max">MAX</span>` : 
-                                              `<button class="btn-ctrl btn-upgrade-weap" data-upg="${u.id}" data-cost="${cost}" ${(!isUnlocked || gold < cost) ? 'disabled' : ''}>
-                                                  Upgrade (${cost} G)
-                                              </button>`
-                                          }
-                                      </div>
-                                  `;
-                              }).join("")}
-                          </div>
-                      </div>
-                  `;
-              }
   
               card.innerHTML = `
                   <div class="weapon-shop-header">
@@ -4915,17 +5156,17 @@
                       <span>Recovery: <b>${w.stats.attackCooldown}f</b></span>
                       ${w.stats.arrowDamage ? `<span>Arrow DMG: <b>${w.stats.arrowDamage}</b></span>` : ''}
                   </div>
-                  ${upgradesHtml}
               `;
   
               container.appendChild(card);
           });
   
-          // Attach Equip / Unlock / Upgrade handlers
+          // Attach Equip / Unlock handlers
           container.querySelectorAll(".btn-equip-weap").forEach(btn => {
               btn.onclick = () => {
                   auth.equipWeapon(btn.dataset.id);
                   sound.playClick();
+                  this.renderHotbarSlots();
                   this.renderWeaponsModalContent();
               };
           });
@@ -4935,39 +5176,13 @@
                   const res = auth.unlockWeapon(btn.dataset.id, parseInt(btn.dataset.cost));
                   if (res.success) {
                       sound.playWin();
+                      this.renderHotbarSlots();
                       this.renderWeaponsModalContent();
                   } else {
                       alert(res.error);
                   }
               };
           });
-  
-          container.querySelectorAll(".btn-upgrade-weap").forEach(btn => {
-              btn.onclick = () => {
-                  const res = auth.upgradeWeapon(btn.dataset.upg, parseInt(btn.dataset.cost));
-                  if (res.success) {
-                      sound.playClick();
-                      this.renderWeaponsModalContent();
-                  } else {
-                      alert(res.error);
-                  }
-              };
-          });
-      }
-  
-      // ==========================================
-      // BLOCK FACES & SKINS SHOP
-      // ==========================================
-  
-      setupSkinsUI() {
-          // Will render on open
-      }
-  
-      openSkinsModal() {
-          if (!this.skinsModal) return;
-          this.renderSkinsModalContent();
-          this.skinsModal.classList.remove("hidden");
-          sound.playClick();
       }
   
       renderSkinsModalContent() {

@@ -37,73 +37,143 @@ export class Renderer {
         this.ctx.scale(this.dpr, this.dpr);
     }
 
-    setStyle(style) {
-        this.graphicStyle = style;
+    setBiome(biome) {
+        this.biome = biome || "overworld";
     }
 
     drawBackground() {
         const ctx = this.ctx;
         this.frameCount++;
+        const biome = this.biome || "overworld";
 
-        if (this.graphicStyle === "classic") {
-            ctx.fillStyle = "rgb(135, 206, 235)";
+        if (biome === "nether") {
+            // Nether: Deep crimson-orange fog and netherrack peaks
+            ctx.fillStyle = "#330808";
             ctx.fillRect(0, 0, this.width, this.height);
-            return;
-        }
 
-        // Flat Minecraft sky (no gradient)
-        ctx.fillStyle = "#79a6ff";
-        ctx.fillRect(0, 0, this.width, this.height);
+            // Lava river glow at horizon
+            ctx.fillStyle = "#cf4417";
+            ctx.fillRect(0, 310, this.width, this.height - 310);
 
-        // Blocky distant hills (stepped, flat colors)
-        ctx.fillStyle = "#5f8f4f";
-        const hills = [[0, 320], [80, 296], [160, 272], [240, 296], [320, 320], [400, 296], [480, 264], [560, 288], [640, 312], [720, 288]];
-        for (const [hx, hy] of hills) {
-            ctx.fillRect(hx, hy, 80, this.height - hy);
-        }
+            // Netherrack pillars & jagged stalagmites
+            ctx.fillStyle = "#5c1818";
+            const pillars = [[0, 260], [100, 220], [220, 270], [340, 230], [460, 280], [580, 210], [700, 250]];
+            for (const [px, py] of pillars) {
+                ctx.fillRect(px, py, 90, this.height - py);
+            }
 
-        // Drifting blocky clouds
-        ctx.fillStyle = "#ffffff";
-        for (const cloud of this.clouds) {
-            cloud.x += cloud.speed;
-            if (cloud.x > this.width + 100) cloud.x = -150;
+            // Floating ash particles
+            ctx.fillStyle = "#ff7b25";
+            for (let i = 0; i < 15; i++) {
+                const ax = (Math.sin(this.frameCount * 0.02 + i * 1.5) * 400 + 400 + i * 27) % this.width;
+                const ay = (this.frameCount * 0.4 + i * 31) % 360;
+                ctx.fillRect(ax, ay, 3, 3);
+            }
+        } else if (biome === "end") {
+            // The End: Void darkness with obsidian pillars
+            ctx.fillStyle = "#0c0714";
+            ctx.fillRect(0, 0, this.width, this.height);
 
-            const cx = Math.round(cloud.x / 8) * 8;
-            const cy = Math.round(cloud.y / 8) * 8;
-            ctx.fillRect(cx, cy, cloud.w, 16);
-            ctx.fillRect(cx + 16, cy - 8, Math.round(cloud.w * 0.6 / 8) * 8, 8);
-            ctx.fillStyle = "#dfe9ff";
-            ctx.fillRect(cx, cy + 16, cloud.w, 4);
+            // Distant purple void clouds
+            ctx.fillStyle = "#221338";
+            ctx.fillRect(0, 280, this.width, this.height - 280);
+
+            // Tall Obsidian Spikes
+            ctx.fillStyle = "#15151e";
+            ctx.fillRect(80, 140, 50, 250);
+            ctx.fillRect(320, 90, 60, 300);
+            ctx.fillRect(600, 160, 55, 230);
+
+            // Ender crystal glow at top of middle pillar
+            const glow = (Math.sin(this.frameCount * 0.1) > 0) ? "#e066ff" : "#b030d0";
+            ctx.fillStyle = glow;
+            ctx.fillRect(342, 75, 16, 15);
+        } else {
+            // Overworld: Flat Minecraft sky (no gradient)
+            ctx.fillStyle = "#79a6ff";
+            ctx.fillRect(0, 0, this.width, this.height);
+
+            // Blocky distant hills (stepped, flat colors)
+            ctx.fillStyle = "#5f8f4f";
+            const hills = [[0, 320], [80, 296], [160, 272], [240, 296], [320, 320], [400, 296], [480, 264], [560, 288], [640, 312], [720, 288]];
+            for (const [hx, hy] of hills) {
+                ctx.fillRect(hx, hy, 80, this.height - hy);
+            }
+
+            // Drifting blocky clouds
             ctx.fillStyle = "#ffffff";
+            for (const cloud of this.clouds) {
+                cloud.x += cloud.speed;
+                if (cloud.x > this.width + 100) cloud.x = -150;
+
+                const cx = Math.round(cloud.x / 8) * 8;
+                const cy = Math.round(cloud.y / 8) * 8;
+                ctx.fillRect(cx, cy, cloud.w, 16);
+                ctx.fillRect(cx + 16, cy - 8, Math.round(cloud.w * 0.6 / 8) * 8, 8);
+                ctx.fillStyle = "#dfe9ff";
+                ctx.fillRect(cx, cy + 16, cloud.w, 4);
+                ctx.fillStyle = "#ffffff";
+            }
         }
     }
 
     drawPlatforms() {
         const ctx = this.ctx;
+        const biome = this.biome || "overworld";
 
         for (const p of PLATFORMS_CONFIG) {
-            if (this.graphicStyle === "classic") {
-                ctx.fillStyle = "rgb(70, 70, 70)";
+            if (biome === "nether") {
+                // Netherrack platform with red nether brick
+                ctx.fillStyle = "#632222";
                 ctx.fillRect(p.x, p.y, p.w, p.h);
-                continue;
-            }
+                ctx.fillStyle = "#4a1414";
+                for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                    ctx.fillRect(bx, p.y, 2, p.h);
+                }
+                ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
 
-            // Stone block platform with pixel brick lines
-            ctx.fillStyle = "#7d7d7d";
-            ctx.fillRect(p.x, p.y, p.w, p.h);
-            ctx.fillStyle = "#5f5f5f";
-            for (let bx = p.x; bx < p.x + p.w; bx += 16) {
-                ctx.fillRect(bx, p.y, 2, p.h);
-            }
-            ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
-            if (p.h > 12) ctx.fillRect(p.x, p.y + Math.floor(p.h / 2), p.w, 2);
+                // Crimson nylium top fringe
+                ctx.fillStyle = "#9e1b2f";
+                ctx.fillRect(p.x, p.y, p.w, 6);
+                ctx.fillStyle = "#731120";
+                for (let gx = p.x; gx < p.x + p.w; gx += 8) {
+                    ctx.fillRect(gx, p.y + 6, 4, 3);
+                }
+            } else if (biome === "end") {
+                // End stone platform with purpur/obsidian trim
+                ctx.fillStyle = "#dfddaa";
+                ctx.fillRect(p.x, p.y, p.w, p.h);
+                ctx.fillStyle = "#b5b279";
+                for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                    ctx.fillRect(bx, p.y, 2, p.h);
+                }
+                ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
 
-            // Grass top (ground) or lighter stone cap (floating)
-            ctx.fillStyle = p.y >= 380 ? "#5da83e" : "#a4a4a4";
-            ctx.fillRect(p.x, p.y, p.w, 6);
-            ctx.fillStyle = p.y >= 380 ? "#3f7d2a" : "#808080";
-            for (let gx = p.x; gx < p.x + p.w; gx += 8) {
-                ctx.fillRect(gx, p.y + 6, 4, 2);
+                // Purpur top cap
+                ctx.fillStyle = "#995a94";
+                ctx.fillRect(p.x, p.y, p.w, 5);
+                ctx.fillStyle = "#6d3b6a";
+                for (let gx = p.x; gx < p.x + p.w; gx += 8) {
+                    ctx.fillRect(gx, p.y + 5, 4, 2);
+                }
+            } else {
+                // Overworld: Stone block platform with grass top
+                ctx.fillStyle = "#7d7d7d";
+                ctx.fillRect(p.x, p.y, p.w, p.h);
+                ctx.fillStyle = "#5f5f5f";
+                for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                    ctx.fillRect(bx, p.y, 2, p.h);
+                }
+                ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
+                if (p.h > 12) ctx.fillRect(p.x, p.y + Math.floor(p.h / 2), p.w, 2);
+
+                // Grass top (ground) or stone cap (floating)
+                ctx.fillStyle = p.y >= 380 ? "#5da83e" : "#a4a4a4";
+                ctx.fillRect(p.x, p.y, p.w, 6);
+                ctx.fillStyle = p.y >= 380 ? "#3f7d2a" : "#808080";
+                for (let gx = p.x; gx < p.x + p.w; gx += 8) {
+                    ctx.fillRect(gx, p.y + 6, 4, 2);
+                }
             }
         }
     }
@@ -404,28 +474,6 @@ export class Renderer {
         ctx.translate(centerX, centerY);
         ctx.scale(f.squashX || 1.0, f.squashY || 1.0);
         ctx.translate(-centerX, -centerY);
-
-        if (this.graphicStyle === "classic") {
-            ctx.fillStyle = f.isPlayer ? "rgb(0, 255, 0)" : `rgb(${fallbackColor[0]}, ${fallbackColor[1]}, ${fallbackColor[2]})`;
-            ctx.fillRect(f.x, f.y, f.w, f.h);
-            if (f.slamming) {
-                ctx.strokeStyle = "rgb(255, 150, 0)";
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, 17.5, 0, Math.PI * 2);
-                ctx.stroke();
-            }
-            ctx.restore();
-            return;
-        }
-
-        // Shadow on ground
-        if (f.onGround) {
-            ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
-            ctx.beginPath();
-            ctx.ellipse(centerX, f.y + f.h + 1, f.w * 0.6, 3, 0, 0, Math.PI * 2);
-            ctx.fill();
-        }
 
         // Draw weapon
         this.drawWeapons(f, 1.0);

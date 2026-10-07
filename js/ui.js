@@ -63,6 +63,7 @@ export class UIManager {
         this.setupEventListeners();
         this.setupCustomBotForm();
         this.setupAuthUI();
+        this.setupInventoryUI();
         this.setupArmoryUI();
         this.setupSkinsUI();
         this.setupArenaUI();
@@ -178,29 +179,44 @@ export class UIManager {
             this.updateMuteButton(sound.muted);
         }
 
-        // Graphic style toggle
-        if (this.styleBtn) {
-            this.styleBtn.addEventListener("click", () => {
-                const current = this.game.renderer.graphicStyle;
-                const next = current === "enhanced" ? "classic" : "enhanced";
-                this.game.renderer.setStyle(next);
-                this.styleBtn.textContent = next === "enhanced" ? "Style: Enhanced" : "Style: Classic";
+        // Theme / Biome Toggle (Overworld -> Nether -> End)
+        this.themeBtn = document.getElementById("btn-theme");
+        this.currentBiome = "overworld";
+        if (this.themeBtn) {
+            this.themeBtn.addEventListener("click", () => {
+                const biomes = ["overworld", "nether", "end"];
+                const nextIdx = (biomes.indexOf(this.currentBiome) + 1) % biomes.length;
+                this.currentBiome = biomes[nextIdx];
+                const capitalized = this.currentBiome.charAt(0).toUpperCase() + this.currentBiome.slice(1);
+                this.themeBtn.textContent = `Theme: ${capitalized}`;
+                this.game.renderer.setBiome(this.currentBiome);
                 sound.playClick();
             });
         }
+
+        // Inventory [i] triggers & shortcut
+        this.inventoryBtn = document.getElementById("btn-inventory");
+        this.homeInventoryBtn = document.getElementById("btn-home-inventory");
+        this.inventoryModal = document.getElementById("inventory-modal");
+
+        if (this.inventoryBtn) this.inventoryBtn.addEventListener("click", () => this.openInventoryModal());
+        if (this.homeInventoryBtn) this.homeInventoryBtn.addEventListener("click", () => this.openInventoryModal());
+
+        window.addEventListener("keydown", (e) => {
+            if (e.key === "i" || e.key === "I") {
+                const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : "";
+                if (activeTag !== "input" && activeTag !== "textarea") {
+                    this.toggleInventoryModal();
+                }
+            }
+        });
 
         // Navigation buttons
         if (this.homeBtn) this.homeBtn.addEventListener("click", () => this.game.goHome());
         if (this.restartBtn) this.restartBtn.addEventListener("click", () => this.game.restartMatch());
         if (this.pauseBtn) this.pauseBtn.addEventListener("click", () => this.game.togglePause());
-        if (this.statsBtn) this.statsBtn.addEventListener("click", () => this.openStatsModal());
         if (this.userProfileBtn) this.userProfileBtn.addEventListener("click", () => this.openAuthModal());
         if (this.downloadBtn) this.downloadBtn.addEventListener("click", () => this.downloadGame());
-
-        // Header Action buttons
-        if (this.armoryBtn) this.armoryBtn.addEventListener("click", () => this.openWeaponsModal());
-        if (this.skinsBtn) this.skinsBtn.addEventListener("click", () => this.openSkinsModal());
-        if (this.arenaBtn) this.arenaBtn.addEventListener("click", () => this.openArenaModal());
         if (this.leaderboardBtn) this.leaderboardBtn.addEventListener("click", () => this.openLeaderboardModal());
 
         // Home screen arena banner
@@ -233,6 +249,16 @@ export class UIManager {
             });
         });
 
+        // Automatically close ANY opened modal when clicking outside the window (on backdrop)
+        document.querySelectorAll(".modal-backdrop").forEach((backdrop) => {
+            backdrop.addEventListener("click", (e) => {
+                if (e.target === backdrop || !e.target.closest(".modal-card")) {
+                    backdrop.classList.add("hidden");
+                    sound.playClick();
+                }
+            });
+        });
+
         this.setupTouchButtons();
     }
 
@@ -260,10 +286,9 @@ export class UIManager {
         }
     }
 
-    // Cube avatar uses Steve's or Alex's head (other presets map to a matching block head)
+    // Always show Steve's head as the cube avatar
     avatarHeadId(user) {
-        if (user.avatarType === "preset" && user.avatarVal) return presetHeadId(user.avatarVal);
-        return user.skinId === "alex" ? "alex" : "steve";
+        return "steve";
     }
 
     updateHomeProfile(user) {
@@ -374,35 +399,18 @@ export class UIManager {
             };
         }
 
-        // Avatar Picker
+        // Avatar Picker - Always Steve's Head
         const avatarPickerContainer = document.getElementById("avatar-picker-grid");
         if (avatarPickerContainer) {
-            avatarPickerContainer.innerHTML = "";
-            if (isGoogle && user.avatarUrl) {
-                const googleAvatarEl = document.createElement("div");
-                googleAvatarEl.className = `avatar-choice ${user.avatarType === 'url' ? 'selected' : ''}`;
-                googleAvatarEl.innerHTML = `<img src="${user.avatarUrl}" alt="Google Avatar">`;
-                googleAvatarEl.addEventListener("click", () => {
-                    auth.setAvatar("url", null, user.avatarUrl);
-                    sound.playClick();
-                    this.renderAuthModalContent();
-                });
-                avatarPickerContainer.appendChild(googleAvatarEl);
-            }
-
-            AVATAR_PRESETS.forEach((preset) => {
-                const isSelected = (user.avatarType === 'preset' && user.avatarVal === preset.id);
-                const el = document.createElement("div");
-                el.className = `avatar-choice ${isSelected ? 'selected' : ''}`;
-                                el.innerHTML = headImgHTML(presetHeadId(preset.id), 40);
-                el.title = preset.name;
-                el.addEventListener("click", () => {
-                    auth.setAvatar("preset", preset.id);
-                    sound.playClick();
-                    this.renderAuthModalContent();
-                });
-                avatarPickerContainer.appendChild(el);
-            });
+            avatarPickerContainer.innerHTML = `
+                <div class="avatar-choice selected" style="cursor:default;" title="Minecraft Steve">
+                    ${cubeHTML("steve", 48)}
+                </div>
+                <div style="display:flex; flex-direction:column; justify-content:center; margin-left:10px;">
+                    <span style="font-weight:bold; color:var(--text-primary); font-size:14px;">Steve's Cube Head</span>
+                    <span style="font-size:12px; color:var(--text-muted);">Hero Avatar</span>
+                </div>
+            `;
         }
 
         // Career Stats
@@ -528,18 +536,216 @@ export class UIManager {
     }
 
     // ==========================================
-    // MINECRAFT ARMORY & WEAPON UPGRADES
+    // UNIFIED MINECRAFT INVENTORY, CRAFTING, ARMORY & SKINS
     // ==========================================
 
-    setupArmoryUI() {
-        // Will be rendered on opening
+    setupInventoryUI() {
+        this.tabWeapons = document.getElementById("tab-inv-weapons");
+        this.tabCraft = document.getElementById("tab-inv-craft");
+        this.tabSkins = document.getElementById("tab-inv-skins");
+
+        this.panelWeapons = document.getElementById("inv-panel-weapons");
+        this.panelCraft = document.getElementById("inv-panel-craft");
+        this.panelSkins = document.getElementById("inv-panel-skins");
+
+        this.tabWeapons?.addEventListener("click", () => this.switchInventoryTab("weapons"));
+        this.tabCraft?.addEventListener("click", () => this.switchInventoryTab("craft"));
+        this.tabSkins?.addEventListener("click", () => this.switchInventoryTab("skins"));
+    }
+
+    setupArmoryUI() {}
+    setupSkinsUI() {}
+
+    switchInventoryTab(tab) {
+        [this.tabWeapons, this.tabCraft, this.tabSkins].forEach(t => t?.classList.remove("active"));
+        [this.panelWeapons, this.panelCraft, this.panelSkins].forEach(p => p?.classList.add("hidden"));
+
+        if (tab === "craft") {
+            this.tabCraft?.classList.add("active");
+            this.panelCraft?.classList.remove("hidden");
+            this.renderCraftingTabContent();
+        } else if (tab === "skins") {
+            this.tabSkins?.classList.add("active");
+            this.panelSkins?.classList.remove("hidden");
+            this.renderSkinsModalContent();
+        } else {
+            this.tabWeapons?.classList.add("active");
+            this.panelWeapons?.classList.remove("hidden");
+            this.renderHotbarSlots();
+            this.renderWeaponsModalContent();
+        }
+        sound.playClick();
+    }
+
+    openInventoryModal(tab = "weapons") {
+        if (!this.inventoryModal) return;
+        this.inventoryModal.classList.remove("hidden");
+        this.switchInventoryTab(tab);
+    }
+
+    toggleInventoryModal() {
+        if (!this.inventoryModal) return;
+        if (this.inventoryModal.classList.contains("hidden")) {
+            this.openInventoryModal("weapons");
+        } else {
+            this.inventoryModal.classList.add("hidden");
+            sound.playClick();
+        }
     }
 
     openWeaponsModal() {
-        if (!this.weaponsModal) return;
-        this.renderWeaponsModalContent();
-        this.weaponsModal.classList.remove("hidden");
-        sound.playClick();
+        this.openInventoryModal("weapons");
+    }
+
+    openSkinsModal() {
+        this.openInventoryModal("skins");
+    }
+
+    // Minecraft Hotbar & Blank Inventory Slots
+    renderHotbarSlots() {
+        const container = document.getElementById("mc-hotbar-slots");
+        if (!container) return;
+        container.innerHTML = "";
+
+        const user = auth.getUser();
+        const unlocked = user.unlockedWeapons || ["mace", "spear"];
+        const equipped = user.equippedWeapon || "mace";
+
+        // Render 9 slots (Minecraft standard hotbar)
+        for (let i = 0; i < 9; i++) {
+            const slot = document.createElement("div");
+            slot.className = "mc-slot";
+            const weaponId = unlocked[i];
+
+            if (weaponId && WEAPON_TYPES[weaponId]) {
+                const w = WEAPON_TYPES[weaponId];
+                if (weaponId === equipped) {
+                    slot.classList.add("active");
+                }
+                slot.title = `${w.name} (${weaponId === equipped ? 'Equipped' : 'Click to Equip'})`;
+                slot.innerHTML = `
+                    ${weaponIconHTML(weaponId, 28)}
+                    <span class="mc-slot-num">${i + 1}</span>
+                `;
+                slot.addEventListener("click", () => {
+                    auth.equipWeapon(weaponId);
+                    sound.playClick();
+                    this.renderHotbarSlots();
+                    this.renderWeaponsModalContent();
+                });
+            } else {
+                slot.classList.add("empty");
+                slot.title = `Blank Inventory Slot ${i + 1}`;
+                slot.innerHTML = `<span class="mc-slot-num" style="opacity:0.35;">${i + 1}</span>`;
+            }
+            container.appendChild(slot);
+        }
+    }
+
+    // Minecraft 3x3 Crafting Table & Enchanting Station
+    renderCraftingTabContent() {
+        const user = auth.getUser();
+        const equipped = user.equippedWeapon || "mace";
+        const w = WEAPON_TYPES[equipped] || WEAPON_TYPES.mace;
+
+        // Center slot holds the equipped weapon
+        const centerSlot = document.getElementById("craft-center-slot");
+        if (centerSlot) {
+            centerSlot.innerHTML = `${weaponIconHTML(equipped, 32)}`;
+            centerSlot.title = `Current Weapon: ${w.name}`;
+        }
+
+        // Result slot holds the upgraded / enchanted result
+        const resultSlot = document.getElementById("craft-result-slot");
+        if (resultSlot) {
+            resultSlot.innerHTML = `
+                <div style="position:relative; display:flex; align-items:center; justify-content:center; width:100%; height:100%;">
+                    ${weaponIconHTML(equipped, 40)}
+                    <span style="position:absolute; bottom:2px; right:3px; font-size:10px; color:#55ff55; font-weight:bold; text-shadow:1px 1px 0 #000;">ENCH</span>
+                </div>
+            `;
+            resultSlot.title = `Enchanted ${w.name}`;
+        }
+
+        // Populate surrounding crafting slots with authentic Minecraft ingredients
+        const craftSlots = document.querySelectorAll(".crafting-3x3 .c-slot:not(.c-slot-center)");
+        const ingredients = ["Lapis", "Breeze", "Amethyst", "Diamond", "Gold", "Obsidian", "Netherite", "Emerald"];
+        craftSlots.forEach((slot, idx) => {
+            if (!slot.innerHTML) {
+                const ingName = ingredients[idx % ingredients.length];
+                slot.title = `Crafting Catalyst: ${ingName}`;
+                slot.innerHTML = `<span style="font-size:9px; color:#aaa; font-family:var(--font-pixel); text-shadow:1px 1px 0 #000;">${ingName[0]}</span>`;
+            }
+        });
+
+        // Populate Enchantment Upgrades for the equipped weapon
+        const container = document.getElementById("crafting-upgrades-container");
+        if (!container) return;
+        container.innerHTML = "";
+
+        const gold = user.gold || 0;
+
+        const infoCard = document.createElement("div");
+        infoCard.className = "weapon-shop-card equipped";
+        infoCard.innerHTML = `
+            <div class="weapon-shop-header">
+                <div class="ws-left">
+                    <span class="ws-icon">${weaponIconHTML(w.id, 32)}</span>
+                    <div>
+                        <div class="ws-title">${w.name} (Active in Crafting Grid)</div>
+                        <div class="ws-cat">Tier Upgrades & Enchantments Table</div>
+                    </div>
+                </div>
+                <div class="ws-right">
+                    <span class="badge-equipped">IN CRAFTING BENCH</span>
+                </div>
+            </div>
+            <div class="ws-desc">Select enchantments below to upgrade damage, wind propulsion and knockback for this weapon using Gold.</div>
+        `;
+        container.appendChild(infoCard);
+
+        if (w.upgrades && w.upgrades.length > 0) {
+            w.upgrades.forEach(u => {
+                const curLvl = user.weaponUpgrades[u.id] || 0;
+                const isMax = curLvl >= u.maxLevel;
+                const cost = u.costPerLevel * (curLvl + 1);
+
+                const upgCard = document.createElement("div");
+                upgCard.className = "weapon-shop-card";
+                upgCard.innerHTML = `
+                    <div class="weapon-shop-header">
+                        <div class="ws-left">
+                            <div>
+                                <div class="ws-title" style="color:#55ff55;">${u.name}</div>
+                                <div class="ws-cat">Tier ${curLvl}/${u.maxLevel}</div>
+                            </div>
+                        </div>
+                        <div class="ws-right">
+                            ${isMax ? 
+                                `<span class="badge-max">MAX ENCHANTED</span>` : 
+                                `<button class="btn-ctrl btn-craft-upgrade" data-upg="${u.id}" data-cost="${cost}" ${gold < cost ? 'disabled' : ''}>
+                                    Enchant (${cost} G)
+                                </button>`
+                            }
+                        </div>
+                    </div>
+                    <div class="ws-desc">${u.desc}</div>
+                `;
+                container.appendChild(upgCard);
+            });
+
+            container.querySelectorAll(".btn-craft-upgrade").forEach(btn => {
+                btn.onclick = () => {
+                    const res = auth.upgradeWeapon(btn.dataset.upg, parseInt(btn.dataset.cost));
+                    if (res.success) {
+                        sound.playWin();
+                        this.renderCraftingTabContent();
+                    } else {
+                        alert(res.error);
+                    }
+                };
+            });
+        }
     }
 
     renderWeaponsModalContent() {
@@ -557,37 +763,6 @@ export class UIManager {
 
             const card = document.createElement("div");
             card.className = `weapon-shop-card ${isEquipped ? 'equipped' : ''}`;
-
-            let upgradesHtml = "";
-            if (w.upgrades && w.upgrades.length > 0) {
-                upgradesHtml = `
-                    <div class="weapon-upgrades-section">
-                        <div class="wu-header">Minecraft Enchantments</div>
-                        <div class="wu-list">
-                            ${w.upgrades.map(u => {
-                                const curLvl = user.weaponUpgrades[u.id] || 0;
-                                const isMax = curLvl >= u.maxLevel;
-                                const cost = u.costPerLevel * (curLvl + 1);
-                                return `
-                                    <div class="wu-row">
-                                        <div>
-                                            <span class="wu-name">${u.name}</span>
-                                            <span class="wu-level">Tier ${curLvl}/${u.maxLevel}</span>
-                                            <div class="wu-desc">${u.desc}</div>
-                                        </div>
-                                        ${isMax ? 
-                                            `<span class="badge-max">MAX</span>` : 
-                                            `<button class="btn-ctrl btn-upgrade-weap" data-upg="${u.id}" data-cost="${cost}" ${(!isUnlocked || gold < cost) ? 'disabled' : ''}>
-                                                Upgrade (${cost} G)
-                                            </button>`
-                                        }
-                                    </div>
-                                `;
-                            }).join("")}
-                        </div>
-                    </div>
-                `;
-            }
 
             card.innerHTML = `
                 <div class="weapon-shop-header">
@@ -617,17 +792,17 @@ export class UIManager {
                     <span>Recovery: <b>${w.stats.attackCooldown}f</b></span>
                     ${w.stats.arrowDamage ? `<span>Arrow DMG: <b>${w.stats.arrowDamage}</b></span>` : ''}
                 </div>
-                ${upgradesHtml}
             `;
 
             container.appendChild(card);
         });
 
-        // Attach Equip / Unlock / Upgrade handlers
+        // Attach Equip / Unlock handlers
         container.querySelectorAll(".btn-equip-weap").forEach(btn => {
             btn.onclick = () => {
                 auth.equipWeapon(btn.dataset.id);
                 sound.playClick();
+                this.renderHotbarSlots();
                 this.renderWeaponsModalContent();
             };
         });
@@ -637,39 +812,13 @@ export class UIManager {
                 const res = auth.unlockWeapon(btn.dataset.id, parseInt(btn.dataset.cost));
                 if (res.success) {
                     sound.playWin();
+                    this.renderHotbarSlots();
                     this.renderWeaponsModalContent();
                 } else {
                     alert(res.error);
                 }
             };
         });
-
-        container.querySelectorAll(".btn-upgrade-weap").forEach(btn => {
-            btn.onclick = () => {
-                const res = auth.upgradeWeapon(btn.dataset.upg, parseInt(btn.dataset.cost));
-                if (res.success) {
-                    sound.playClick();
-                    this.renderWeaponsModalContent();
-                } else {
-                    alert(res.error);
-                }
-            };
-        });
-    }
-
-    // ==========================================
-    // BLOCK FACES & SKINS SHOP
-    // ==========================================
-
-    setupSkinsUI() {
-        // Will render on open
-    }
-
-    openSkinsModal() {
-        if (!this.skinsModal) return;
-        this.renderSkinsModalContent();
-        this.skinsModal.classList.remove("hidden");
-        sound.playClick();
     }
 
     renderSkinsModalContent() {

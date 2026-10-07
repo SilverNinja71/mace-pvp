@@ -283,10 +283,10 @@ export class AuthManager {
             this.user.username = suggested || "GooglePlayer";
         }
 
-        if (picture) {
-            this.user.avatarType = "url";
-            this.user.avatarUrl = picture;
-        }
+        // Always keep Steve's head as avatar
+        this.user.avatarType = "preset";
+        this.user.avatarVal = "steve";
+        this.user.avatarUrl = null;
 
         this.saveUser();
         return this.user;

@@ -29,11 +29,10 @@
             </div>
         </div>
         <div class="top-bar-controls">
-            <button id="btn-armory" class="btn-ctrl" title="Equip & Upgrade Minecraft Weapons">Armory</button>
-            <button id="btn-skins" class="btn-ctrl" title="Minecraft & Roblox Block Face Skins">Skins</button>
+            <!-- Theme Edit Button (Overworld, Nether, End) -->
+            <button id="btn-theme" class="btn-ctrl" title="Cycle Biome Theme (Overworld, Nether, End)">Theme: Overworld</button>
+            <button id="btn-inventory" class="btn-ctrl" title="Minecraft Inventory: Weapons, Crafting & Enchanting">Inventory [i]</button>
             <button id="btn-leaderboard" class="btn-ctrl" title="National Obsidian Leaderboard">Ranked</button>
-            <button id="btn-stats" class="btn-ctrl" title="View Match Statistics">Stats</button>
-            <button id="btn-style" class="btn-ctrl" title="Toggle Graphics Style">Style: Enhanced</button>
             <button id="btn-mute" class="btn-ctrl" title="Toggle Audio">Sound On</button>
             <button id="btn-restart" class="btn-ctrl" title="Restart Match (R)">Restart</button>
             <button id="btn-home" class="btn-ctrl" title="Home Menu (H)">Home</button>
@@ -49,7 +48,7 @@
         <div id="menu-overlay" class="overlay">
             <div class="menu-title-banner">
                 <h1>Spear-Mace PVP</h1>
-                <p>Minecraft Spear &amp; Mace Aerial Combat</p>
+                <p>Minecraft Dungeons Combat</p>
             </div>
 
             <!-- Carousel: use the side arrows to browse every match type -->
@@ -61,23 +60,36 @@
                 <div class="car-viewport">
                     <div id="car-track" class="car-track">
 
-                        <!-- Page 1: Home / Profile -->
+                        <!-- Page 1: Home / Profile & Dungeons Layout -->
                         <section class="car-slide" data-title="Home">
-                            <div id="home-profile-banner" class="home-profile-banner" title="Click to edit Gamer Tag or Sign In with Google">
-                                <div class="hp-left">
-                                    <div id="home-cube" class="home-cube"></div>
-                                    <div>
-                                        <div id="hp-name" class="hp-title">Steve</div>
-                                        <div class="hp-desc">Sign in, set your Gamer Tag and track career stats</div>
+                            <div class="home-dungeons-hub">
+                                <div id="home-profile-banner" class="home-profile-banner" title="Click to view Gamer Profile and Stats">
+                                    <div class="hp-left">
+                                        <div id="home-cube" class="home-cube"></div>
+                                        <div>
+                                            <div id="hp-name" class="hp-title">Steve</div>
+                                            <div class="hp-desc">Hero Profile, Career Records & Google Account</div>
+                                        </div>
                                     </div>
+                                    <button class="hp-btn">Profile</button>
                                 </div>
-                                <button class="hp-btn">Profile</button>
+
+                                <!-- Minecraft Inventory Quick Access Trigger -->
+                                <button id="btn-home-inventory" class="home-inv-trigger" title="Open Minecraft Inventory & Crafting Table">
+                                    <span class="hit-icon">i</span>
+                                    <div class="hit-info">
+                                        <div class="hit-title">INVENTORY & ENCHANTING TABLE</div>
+                                        <div class="hit-desc">Click or press 'I' to equip weapons, upgrade enchantments & choose skins</div>
+                                    </div>
+                                </button>
                             </div>
-                            <p class="car-hint">Use the side arrows to find Bot Battles, Versus matches and the Arena.</p>
+
+                            <p class="car-hint">Use side arrows to browse match modes and the multiplayer arena.</p>
                             <div class="menu-key-guide">
-                                <div><span class="key-pill">WASD</span> or <span class="key-pill">ARROWS</span> Move</div>
+                                <div><span class="key-pill">I</span> Inventory</div>
+                                <div><span class="key-pill">WASD</span> Move</div>
                                 <div><span class="key-pill">UP</span> Jump / Double Jump</div>
-                                <div><span class="key-pill">SPACE</span> Attack / Dash / Shoot</div>
+                                <div><span class="key-pill">SPACE</span> Attack / Dash</div>
                                 <div><span class="key-pill">DOWN</span> / <span class="key-pill">S</span> Mace Slam</div>
                                 <div><span class="key-pill">ESC</span> Pause</div>
                             </div>
@@ -124,30 +136,63 @@
         </div>
 
 
-        <!-- Armory & Weapons Shop Modal -->
-        <div id="weapons-modal" class="modal-backdrop hidden">
-            <div class="modal-card modal-weapons-card">
+        <!-- Unified Minecraft Inventory & Crafting Table Modal -->
+        <div id="inventory-modal" class="modal-backdrop hidden">
+            <div class="modal-card modal-inventory-card">
                 <div class="modal-header">
-                    <h2>Weapons Armory & Enchantments</h2>
+                    <h2>Minecraft Inventory & Crafting</h2>
                     <button class="btn-close-modal">&times;</button>
                 </div>
-                <p class="modal-subtitle">Equip your preferred weapon. Spend Gold earned from defeating bots and arena matches to unlock new weapons and upgrade Minecraft enchantments!</p>
-                <div id="weapons-list-container" class="weapons-list-container">
-                    <!-- Populated by ui.js -->
-                </div>
-            </div>
-        </div>
 
-        <!-- Block Faces & Skins Modal -->
-        <div id="skins-modal" class="modal-backdrop hidden">
-            <div class="modal-card modal-skins-card">
-                <div class="modal-header">
-                    <h2>Block Face Skins Shop</h2>
-                    <button class="btn-close-modal">&times;</button>
+                <!-- Tab navigation: Inventory Slots / Enchanting Table / Skins Wardrobe -->
+                <div class="mc-inv-tabs">
+                    <button id="tab-inv-weapons" class="mc-inv-tab active" data-tab="weapons">Hotbar & Weapons</button>
+                    <button id="tab-inv-craft" class="mc-inv-tab" data-tab="craft">Crafting / Enchanting</button>
+                    <button id="tab-inv-skins" class="mc-inv-tab" data-tab="skins">Skins & Armor</button>
                 </div>
-                <p class="modal-subtitle">Switch between Steve, Alex, iconic Roblox block faces, Creepers, Endermen, and more!</p>
-                <div id="skins-grid-container" class="skins-grid-container">
-                    <!-- Populated by ui.js -->
+
+                <!-- Tab 1: Minecraft Hotbar & Blank Inventory Slots -->
+                <div id="inv-panel-weapons" class="inv-tab-panel">
+                    <div class="mc-inv-grid-section">
+                        <div class="mc-sec-title">Equipped Weapon & Hotbar</div>
+                        <div id="mc-hotbar-slots" class="mc-inventory-grid">
+                            <!-- Populated by ui.js with pixel inventory slots -->
+                        </div>
+                    </div>
+                    <div class="mc-sec-title" style="margin-top:12px;">Weapon Armory Catalog</div>
+                    <div id="weapons-list-container" class="weapons-list-container">
+                        <!-- Populated by ui.js -->
+                    </div>
+                </div>
+
+                <!-- Tab 2: Crafting / Enchanting Table -->
+                <div id="inv-panel-craft" class="inv-tab-panel hidden">
+                    <div class="crafting-table-ui">
+                        <div class="crafting-left">
+                            <div class="mc-sec-title">3x3 Crafting Grid</div>
+                            <div class="crafting-3x3">
+                                <div class="c-slot"></div><div class="c-slot"></div><div class="c-slot"></div>
+                                <div class="c-slot"></div><div class="c-slot c-slot-center" id="craft-center-slot"></div><div class="c-slot"></div>
+                                <div class="c-slot"></div><div class="c-slot"></div><div class="c-slot"></div>
+                            </div>
+                        </div>
+                        <div class="crafting-arrow">==&gt;</div>
+                        <div class="crafting-result">
+                            <div class="mc-sec-title">Result</div>
+                            <div class="c-slot c-slot-big" id="craft-result-slot"></div>
+                        </div>
+                    </div>
+                    <div class="mc-sec-title" style="margin-top:14px;">Enchantment Upgrades</div>
+                    <div id="crafting-upgrades-container" class="weapons-list-container">
+                        <!-- Populated by ui.js -->
+                    </div>
+                </div>
+
+                <!-- Tab 3: Skins & Wardrobe -->
+                <div id="inv-panel-skins" class="inv-tab-panel hidden">
+                    <div id="skins-grid-container" class="skins-grid-container">
+                        <!-- Populated by ui.js -->
+                    </div>
                 </div>
             </div>
         </div>

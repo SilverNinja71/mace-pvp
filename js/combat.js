@@ -117,11 +117,9 @@ export class CombatEngine {
             defender.dashing = false;
             defender.dashAttack = false;
 
-            defender.xVel = (defenderCenter > attackerCenter) ? 7 : -7;
-            defender.yVel = -7;
-
-            attacker.yVel = attacker.weaponStats?.hitLaunch || CORE_PHYSICS.hitLaunch;
-            attacker.onGround = false;
+            // Attacker lands firmly on the ground without huge recoil boost or self-damage
+            attacker.yVel = 0;
+            attacker.onGround = true;
             attacker.dashReady = true;
 
             attacker.stats.damageDealt += finalDamage;

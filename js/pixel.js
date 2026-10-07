@@ -32,24 +32,44 @@ function pxNoise(x, y, seed = 0) {
 }
 
 // ------------------------------------------
-// DIRT BACKGROUND (what the Minecraft menus use)
+// DIRT BACKGROUND WITH TOP GRASS (Minecraft dirt block)
+// Clean pixel art without noisy random specks
 // ------------------------------------------
 export function applyMinecraftBackground() {
     const c = pxCanvas(16, 16);
     const ctx = c.getContext("2d");
-    const base = ["#5b4129", "#503824", "#654a30", "#483221", "#6b4e33"];
-    for (let y = 0; y < 16; y++) {
-        for (let x = 0; x < 16; x++) {
-            const i = Math.floor(pxNoise(x, y, 3) * base.length);
-            ctx.fillStyle = base[i];
-            ctx.fillRect(x, y, 1, 1);
-        }
-    }
-    // A few darker pebbles
-    ctx.fillStyle = "#3a2a1b";
-    for (let k = 0; k < 10; k++) {
-        ctx.fillRect(Math.floor(pxNoise(k, 1, 9) * 16), Math.floor(pxNoise(k, 2, 9) * 16), 1, 1);
-    }
+    
+    // Rich blocky dirt colors (clean Minecraft-style palette)
+    ctx.fillStyle = "#866043"; // Main warm brown dirt
+    ctx.fillRect(0, 0, 16, 16);
+    
+    // Blocky dirt patches
+    ctx.fillStyle = "#725037";
+    ctx.fillRect(1, 4, 3, 3);
+    ctx.fillRect(8, 6, 4, 3);
+    ctx.fillRect(3, 11, 4, 3);
+    ctx.fillRect(11, 12, 3, 3);
+
+    ctx.fillStyle = "#5c3d28";
+    ctx.fillRect(2, 5, 2, 2);
+    ctx.fillRect(9, 7, 2, 2);
+    ctx.fillRect(4, 12, 2, 2);
+    ctx.fillRect(12, 13, 2, 2);
+
+    ctx.fillStyle = "#9c7250";
+    ctx.fillRect(6, 2, 3, 2);
+    ctx.fillRect(13, 5, 2, 2);
+    ctx.fillRect(0, 9, 2, 2);
+    ctx.fillRect(8, 11, 2, 2);
+
+    // Green grass block top row (2px grass with dangling roots)
+    ctx.fillStyle = "#4c9e32";
+    ctx.fillRect(0, 0, 16, 2);
+    ctx.fillStyle = "#3e8529";
+    ctx.fillRect(2, 2, 2, 1);
+    ctx.fillRect(7, 2, 2, 2);
+    ctx.fillRect(12, 2, 2, 1);
+
     document.documentElement.style.setProperty("--dirt", `url(${c.toDataURL()})`);
 }
 
