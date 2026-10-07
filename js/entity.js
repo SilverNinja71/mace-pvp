@@ -275,7 +275,8 @@ export class Fighter {
 
         this.slamming = true;
         this.slamStartY = this.y;
-        this.yVel = CORE_PHYSICS.slamSpeed;
+        const speed = this.weaponStats?.slamSpeed || CORE_PHYSICS.slamSpeed;
+        this.yVel = speed;
         this.stats.slamsAttempted++;
 
         this.squashX = 0.75;
@@ -394,10 +395,11 @@ export class Fighter {
             this.yVel += CORE_PHYSICS.gravity;
         }
 
-        // Keep slam at high speed
+        // Keep slam at designated speed
         if (this.slamming && !this.dashing) {
-            if (this.yVel < CORE_PHYSICS.slamSpeed) {
-                this.yVel = CORE_PHYSICS.slamSpeed;
+            const targetSlam = this.weaponStats?.slamSpeed || CORE_PHYSICS.slamSpeed;
+            if (this.yVel < targetSlam) {
+                this.yVel = targetSlam;
             }
         }
 

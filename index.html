@@ -31,6 +31,7 @@
         <div class="top-bar-controls">
             <!-- Theme Edit Button (Overworld, Nether, End) -->
             <button id="btn-theme" class="btn-ctrl" title="Cycle Biome Theme (Overworld, Nether, End)">Theme: Overworld</button>
+            <button id="btn-screen-size" class="btn-ctrl" title="Toggle Screen Size (Big Screen / Maximum)">Screen: Big</button>
             <button id="btn-inventory" class="btn-ctrl" title="Minecraft Inventory: Weapons, Crafting & Enchanting">Inventory [i]</button>
             <button id="btn-leaderboard" class="btn-ctrl" title="National Obsidian Leaderboard">Ranked</button>
             <button id="btn-social" class="btn-ctrl" title="Friends, Mailbox & Minor Account Restrictions">Social & Mail</button>
@@ -42,7 +43,17 @@
     </header>
 
     <!-- Main Game Container -->
-    <main class="arena-container">
+    <main class="arena-container" id="arena-container">
+        <!-- Arena Quick Navigation Bar: Instant access so player never feels stuck -->
+        <div class="arena-top-bar">
+            <span class="arena-badge-tag">⚔️ MINECRAFT ARENA</span>
+            <div class="arena-top-actions">
+                <button id="btn-hud-screen" class="btn-ctrl btn-hud-btn" title="Toggle Screen Size (Big / Max)">⛶ Size</button>
+                <button id="btn-hud-pause" class="btn-ctrl btn-hud-btn" title="Pause / Resume Game (ESC)">⏸ Pause</button>
+                <button id="btn-hud-restart" class="btn-ctrl btn-hud-btn" title="Restart Match (R)">🔄 Restart</button>
+                <button id="btn-hud-home" class="btn-ctrl btn-hud-btn" title="Return to Home Menu (H)">🏠 Home</button>
+            </div>
+        </div>
         <canvas id="game-canvas"></canvas>
 
         <!-- Home Screen Overlay -->

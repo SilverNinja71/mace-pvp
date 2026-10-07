@@ -14,9 +14,10 @@ export const WEAPON_TYPES = {
         unlockedByDefault: true,
         stats: {
             damage: 20,
-            dashSpeed: 20,
+            dashSpeed: 14,   // deliberate, slower heavy mace dash (was 20)
             dashDistance: 6, // frames
             dashDamage: 20,
+            slamSpeed: 16,   // slower, weightier mace smash descent (was 24)
             slamPower: 1.0,  // height scale multiplier
             slamMaxDmg: 150,
             hitLaunch: -12,

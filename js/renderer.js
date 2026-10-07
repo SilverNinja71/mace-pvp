@@ -32,8 +32,8 @@ export class Renderer {
         this.dpr = window.devicePixelRatio || 1;
         this.canvas.width = this.width * this.dpr;
         this.canvas.height = this.height * this.dpr;
-        this.canvas.style.width = `${this.width}px`;
-        this.canvas.style.height = `${this.height}px`;
+        this.canvas.style.width = "100%";
+        this.canvas.style.height = "auto";
         this.ctx.scale(this.dpr, this.dpr);
     }
 
@@ -93,11 +93,16 @@ export class Renderer {
             ctx.fillStyle = "#79a6ff";
             ctx.fillRect(0, 0, this.width, this.height);
 
-            // Blocky distant hills (stepped, flat colors)
-            ctx.fillStyle = "#5f8f4f";
-            const hills = [[0, 320], [80, 296], [160, 272], [240, 296], [320, 320], [400, 296], [480, 264], [560, 288], [640, 312], [720, 288]];
+            // Distant Overworld horizon hills (soft background, placed safely below platform ledges)
+            ctx.fillStyle = "#4a783d";
+            const hills = [[0, 360], [80, 350], [160, 345], [240, 355], [320, 365], [400, 350], [480, 345], [560, 352], [640, 360], [720, 350]];
             for (const [hx, hy] of hills) {
                 ctx.fillRect(hx, hy, 80, this.height - hy);
+            }
+            // Distant hill top trim
+            ctx.fillStyle = "#5e944f";
+            for (const [hx, hy] of hills) {
+                ctx.fillRect(hx, hy, 80, 3);
             }
 
             // Drifting blocky clouds
@@ -122,57 +127,181 @@ export class Renderer {
         const biome = this.biome || "overworld";
 
         for (const p of PLATFORMS_CONFIG) {
+            const isFloor = p.y >= 380;
+
             if (biome === "nether") {
-                // Netherrack platform with red nether brick
-                ctx.fillStyle = "#632222";
+                // ==========================================
+                // NETHER: AUTHENTIC NETHERRACK BLOCKS
+                // ==========================================
+                // Base Netherrack rock body
+                ctx.fillStyle = "#681b22";
                 ctx.fillRect(p.x, p.y, p.w, p.h);
-                ctx.fillStyle = "#4a1414";
+
+                // Porous dark crevices and cracks (tiled 16x16)
+                ctx.fillStyle = "#3e0e13";
                 for (let bx = p.x; bx < p.x + p.w; bx += 16) {
-                    ctx.fillRect(bx, p.y, 2, p.h);
+                    for (let by = p.y; by < p.y + p.h; by += 16) {
+                        ctx.fillRect(bx + 2, by + 4, 3, 3);
+                        ctx.fillRect(bx + 9, by + 7, 4, 3);
+                        ctx.fillRect(bx + 4, by + 12, 3, 2);
+                    }
+                }
+
+                // Dark red pitted pores
+                ctx.fillStyle = "#4e141a";
+                for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                    for (let by = p.y; by < p.y + p.h; by += 16) {
+                        ctx.fillRect(bx + 3, by + 5, 2, 2);
+                        ctx.fillRect(bx + 10, by + 8, 2, 2);
+                        ctx.fillRect(bx + 13, by + 3, 2, 2);
+                    }
+                }
+
+                // Fiery red highlights & glowing ember specks
+                ctx.fillStyle = "#932630";
+                for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                    for (let by = p.y; by < p.y + p.h; by += 16) {
+                        ctx.fillRect(bx + 7, by + 2, 3, 2);
+                        ctx.fillRect(bx + 1, by + 10, 2, 2);
+                        ctx.fillRect(bx + 12, by + 11, 2, 2);
+                    }
+                }
+                ctx.fillStyle = "#bd313c";
+                for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                    ctx.fillRect(bx + 6, p.y + (p.h > 14 ? 8 : 4), 1, 1);
+                    ctx.fillRect(bx + 14, p.y + 2, 1, 1);
+                }
+
+                // Block grid mortar lines
+                ctx.fillStyle = "#2c080b";
+                for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                    ctx.fillRect(bx, p.y, 1, p.h);
                 }
                 ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
 
-                // Crimson nylium top fringe
-                ctx.fillStyle = "#9e1b2f";
-                ctx.fillRect(p.x, p.y, p.w, 6);
-                ctx.fillStyle = "#731120";
+                // Crimson Nylium turf top carpet & hanging roots
+                ctx.fillStyle = "#9e1a31";
+                ctx.fillRect(p.x, p.y, p.w, 5);
+                ctx.fillStyle = "#cc2746";
+                ctx.fillRect(p.x, p.y, p.w, 2);
+                ctx.fillStyle = "#751022";
                 for (let gx = p.x; gx < p.x + p.w; gx += 8) {
-                    ctx.fillRect(gx, p.y + 6, 4, 3);
+                    ctx.fillRect(gx, p.y + 5, 3, 3);
+                    ctx.fillRect(gx + 4, p.y + 5, 2, 2);
                 }
             } else if (biome === "end") {
-                // End stone platform with purpur/obsidian trim
-                ctx.fillStyle = "#dfddaa";
+                // ==========================================
+                // THE END: AUTHENTIC END STONE BLOCKS
+                // ==========================================
+                // Base pale creamy End Stone
+                ctx.fillStyle = "#ded99f";
                 ctx.fillRect(p.x, p.y, p.w, p.h);
-                ctx.fillStyle = "#b5b279";
+
+                // Dark sulfur crater pits (tiled 16x16)
+                ctx.fillStyle = "#b5ad6e";
                 for (let bx = p.x; bx < p.x + p.w; bx += 16) {
-                    ctx.fillRect(bx, p.y, 2, p.h);
+                    for (let by = p.y; by < p.y + p.h; by += 16) {
+                        ctx.fillRect(bx + 2, by + 4, 4, 3);
+                        ctx.fillRect(bx + 9, by + 8, 4, 3);
+                        ctx.fillRect(bx + 4, by + 12, 3, 2);
+                    }
+                }
+
+                // Deep crater pores
+                ctx.fillStyle = "#8a8349";
+                for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                    for (let by = p.y; by < p.y + p.h; by += 16) {
+                        ctx.fillRect(bx + 3, by + 5, 2, 2);
+                        ctx.fillRect(bx + 10, by + 9, 2, 2);
+                    }
+                }
+
+                // Pale creamy highlights
+                ctx.fillStyle = "#f3efcb";
+                for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                    for (let by = p.y; by < p.y + p.h; by += 16) {
+                        ctx.fillRect(bx + 7, by + 2, 3, 2);
+                        ctx.fillRect(bx + 1, by + 10, 2, 2);
+                        ctx.fillRect(bx + 13, by + 11, 2, 2);
+                    }
+                }
+
+                // Block seams
+                ctx.fillStyle = "#706a38";
+                for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                    ctx.fillRect(bx, p.y, 1, p.h);
                 }
                 ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
 
-                // Purpur top cap
-                ctx.fillStyle = "#995a94";
-                ctx.fillRect(p.x, p.y, p.w, 5);
-                ctx.fillStyle = "#6d3b6a";
-                for (let gx = p.x; gx < p.x + p.w; gx += 8) {
-                    ctx.fillRect(gx, p.y + 5, 4, 2);
+                if (isFloor) {
+                    // End Stone Bricks border at top of floor
+                    ctx.fillStyle = "#eae6ba";
+                    ctx.fillRect(p.x, p.y, p.w, 3);
+                    ctx.fillStyle = "#948c4f";
+                    for (let bx = p.x; bx < p.x + p.w; bx += 32) {
+                        ctx.fillRect(bx, p.y, 2, 6);
+                    }
+                } else {
+                    // Purpur block top cap on floating ledges
+                    ctx.fillStyle = "#995a94";
+                    ctx.fillRect(p.x, p.y, p.w, 5);
+                    ctx.fillStyle = "#b870b2";
+                    ctx.fillRect(p.x, p.y, p.w, 2);
+                    ctx.fillStyle = "#6d3b6a";
+                    for (let gx = p.x; gx < p.x + p.w; gx += 8) {
+                        ctx.fillRect(gx, p.y + 5, 3, 2);
+                    }
+                    // Obsidian brackets on ledge corners
+                    ctx.fillStyle = "#1b1424";
+                    ctx.fillRect(p.x, p.y, 4, p.h);
+                    ctx.fillRect(p.x + p.w - 4, p.y, 4, p.h);
                 }
             } else {
-                // Overworld: Stone block platform with grass top
-                ctx.fillStyle = "#7d7d7d";
-                ctx.fillRect(p.x, p.y, p.w, p.h);
-                ctx.fillStyle = "#5f5f5f";
-                for (let bx = p.x; bx < p.x + p.w; bx += 16) {
-                    ctx.fillRect(bx, p.y, 2, p.h);
-                }
-                ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
-                if (p.h > 12) ctx.fillRect(p.x, p.y + Math.floor(p.h / 2), p.w, 2);
+                // ==========================================
+                // OVERWORLD: STONE / DIRT WITH LUSH GRASS
+                // ==========================================
+                if (isFloor) {
+                    // Dirt body for main floor
+                    ctx.fillStyle = "#866043";
+                    ctx.fillRect(p.x, p.y, p.w, p.h);
 
-                // Grass top (ground) or stone cap (floating)
-                ctx.fillStyle = p.y >= 380 ? "#5da83e" : "#a4a4a4";
-                ctx.fillRect(p.x, p.y, p.w, 6);
-                ctx.fillStyle = p.y >= 380 ? "#3f7d2a" : "#808080";
-                for (let gx = p.x; gx < p.x + p.w; gx += 8) {
-                    ctx.fillRect(gx, p.y + 6, 4, 2);
+                    ctx.fillStyle = "#725037";
+                    for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                        ctx.fillRect(bx + 2, p.y + 10, 4, 3);
+                        ctx.fillRect(bx + 9, p.y + 16, 4, 3);
+                    }
+                    ctx.fillStyle = "#5c3d28";
+                    for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                        ctx.fillRect(bx + 3, p.y + 11, 2, 2);
+                    }
+
+                    // Lush Overworld Grass block top
+                    ctx.fillStyle = "#5da83e";
+                    ctx.fillRect(p.x, p.y, p.w, 6);
+                    ctx.fillStyle = "#78c253";
+                    ctx.fillRect(p.x, p.y, p.w, 2);
+                    ctx.fillStyle = "#3f7d2a";
+                    for (let gx = p.x; gx < p.x + p.w; gx += 8) {
+                        ctx.fillRect(gx, p.y + 6, 3, 3);
+                        ctx.fillRect(gx + 4, p.y + 6, 2, 2);
+                    }
+                } else {
+                    // Smooth stone floating ledge
+                    ctx.fillStyle = "#7d7d7d";
+                    ctx.fillRect(p.x, p.y, p.w, p.h);
+                    ctx.fillStyle = "#5f5f5f";
+                    for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                        ctx.fillRect(bx, p.y, 2, p.h);
+                    }
+                    ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
+
+                    // Stone slab top highlight
+                    ctx.fillStyle = "#a4a4a4";
+                    ctx.fillRect(p.x, p.y, p.w, 4);
+                    ctx.fillStyle = "#808080";
+                    for (let gx = p.x; gx < p.x + p.w; gx += 8) {
+                        ctx.fillRect(gx, p.y + 4, 4, 2);
+                    }
                 }
             }
         }

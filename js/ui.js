@@ -10,7 +10,7 @@ import { sound } from './audio.js';
 import { auth, AVATAR_PRESETS, BLOCK_FACES } from './auth.js';
 import { WEAPON_TYPES } from './weapons.js';
 import { arena, ARENA_TIERS } from './arena.js';
-import { cubeHTML, headImgHTML, presetHeadId, tierPipHTML, weaponIconHTML } from './pixel.js';
+import { cubeHTML, headImgHTML, presetHeadId, tierPipHTML, weaponIconHTML, applyMinecraftBackground } from './pixel.js';
 
 export class UIManager {
     constructor(game) {
@@ -196,7 +196,51 @@ export class UIManager {
                 const capitalized = this.currentBiome.charAt(0).toUpperCase() + this.currentBiome.slice(1);
                 this.themeBtn.textContent = `Theme: ${capitalized}`;
                 this.game.renderer.setBiome(this.currentBiome);
+                applyMinecraftBackground(this.currentBiome);
                 sound.playClick();
+            });
+        }
+
+        // Screen Size Toggle (Big Screen / Maximum)
+        const arenaContainer = document.getElementById("arena-container") || document.querySelector(".arena-container");
+        this.screenSizeBtn = document.getElementById("btn-screen-size");
+        this.hudScreenBtn = document.getElementById("btn-hud-screen");
+        let isScreenMax = false;
+        const toggleScreenSize = () => {
+            isScreenMax = !isScreenMax;
+            if (arenaContainer) {
+                arenaContainer.classList.toggle("screen-max", isScreenMax);
+            }
+            if (this.screenSizeBtn) {
+                this.screenSizeBtn.textContent = isScreenMax ? "Screen: Max" : "Screen: Big";
+            }
+            if (this.hudScreenBtn) {
+                this.hudScreenBtn.textContent = isScreenMax ? "⛶ Standard" : "⛶ Max";
+            }
+            this.game.renderer.setupDPI();
+            sound.playClick();
+        };
+        if (this.screenSizeBtn) this.screenSizeBtn.addEventListener("click", toggleScreenSize);
+        if (this.hudScreenBtn) this.hudScreenBtn.addEventListener("click", toggleScreenSize);
+
+        // Arena Top Quick Action Buttons
+        const hudHomeBtn = document.getElementById("btn-hud-home");
+        const hudPauseBtn = document.getElementById("btn-hud-pause");
+        const hudRestartBtn = document.getElementById("btn-hud-restart");
+
+        if (hudHomeBtn) {
+            hudHomeBtn.addEventListener("click", () => {
+                this.handleHomeClick();
+            });
+        }
+        if (hudPauseBtn) {
+            hudPauseBtn.addEventListener("click", () => {
+                this.game.togglePause();
+            });
+        }
+        if (hudRestartBtn) {
+            hudRestartBtn.addEventListener("click", () => {
+                this.triggerMatchmakingRestart();
             });
         }
 

@@ -35,40 +35,119 @@ function pxNoise(x, y, seed = 0) {
 // DIRT BACKGROUND WITH TOP GRASS (Minecraft dirt block)
 // Clean pixel art without noisy random specks
 // ------------------------------------------
-export function applyMinecraftBackground() {
+export function applyMinecraftBackground(theme = "overworld") {
     const c = pxCanvas(16, 16);
     const ctx = c.getContext("2d");
     
-    // Rich blocky dirt colors (clean Minecraft-style palette)
-    ctx.fillStyle = "#866043"; // Main warm brown dirt
-    ctx.fillRect(0, 0, 16, 16);
-    
-    // Blocky dirt patches
-    ctx.fillStyle = "#725037";
-    ctx.fillRect(1, 4, 3, 3);
-    ctx.fillRect(8, 6, 4, 3);
-    ctx.fillRect(3, 11, 4, 3);
-    ctx.fillRect(11, 12, 3, 3);
+    if (theme === "nether") {
+        // Netherrack with Crimson Nylium top
+        ctx.fillStyle = "#681b22"; // Rich dark crimson base
+        ctx.fillRect(0, 0, 16, 16);
 
-    ctx.fillStyle = "#5c3d28";
-    ctx.fillRect(2, 5, 2, 2);
-    ctx.fillRect(9, 7, 2, 2);
-    ctx.fillRect(4, 12, 2, 2);
-    ctx.fillRect(12, 13, 2, 2);
+        // Dark crevices & porous holes
+        ctx.fillStyle = "#450f14";
+        ctx.fillRect(1, 4, 3, 3);
+        ctx.fillRect(8, 6, 4, 3);
+        ctx.fillRect(3, 11, 4, 3);
+        ctx.fillRect(11, 12, 3, 3);
 
-    ctx.fillStyle = "#9c7250";
-    ctx.fillRect(6, 2, 3, 2);
-    ctx.fillRect(13, 5, 2, 2);
-    ctx.fillRect(0, 9, 2, 2);
-    ctx.fillRect(8, 11, 2, 2);
+        ctx.fillStyle = "#32080c";
+        ctx.fillRect(2, 5, 2, 2);
+        ctx.fillRect(9, 7, 2, 2);
+        ctx.fillRect(4, 12, 2, 2);
+        ctx.fillRect(12, 13, 2, 2);
 
-    // Green grass block top row (2px grass with dangling roots)
-    ctx.fillStyle = "#4c9e32";
-    ctx.fillRect(0, 0, 16, 2);
-    ctx.fillStyle = "#3e8529";
-    ctx.fillRect(2, 2, 2, 1);
-    ctx.fillRect(7, 2, 2, 2);
-    ctx.fillRect(12, 2, 2, 1);
+        // Fiery red highlights
+        ctx.fillStyle = "#8d252e";
+        ctx.fillRect(6, 2, 3, 2);
+        ctx.fillRect(13, 5, 2, 2);
+        ctx.fillRect(0, 9, 2, 2);
+        ctx.fillRect(8, 11, 2, 2);
+
+        // Bright embers
+        ctx.fillStyle = "#aa333c";
+        ctx.fillRect(2, 2, 1, 1);
+        ctx.fillRect(10, 3, 1, 1);
+        ctx.fillRect(14, 10, 1, 1);
+        ctx.fillRect(7, 14, 1, 1);
+
+        // Crimson Nylium top edge
+        ctx.fillStyle = "#a81932";
+        ctx.fillRect(0, 0, 16, 2);
+        ctx.fillStyle = "#cf2646";
+        ctx.fillRect(2, 2, 2, 1);
+        ctx.fillRect(7, 2, 2, 2);
+        ctx.fillRect(12, 2, 2, 1);
+    } else if (theme === "end") {
+        // End Stone with Purpur trim
+        ctx.fillStyle = "#ded99f"; // Creamy pale sulfur stone
+        ctx.fillRect(0, 0, 16, 16);
+
+        // Dark pitted craters
+        ctx.fillStyle = "#b8b072";
+        ctx.fillRect(1, 4, 3, 3);
+        ctx.fillRect(8, 6, 4, 3);
+        ctx.fillRect(3, 11, 4, 3);
+        ctx.fillRect(11, 12, 3, 3);
+
+        ctx.fillStyle = "#968e52";
+        ctx.fillRect(2, 5, 2, 2);
+        ctx.fillRect(9, 7, 2, 2);
+        ctx.fillRect(4, 12, 2, 2);
+        ctx.fillRect(12, 13, 2, 2);
+
+        // Deep pores
+        ctx.fillStyle = "#777138";
+        ctx.fillRect(2, 6, 1, 1);
+        ctx.fillRect(10, 8, 1, 1);
+        ctx.fillRect(5, 13, 1, 1);
+
+        // Pale creamy highlights
+        ctx.fillStyle = "#f2eed0";
+        ctx.fillRect(6, 2, 3, 2);
+        ctx.fillRect(13, 5, 2, 2);
+        ctx.fillRect(0, 9, 2, 2);
+        ctx.fillRect(8, 11, 2, 2);
+
+        // Purpur top cap
+        ctx.fillStyle = "#985f95";
+        ctx.fillRect(0, 0, 16, 2);
+        ctx.fillStyle = "#6d3b6a";
+        ctx.fillRect(2, 2, 2, 1);
+        ctx.fillRect(7, 2, 2, 2);
+        ctx.fillRect(12, 2, 2, 1);
+    } else {
+        // Rich blocky dirt colors (clean Minecraft-style palette)
+        ctx.fillStyle = "#866043"; // Main warm brown dirt
+        ctx.fillRect(0, 0, 16, 16);
+        
+        // Blocky dirt patches
+        ctx.fillStyle = "#725037";
+        ctx.fillRect(1, 4, 3, 3);
+        ctx.fillRect(8, 6, 4, 3);
+        ctx.fillRect(3, 11, 4, 3);
+        ctx.fillRect(11, 12, 3, 3);
+
+        ctx.fillStyle = "#5c3d28";
+        ctx.fillRect(2, 5, 2, 2);
+        ctx.fillRect(9, 7, 2, 2);
+        ctx.fillRect(4, 12, 2, 2);
+        ctx.fillRect(12, 13, 2, 2);
+
+        ctx.fillStyle = "#9c7250";
+        ctx.fillRect(6, 2, 3, 2);
+        ctx.fillRect(13, 5, 2, 2);
+        ctx.fillRect(0, 9, 2, 2);
+        ctx.fillRect(8, 11, 2, 2);
+
+        // Green grass block top row (2px grass with dangling roots)
+        ctx.fillStyle = "#4c9e32";
+        ctx.fillRect(0, 0, 16, 2);
+        ctx.fillStyle = "#3e8529";
+        ctx.fillRect(2, 2, 2, 1);
+        ctx.fillRect(7, 2, 2, 2);
+        ctx.fillRect(12, 2, 2, 1);
+    }
 
     document.documentElement.style.setProperty("--dirt", `url(${c.toDataURL()})`);
 }

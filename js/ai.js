@@ -164,10 +164,11 @@ export class BotAI {
             if ((this.dodging || this.runAway) && !bot.dashing) {
                 bot.xVel = distance > 0 ? -P.runSpeed : P.runSpeed;
             } else if (!bot.dashing) {
-                if (Math.abs(distance) > 35) {
+                if (Math.abs(distance) > 26) {
                     bot.xVel = distance > 0 ? P.speed : -P.speed;
                 } else {
-                    bot.xVel *= 0.8;
+                    // Close quarters: keep active spacing so fighters never freeze merged together
+                    bot.xVel = distance >= 0 ? 1.2 : -1.2;
                 }
             }
 

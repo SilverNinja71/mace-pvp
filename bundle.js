@@ -19,10 +19,10 @@
       coyoteTime: 12,
       groundY: 390,
   
-      slamSpeed: 24,           // Swift and responsive downward slam
-      dashSpeed: 24,           // Fast, snappy dash
+      slamSpeed: 17,           // Weightier, deliberate downward slam (reduced from 24)
+      dashSpeed: 15,           // Controlled, snappy dash (reduced from 24)
       dashTime: 6,
-      dashCooldown: 15,        // Reduced from 40 to 15 frames for quick re-attacks
+      dashCooldown: 15,        // Quick re-attack cooldown
   
       slamRadius: 40,
       slamGroundDamage: 25,
@@ -218,40 +218,119 @@
   // DIRT BACKGROUND WITH TOP GRASS (Minecraft dirt block)
   // Clean pixel art without noisy random specks
   // ------------------------------------------
-  function applyMinecraftBackground() {
+  function applyMinecraftBackground(theme = "overworld") {
       const c = pxCanvas(16, 16);
       const ctx = c.getContext("2d");
       
-      // Rich blocky dirt colors (clean Minecraft-style palette)
-      ctx.fillStyle = "#866043"; // Main warm brown dirt
-      ctx.fillRect(0, 0, 16, 16);
-      
-      // Blocky dirt patches
-      ctx.fillStyle = "#725037";
-      ctx.fillRect(1, 4, 3, 3);
-      ctx.fillRect(8, 6, 4, 3);
-      ctx.fillRect(3, 11, 4, 3);
-      ctx.fillRect(11, 12, 3, 3);
+      if (theme === "nether") {
+          // Netherrack with Crimson Nylium top
+          ctx.fillStyle = "#681b22"; // Rich dark crimson base
+          ctx.fillRect(0, 0, 16, 16);
   
-      ctx.fillStyle = "#5c3d28";
-      ctx.fillRect(2, 5, 2, 2);
-      ctx.fillRect(9, 7, 2, 2);
-      ctx.fillRect(4, 12, 2, 2);
-      ctx.fillRect(12, 13, 2, 2);
+          // Dark crevices & porous holes
+          ctx.fillStyle = "#450f14";
+          ctx.fillRect(1, 4, 3, 3);
+          ctx.fillRect(8, 6, 4, 3);
+          ctx.fillRect(3, 11, 4, 3);
+          ctx.fillRect(11, 12, 3, 3);
   
-      ctx.fillStyle = "#9c7250";
-      ctx.fillRect(6, 2, 3, 2);
-      ctx.fillRect(13, 5, 2, 2);
-      ctx.fillRect(0, 9, 2, 2);
-      ctx.fillRect(8, 11, 2, 2);
+          ctx.fillStyle = "#32080c";
+          ctx.fillRect(2, 5, 2, 2);
+          ctx.fillRect(9, 7, 2, 2);
+          ctx.fillRect(4, 12, 2, 2);
+          ctx.fillRect(12, 13, 2, 2);
   
-      // Green grass block top row (2px grass with dangling roots)
-      ctx.fillStyle = "#4c9e32";
-      ctx.fillRect(0, 0, 16, 2);
-      ctx.fillStyle = "#3e8529";
-      ctx.fillRect(2, 2, 2, 1);
-      ctx.fillRect(7, 2, 2, 2);
-      ctx.fillRect(12, 2, 2, 1);
+          // Fiery red highlights
+          ctx.fillStyle = "#8d252e";
+          ctx.fillRect(6, 2, 3, 2);
+          ctx.fillRect(13, 5, 2, 2);
+          ctx.fillRect(0, 9, 2, 2);
+          ctx.fillRect(8, 11, 2, 2);
+  
+          // Bright embers
+          ctx.fillStyle = "#aa333c";
+          ctx.fillRect(2, 2, 1, 1);
+          ctx.fillRect(10, 3, 1, 1);
+          ctx.fillRect(14, 10, 1, 1);
+          ctx.fillRect(7, 14, 1, 1);
+  
+          // Crimson Nylium top edge
+          ctx.fillStyle = "#a81932";
+          ctx.fillRect(0, 0, 16, 2);
+          ctx.fillStyle = "#cf2646";
+          ctx.fillRect(2, 2, 2, 1);
+          ctx.fillRect(7, 2, 2, 2);
+          ctx.fillRect(12, 2, 2, 1);
+      } else if (theme === "end") {
+          // End Stone with Purpur trim
+          ctx.fillStyle = "#ded99f"; // Creamy pale sulfur stone
+          ctx.fillRect(0, 0, 16, 16);
+  
+          // Dark pitted craters
+          ctx.fillStyle = "#b8b072";
+          ctx.fillRect(1, 4, 3, 3);
+          ctx.fillRect(8, 6, 4, 3);
+          ctx.fillRect(3, 11, 4, 3);
+          ctx.fillRect(11, 12, 3, 3);
+  
+          ctx.fillStyle = "#968e52";
+          ctx.fillRect(2, 5, 2, 2);
+          ctx.fillRect(9, 7, 2, 2);
+          ctx.fillRect(4, 12, 2, 2);
+          ctx.fillRect(12, 13, 2, 2);
+  
+          // Deep pores
+          ctx.fillStyle = "#777138";
+          ctx.fillRect(2, 6, 1, 1);
+          ctx.fillRect(10, 8, 1, 1);
+          ctx.fillRect(5, 13, 1, 1);
+  
+          // Pale creamy highlights
+          ctx.fillStyle = "#f2eed0";
+          ctx.fillRect(6, 2, 3, 2);
+          ctx.fillRect(13, 5, 2, 2);
+          ctx.fillRect(0, 9, 2, 2);
+          ctx.fillRect(8, 11, 2, 2);
+  
+          // Purpur top cap
+          ctx.fillStyle = "#985f95";
+          ctx.fillRect(0, 0, 16, 2);
+          ctx.fillStyle = "#6d3b6a";
+          ctx.fillRect(2, 2, 2, 1);
+          ctx.fillRect(7, 2, 2, 2);
+          ctx.fillRect(12, 2, 2, 1);
+      } else {
+          // Rich blocky dirt colors (clean Minecraft-style palette)
+          ctx.fillStyle = "#866043"; // Main warm brown dirt
+          ctx.fillRect(0, 0, 16, 16);
+          
+          // Blocky dirt patches
+          ctx.fillStyle = "#725037";
+          ctx.fillRect(1, 4, 3, 3);
+          ctx.fillRect(8, 6, 4, 3);
+          ctx.fillRect(3, 11, 4, 3);
+          ctx.fillRect(11, 12, 3, 3);
+  
+          ctx.fillStyle = "#5c3d28";
+          ctx.fillRect(2, 5, 2, 2);
+          ctx.fillRect(9, 7, 2, 2);
+          ctx.fillRect(4, 12, 2, 2);
+          ctx.fillRect(12, 13, 2, 2);
+  
+          ctx.fillStyle = "#9c7250";
+          ctx.fillRect(6, 2, 3, 2);
+          ctx.fillRect(13, 5, 2, 2);
+          ctx.fillRect(0, 9, 2, 2);
+          ctx.fillRect(8, 11, 2, 2);
+  
+          // Green grass block top row (2px grass with dangling roots)
+          ctx.fillStyle = "#4c9e32";
+          ctx.fillRect(0, 0, 16, 2);
+          ctx.fillStyle = "#3e8529";
+          ctx.fillRect(2, 2, 2, 1);
+          ctx.fillRect(7, 2, 2, 2);
+          ctx.fillRect(12, 2, 2, 1);
+      }
   
       document.documentElement.style.setProperty("--dirt", `url(${c.toDataURL()})`);
   }
@@ -831,9 +910,10 @@
           unlockedByDefault: true,
           stats: {
               damage: 20,
-              dashSpeed: 20,
+              dashSpeed: 14,   // deliberate, slower heavy mace dash (was 20)
               dashDistance: 6, // frames
               dashDamage: 20,
+              slamSpeed: 16,   // slower, weightier mace smash descent (was 24)
               slamPower: 1.0,  // height scale multiplier
               slamMaxDmg: 150,
               hitLaunch: -12,
@@ -2503,7 +2583,8 @@
   
           this.slamming = true;
           this.slamStartY = this.y;
-          this.yVel = CORE_PHYSICS.slamSpeed;
+          const speed = this.weaponStats?.slamSpeed || CORE_PHYSICS.slamSpeed;
+          this.yVel = speed;
           this.stats.slamsAttempted++;
   
           this.squashX = 0.75;
@@ -2622,10 +2703,11 @@
               this.yVel += CORE_PHYSICS.gravity;
           }
   
-          // Keep slam at high speed
+          // Keep slam at designated speed
           if (this.slamming && !this.dashing) {
-              if (this.yVel < CORE_PHYSICS.slamSpeed) {
-                  this.yVel = CORE_PHYSICS.slamSpeed;
+              const targetSlam = this.weaponStats?.slamSpeed || CORE_PHYSICS.slamSpeed;
+              if (this.yVel < targetSlam) {
+                  this.yVel = targetSlam;
               }
           }
   
@@ -2863,10 +2945,11 @@
               if ((this.dodging || this.runAway) && !bot.dashing) {
                   bot.xVel = distance > 0 ? -P.runSpeed : P.runSpeed;
               } else if (!bot.dashing) {
-                  if (Math.abs(distance) > 35) {
+                  if (Math.abs(distance) > 26) {
                       bot.xVel = distance > 0 ? P.speed : -P.speed;
                   } else {
-                      bot.xVel *= 0.8;
+                      // Close quarters: keep active spacing so fighters never freeze merged together
+                      bot.xVel = distance >= 0 ? 1.2 : -1.2;
                   }
               }
   
@@ -3247,8 +3330,8 @@
           this.dpr = window.devicePixelRatio || 1;
           this.canvas.width = this.width * this.dpr;
           this.canvas.height = this.height * this.dpr;
-          this.canvas.style.width = `${this.width}px`;
-          this.canvas.style.height = `${this.height}px`;
+          this.canvas.style.width = "100%";
+          this.canvas.style.height = "auto";
           this.ctx.scale(this.dpr, this.dpr);
       }
   
@@ -3308,11 +3391,16 @@
               ctx.fillStyle = "#79a6ff";
               ctx.fillRect(0, 0, this.width, this.height);
   
-              // Blocky distant hills (stepped, flat colors)
-              ctx.fillStyle = "#5f8f4f";
-              const hills = [[0, 320], [80, 296], [160, 272], [240, 296], [320, 320], [400, 296], [480, 264], [560, 288], [640, 312], [720, 288]];
+              // Distant Overworld horizon hills (soft background, placed safely below platform ledges)
+              ctx.fillStyle = "#4a783d";
+              const hills = [[0, 360], [80, 350], [160, 345], [240, 355], [320, 365], [400, 350], [480, 345], [560, 352], [640, 360], [720, 350]];
               for (const [hx, hy] of hills) {
                   ctx.fillRect(hx, hy, 80, this.height - hy);
+              }
+              // Distant hill top trim
+              ctx.fillStyle = "#5e944f";
+              for (const [hx, hy] of hills) {
+                  ctx.fillRect(hx, hy, 80, 3);
               }
   
               // Drifting blocky clouds
@@ -3337,57 +3425,181 @@
           const biome = this.biome || "overworld";
   
           for (const p of PLATFORMS_CONFIG) {
+              const isFloor = p.y >= 380;
+  
               if (biome === "nether") {
-                  // Netherrack platform with red nether brick
-                  ctx.fillStyle = "#632222";
+                  // ==========================================
+                  // NETHER: AUTHENTIC NETHERRACK BLOCKS
+                  // ==========================================
+                  // Base Netherrack rock body
+                  ctx.fillStyle = "#681b22";
                   ctx.fillRect(p.x, p.y, p.w, p.h);
-                  ctx.fillStyle = "#4a1414";
+  
+                  // Porous dark crevices and cracks (tiled 16x16)
+                  ctx.fillStyle = "#3e0e13";
                   for (let bx = p.x; bx < p.x + p.w; bx += 16) {
-                      ctx.fillRect(bx, p.y, 2, p.h);
+                      for (let by = p.y; by < p.y + p.h; by += 16) {
+                          ctx.fillRect(bx + 2, by + 4, 3, 3);
+                          ctx.fillRect(bx + 9, by + 7, 4, 3);
+                          ctx.fillRect(bx + 4, by + 12, 3, 2);
+                      }
+                  }
+  
+                  // Dark red pitted pores
+                  ctx.fillStyle = "#4e141a";
+                  for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                      for (let by = p.y; by < p.y + p.h; by += 16) {
+                          ctx.fillRect(bx + 3, by + 5, 2, 2);
+                          ctx.fillRect(bx + 10, by + 8, 2, 2);
+                          ctx.fillRect(bx + 13, by + 3, 2, 2);
+                      }
+                  }
+  
+                  // Fiery red highlights & glowing ember specks
+                  ctx.fillStyle = "#932630";
+                  for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                      for (let by = p.y; by < p.y + p.h; by += 16) {
+                          ctx.fillRect(bx + 7, by + 2, 3, 2);
+                          ctx.fillRect(bx + 1, by + 10, 2, 2);
+                          ctx.fillRect(bx + 12, by + 11, 2, 2);
+                      }
+                  }
+                  ctx.fillStyle = "#bd313c";
+                  for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                      ctx.fillRect(bx + 6, p.y + (p.h > 14 ? 8 : 4), 1, 1);
+                      ctx.fillRect(bx + 14, p.y + 2, 1, 1);
+                  }
+  
+                  // Block grid mortar lines
+                  ctx.fillStyle = "#2c080b";
+                  for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                      ctx.fillRect(bx, p.y, 1, p.h);
                   }
                   ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
   
-                  // Crimson nylium top fringe
-                  ctx.fillStyle = "#9e1b2f";
-                  ctx.fillRect(p.x, p.y, p.w, 6);
-                  ctx.fillStyle = "#731120";
+                  // Crimson Nylium turf top carpet & hanging roots
+                  ctx.fillStyle = "#9e1a31";
+                  ctx.fillRect(p.x, p.y, p.w, 5);
+                  ctx.fillStyle = "#cc2746";
+                  ctx.fillRect(p.x, p.y, p.w, 2);
+                  ctx.fillStyle = "#751022";
                   for (let gx = p.x; gx < p.x + p.w; gx += 8) {
-                      ctx.fillRect(gx, p.y + 6, 4, 3);
+                      ctx.fillRect(gx, p.y + 5, 3, 3);
+                      ctx.fillRect(gx + 4, p.y + 5, 2, 2);
                   }
               } else if (biome === "end") {
-                  // End stone platform with purpur/obsidian trim
-                  ctx.fillStyle = "#dfddaa";
+                  // ==========================================
+                  // THE END: AUTHENTIC END STONE BLOCKS
+                  // ==========================================
+                  // Base pale creamy End Stone
+                  ctx.fillStyle = "#ded99f";
                   ctx.fillRect(p.x, p.y, p.w, p.h);
-                  ctx.fillStyle = "#b5b279";
+  
+                  // Dark sulfur crater pits (tiled 16x16)
+                  ctx.fillStyle = "#b5ad6e";
                   for (let bx = p.x; bx < p.x + p.w; bx += 16) {
-                      ctx.fillRect(bx, p.y, 2, p.h);
+                      for (let by = p.y; by < p.y + p.h; by += 16) {
+                          ctx.fillRect(bx + 2, by + 4, 4, 3);
+                          ctx.fillRect(bx + 9, by + 8, 4, 3);
+                          ctx.fillRect(bx + 4, by + 12, 3, 2);
+                      }
+                  }
+  
+                  // Deep crater pores
+                  ctx.fillStyle = "#8a8349";
+                  for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                      for (let by = p.y; by < p.y + p.h; by += 16) {
+                          ctx.fillRect(bx + 3, by + 5, 2, 2);
+                          ctx.fillRect(bx + 10, by + 9, 2, 2);
+                      }
+                  }
+  
+                  // Pale creamy highlights
+                  ctx.fillStyle = "#f3efcb";
+                  for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                      for (let by = p.y; by < p.y + p.h; by += 16) {
+                          ctx.fillRect(bx + 7, by + 2, 3, 2);
+                          ctx.fillRect(bx + 1, by + 10, 2, 2);
+                          ctx.fillRect(bx + 13, by + 11, 2, 2);
+                      }
+                  }
+  
+                  // Block seams
+                  ctx.fillStyle = "#706a38";
+                  for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                      ctx.fillRect(bx, p.y, 1, p.h);
                   }
                   ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
   
-                  // Purpur top cap
-                  ctx.fillStyle = "#995a94";
-                  ctx.fillRect(p.x, p.y, p.w, 5);
-                  ctx.fillStyle = "#6d3b6a";
-                  for (let gx = p.x; gx < p.x + p.w; gx += 8) {
-                      ctx.fillRect(gx, p.y + 5, 4, 2);
+                  if (isFloor) {
+                      // End Stone Bricks border at top of floor
+                      ctx.fillStyle = "#eae6ba";
+                      ctx.fillRect(p.x, p.y, p.w, 3);
+                      ctx.fillStyle = "#948c4f";
+                      for (let bx = p.x; bx < p.x + p.w; bx += 32) {
+                          ctx.fillRect(bx, p.y, 2, 6);
+                      }
+                  } else {
+                      // Purpur block top cap on floating ledges
+                      ctx.fillStyle = "#995a94";
+                      ctx.fillRect(p.x, p.y, p.w, 5);
+                      ctx.fillStyle = "#b870b2";
+                      ctx.fillRect(p.x, p.y, p.w, 2);
+                      ctx.fillStyle = "#6d3b6a";
+                      for (let gx = p.x; gx < p.x + p.w; gx += 8) {
+                          ctx.fillRect(gx, p.y + 5, 3, 2);
+                      }
+                      // Obsidian brackets on ledge corners
+                      ctx.fillStyle = "#1b1424";
+                      ctx.fillRect(p.x, p.y, 4, p.h);
+                      ctx.fillRect(p.x + p.w - 4, p.y, 4, p.h);
                   }
               } else {
-                  // Overworld: Stone block platform with grass top
-                  ctx.fillStyle = "#7d7d7d";
-                  ctx.fillRect(p.x, p.y, p.w, p.h);
-                  ctx.fillStyle = "#5f5f5f";
-                  for (let bx = p.x; bx < p.x + p.w; bx += 16) {
-                      ctx.fillRect(bx, p.y, 2, p.h);
-                  }
-                  ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
-                  if (p.h > 12) ctx.fillRect(p.x, p.y + Math.floor(p.h / 2), p.w, 2);
+                  // ==========================================
+                  // OVERWORLD: STONE / DIRT WITH LUSH GRASS
+                  // ==========================================
+                  if (isFloor) {
+                      // Dirt body for main floor
+                      ctx.fillStyle = "#866043";
+                      ctx.fillRect(p.x, p.y, p.w, p.h);
   
-                  // Grass top (ground) or stone cap (floating)
-                  ctx.fillStyle = p.y >= 380 ? "#5da83e" : "#a4a4a4";
-                  ctx.fillRect(p.x, p.y, p.w, 6);
-                  ctx.fillStyle = p.y >= 380 ? "#3f7d2a" : "#808080";
-                  for (let gx = p.x; gx < p.x + p.w; gx += 8) {
-                      ctx.fillRect(gx, p.y + 6, 4, 2);
+                      ctx.fillStyle = "#725037";
+                      for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                          ctx.fillRect(bx + 2, p.y + 10, 4, 3);
+                          ctx.fillRect(bx + 9, p.y + 16, 4, 3);
+                      }
+                      ctx.fillStyle = "#5c3d28";
+                      for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                          ctx.fillRect(bx + 3, p.y + 11, 2, 2);
+                      }
+  
+                      // Lush Overworld Grass block top
+                      ctx.fillStyle = "#5da83e";
+                      ctx.fillRect(p.x, p.y, p.w, 6);
+                      ctx.fillStyle = "#78c253";
+                      ctx.fillRect(p.x, p.y, p.w, 2);
+                      ctx.fillStyle = "#3f7d2a";
+                      for (let gx = p.x; gx < p.x + p.w; gx += 8) {
+                          ctx.fillRect(gx, p.y + 6, 3, 3);
+                          ctx.fillRect(gx + 4, p.y + 6, 2, 2);
+                      }
+                  } else {
+                      // Smooth stone floating ledge
+                      ctx.fillStyle = "#7d7d7d";
+                      ctx.fillRect(p.x, p.y, p.w, p.h);
+                      ctx.fillStyle = "#5f5f5f";
+                      for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                          ctx.fillRect(bx, p.y, 2, p.h);
+                      }
+                      ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
+  
+                      // Stone slab top highlight
+                      ctx.fillStyle = "#a4a4a4";
+                      ctx.fillRect(p.x, p.y, p.w, 4);
+                      ctx.fillStyle = "#808080";
+                      for (let gx = p.x; gx < p.x + p.w; gx += 8) {
+                          ctx.fillRect(gx, p.y + 4, 4, 2);
+                      }
                   }
               }
           }
@@ -4661,6 +4873,29 @@
               }
           }
   
+          // Soft push-separation between overlapping fighters so models never fuse together
+          for (let i = 0; i < this.allFighters.length; i++) {
+              const f1 = this.allFighters[i];
+              if (f1.hp <= 0 || f1.dashing) continue;
+              for (let j = i + 1; j < this.allFighters.length; j++) {
+                  const f2 = this.allFighters[j];
+                  if (f2.hp <= 0 || f2.dashing) continue;
+  
+                  const dx = (f2.x + f2.w / 2) - (f1.x + f1.w / 2);
+                  const dy = Math.abs(f2.y - f1.y);
+                  if (Math.abs(dx) < 22 && dy < 32) {
+                      const push = 1.0;
+                      if (dx >= 0) {
+                          f1.x = Math.max(0, f1.x - push);
+                          f2.x = Math.min(ARENA_CONFIG.width - f2.w, f2.x + push);
+                      } else {
+                          f1.x = Math.min(ARENA_CONFIG.width - f1.w, f1.x + push);
+                          f2.x = Math.max(0, f2.x - push);
+                      }
+                  }
+              }
+          }
+  
           // Update Arrow Projectiles
           this.arrowManager.update(PLATFORMS_CONFIG, this.allFighters, (hitFighter, arrow, dmg) => {
               sound.playDashHit();
@@ -5143,7 +5378,51 @@
                   const capitalized = this.currentBiome.charAt(0).toUpperCase() + this.currentBiome.slice(1);
                   this.themeBtn.textContent = `Theme: ${capitalized}`;
                   this.game.renderer.setBiome(this.currentBiome);
+                  applyMinecraftBackground(this.currentBiome);
                   sound.playClick();
+              });
+          }
+  
+          // Screen Size Toggle (Big Screen / Maximum)
+          const arenaContainer = document.getElementById("arena-container") || document.querySelector(".arena-container");
+          this.screenSizeBtn = document.getElementById("btn-screen-size");
+          this.hudScreenBtn = document.getElementById("btn-hud-screen");
+          let isScreenMax = false;
+          const toggleScreenSize = () => {
+              isScreenMax = !isScreenMax;
+              if (arenaContainer) {
+                  arenaContainer.classList.toggle("screen-max", isScreenMax);
+              }
+              if (this.screenSizeBtn) {
+                  this.screenSizeBtn.textContent = isScreenMax ? "Screen: Max" : "Screen: Big";
+              }
+              if (this.hudScreenBtn) {
+                  this.hudScreenBtn.textContent = isScreenMax ? "⛶ Standard" : "⛶ Max";
+              }
+              this.game.renderer.setupDPI();
+              sound.playClick();
+          };
+          if (this.screenSizeBtn) this.screenSizeBtn.addEventListener("click", toggleScreenSize);
+          if (this.hudScreenBtn) this.hudScreenBtn.addEventListener("click", toggleScreenSize);
+  
+          // Arena Top Quick Action Buttons
+          const hudHomeBtn = document.getElementById("btn-hud-home");
+          const hudPauseBtn = document.getElementById("btn-hud-pause");
+          const hudRestartBtn = document.getElementById("btn-hud-restart");
+  
+          if (hudHomeBtn) {
+              hudHomeBtn.addEventListener("click", () => {
+                  this.handleHomeClick();
+              });
+          }
+          if (hudPauseBtn) {
+              hudPauseBtn.addEventListener("click", () => {
+                  this.game.togglePause();
+              });
+          }
+          if (hudRestartBtn) {
+              hudRestartBtn.addEventListener("click", () => {
+                  this.triggerMatchmakingRestart();
               });
           }
   

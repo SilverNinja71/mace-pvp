@@ -502,6 +502,29 @@ export class Game {
             }
         }
 
+        // Soft push-separation between overlapping fighters so models never fuse together
+        for (let i = 0; i < this.allFighters.length; i++) {
+            const f1 = this.allFighters[i];
+            if (f1.hp <= 0 || f1.dashing) continue;
+            for (let j = i + 1; j < this.allFighters.length; j++) {
+                const f2 = this.allFighters[j];
+                if (f2.hp <= 0 || f2.dashing) continue;
+
+                const dx = (f2.x + f2.w / 2) - (f1.x + f1.w / 2);
+                const dy = Math.abs(f2.y - f1.y);
+                if (Math.abs(dx) < 22 && dy < 32) {
+                    const push = 1.0;
+                    if (dx >= 0) {
+                        f1.x = Math.max(0, f1.x - push);
+                        f2.x = Math.min(ARENA_CONFIG.width - f2.w, f2.x + push);
+                    } else {
+                        f1.x = Math.min(ARENA_CONFIG.width - f1.w, f1.x + push);
+                        f2.x = Math.max(0, f2.x - push);
+                    }
+                }
+            }
+        }
+
         // Update Arrow Projectiles
         this.arrowManager.update(PLATFORMS_CONFIG, this.allFighters, (hitFighter, arrow, dmg) => {
             sound.playDashHit();

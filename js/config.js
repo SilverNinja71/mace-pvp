@@ -15,10 +15,10 @@ export const CORE_PHYSICS = {
     coyoteTime: 12,
     groundY: 390,
 
-    slamSpeed: 24,           // Swift and responsive downward slam
-    dashSpeed: 24,           // Fast, snappy dash
+    slamSpeed: 17,           // Weightier, deliberate downward slam (reduced from 24)
+    dashSpeed: 15,           // Controlled, snappy dash (reduced from 24)
     dashTime: 6,
-    dashCooldown: 15,        // Reduced from 40 to 15 frames for quick re-attacks
+    dashCooldown: 15,        // Quick re-attack cooldown
 
     slamRadius: 40,
     slamGroundDamage: 25,
