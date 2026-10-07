@@ -156,7 +156,7 @@ export class UIManager {
                 if (modeKey === "custom") {
                     this.openCustomBotModal();
                 } else {
-                    this.game.startGame(modeKey);
+                    this.launchMatchWithLoading(modeKey);
                 }
             });
 
@@ -332,6 +332,14 @@ export class UIManager {
         });
 
         this.setupTouchButtons();
+
+        // Wire game callbacks to ui
+        if (this.game) {
+            this.game.uiCallbacks = this.game.uiCallbacks || {};
+            this.game.uiCallbacks.onStartModeRequested = (mode) => this.launchMatchWithLoading(mode);
+            this.game.uiCallbacks.onRestartRequested = () => this.triggerMatchmakingRestart();
+            this.game.uiCallbacks.onHomeRequested = () => this.handleHomeClick();
+        }
     }
 
     updateMuteButton(isMuted) {
@@ -998,7 +1006,7 @@ export class UIManager {
         if (btnLaunchPrivate) {
             btnLaunchPrivate.onclick = () => {
                 this.arenaModal.classList.add("hidden");
-                this.game.startArenaTeamMatch(this.selectedArenaMode, this.selectedArenaWeapon);
+                this.launchArenaMatchWithLoading(this.selectedArenaMode, this.selectedArenaWeapon);
             };
         }
 
@@ -1014,7 +1022,7 @@ export class UIManager {
                 }
                 sound.playWin();
                 this.arenaModal.classList.add("hidden");
-                this.game.startArenaTeamMatch(this.selectedArenaMode, this.selectedArenaWeapon);
+                this.launchArenaMatchWithLoading(this.selectedArenaMode, this.selectedArenaWeapon);
             };
         }
     }
@@ -1092,7 +1100,7 @@ export class UIManager {
 
                 setTimeout(() => {
                     this.queueModal.classList.add("hidden");
-                    this.game.startArenaTeamMatch(matchType, weaponId);
+                    this.launchArenaMatchWithLoading(matchType, weaponId);
                 }, 800);
             }
         }, 800);
@@ -1245,7 +1253,7 @@ export class UIManager {
             }
 
             this.customBotModal.classList.add("hidden");
-            this.game.startGame("custom", customOverrides);
+            this.launchMatchWithLoading("custom", customOverrides);
         });
     }
 
@@ -1303,7 +1311,11 @@ export class UIManager {
                 this.matchmakingInterval = null;
                 if (modal) modal.classList.add("hidden");
                 sound.playDoubleJump();
-                this.game.restartMatch();
+                if (this.game.isTeamMatch) {
+                    this.launchArenaMatchWithLoading(this.game.matchType, this.game.player.weaponId);
+                } else {
+                    this.launchMatchWithLoading(this.game.mode);
+                }
             } else {
                 if (countSpan) countSpan.textContent = `${timeLeft.toFixed(1)}s`;
                 if (statusText) {
@@ -1324,6 +1336,192 @@ export class UIManager {
         }
         if (this.matchmakingModal) this.matchmakingModal.classList.add("hidden");
         this.game.goHome();
+    }
+
+    // ==========================================
+    // MATCHUP LOADING / VS SCREEN (Who vs Who & Ranks)
+    // ==========================================
+    showMatchLoadingScreen(matchConfig, onStartCallback) {
+        const modal = document.getElementById("match-loading-modal");
+        if (!modal) {
+            onStartCallback();
+            return;
+        }
+
+        // Close all other overlays so loading stage is pristine
+        document.querySelectorAll(".overlay, .modal-backdrop").forEach(m => m.classList.add("hidden"));
+        modal.classList.remove("hidden");
+        sound.playClick();
+
+        const badgeEl = document.getElementById("ml-match-badge");
+        const countEl = document.getElementById("ml-countdown-num");
+        const fillEl = document.getElementById("ml-progress-fill");
+        const blueRosterEl = document.getElementById("ml-blue-roster");
+        const redRosterEl = document.getElementById("ml-red-roster");
+        const skipBtn = document.getElementById("btn-skip-loading");
+
+        if (badgeEl) badgeEl.textContent = matchConfig.title || "ARENA MATCH";
+
+        const renderRoster = (fighters, container) => {
+            if (!container) return;
+            container.innerHTML = fighters.map(f => {
+                const weaponData = WEAPON_TYPES[f.weaponId] || WEAPON_TYPES.mace;
+                const tierColor = f.tierColor || "#f1c40f";
+                const rankText = f.rank || "Bronze I";
+                return `
+                    <div class="ml-fighter-item ${f.isPlayer ? 'is-player-item' : ''}">
+                        <div class="ml-avatar-box">
+                            ${headImgHTML(f.skinId || 'steve', 32)}
+                        </div>
+                        <div class="ml-info-box">
+                            <div class="ml-name-row">
+                                <span class="ml-fighter-name">${f.name || 'Fighter'}</span>
+                                ${f.isPlayer ? '<span class="ml-you-badge">YOU</span>' : ''}
+                            </div>
+                            <div class="ml-detail-row">
+                                <span class="ml-weapon-tag">${weaponIconHTML(f.weaponId || 'mace', 16)} ${weaponData.name}</span>
+                                <span class="ml-rank-pill" style="border-color:${tierColor}; background:rgba(0,0,0,0.45);">
+                                    <span class="tier-pip" style="background:${tierColor}"></span> ${rankText}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        };
+
+        renderRoster(matchConfig.blueTeam || [], blueRosterEl);
+        renderRoster(matchConfig.redTeam || [], redRosterEl);
+
+        let countdown = 3;
+        let progress = 0;
+        if (countEl) countEl.textContent = countdown;
+        if (fillEl) fillEl.style.width = "0%";
+
+        let isFinished = false;
+        let timerInterval = null;
+        let progressInterval = null;
+
+        const finishLoading = () => {
+            if (isFinished) return;
+            isFinished = true;
+            if (timerInterval) clearInterval(timerInterval);
+            if (progressInterval) clearInterval(progressInterval);
+            modal.classList.add("hidden");
+            sound.playDoubleJump();
+            onStartCallback();
+        };
+
+        if (skipBtn) {
+            skipBtn.onclick = () => finishLoading();
+        }
+
+        progressInterval = setInterval(() => {
+            progress += 3;
+            if (fillEl) fillEl.style.width = `${Math.min(100, progress)}%`;
+        }, 50);
+
+        timerInterval = setInterval(() => {
+            countdown--;
+            if (countdown > 0) {
+                if (countEl) countEl.textContent = countdown;
+                sound.playClick();
+            } else {
+                if (countEl) countEl.textContent = "FIGHT!";
+                sound.playDash();
+                setTimeout(() => finishLoading(), 350);
+            }
+        }, 750);
+    }
+
+    launchMatchWithLoading(modeKey, customOverrides = null) {
+        const user = auth.getUser();
+        const userTier = arena.getTier(user.arenaRP || 250);
+        const botMeta = MODE_METADATA[modeKey] || { name: "Bot" };
+
+        const blueTeam = [{
+            name: user.username || "Steve",
+            skinId: user.skinId || "steve",
+            weaponId: user.equippedWeapon || "mace",
+            rank: `${userTier.name} (${user.arenaRP || 250} RP)`,
+            tierColor: userTier.color,
+            isPlayer: true
+        }];
+
+        let botSkin = "alex";
+        let botWeapon = "spear";
+        let botRank = "Bronze II (450 RP)";
+        let botTierColor = "#cd7f32";
+
+        if (modeKey === "practice") {
+            botSkin = "steve"; botWeapon = "mace"; botRank = "Training Ring"; botTierColor = "#95a5a6";
+        } else if (modeKey === "easy") {
+            botSkin = "alex"; botWeapon = "spear"; botRank = "Bronze II (450 RP)"; botTierColor = "#cd7f32";
+        } else if (modeKey === "normal") {
+            botSkin = "noob"; botWeapon = "sword"; botRank = "Gold I (1,280 RP)"; botTierColor = "#f1c40f";
+        } else if (modeKey === "pro") {
+            botSkin = "diamond_knight"; botWeapon = "sword"; botRank = "Diamond II (1,840 RP)"; botTierColor = "#00d2d3";
+        } else if (modeKey === "god") {
+            botSkin = "enderman"; botWeapon = "mace"; botRank = "Obsidian Grandmaster (2,950 RP)"; botTierColor = "#9b59b6";
+        } else if (modeKey === "pvp") {
+            botSkin = "alex"; botWeapon = "spear"; botRank = "Challenger Red"; botTierColor = "#e74c3c";
+        } else if (modeKey === "custom") {
+            botSkin = "man_face"; botWeapon = "mace"; botRank = "Custom Bot"; botTierColor = "#e67e22";
+        }
+
+        const redTeam = [{
+            name: (modeKey === "pvp") ? "Player 2" : `[BOT] ${botMeta.name}`,
+            skinId: botSkin,
+            weaponId: botWeapon,
+            rank: botRank,
+            tierColor: botTierColor,
+            isPlayer: false
+        }];
+
+        this.showMatchLoadingScreen({
+            title: `${botMeta.name.toUpperCase()} • 1v1 MATCH`,
+            blueTeam,
+            redTeam
+        }, () => {
+            this.game.startGame(modeKey, customOverrides);
+        });
+    }
+
+    launchArenaMatchWithLoading(matchType, weaponId) {
+        const user = auth.getUser();
+        const roster = arena.generateTeamRoster(matchType, user, weaponId);
+
+        const blueTeam = roster.blueTeam.map(f => {
+            const tier = f.tierId ? ARENA_TIERS[f.tierId] : arena.getTier(f.rp || 250);
+            return {
+                name: f.name,
+                skinId: f.skinId,
+                weaponId: f.weaponId,
+                rank: `${tier.name} (${f.rp || 250} RP)`,
+                tierColor: tier.color,
+                isPlayer: f.isPlayer
+            };
+        });
+
+        const redTeam = roster.redTeam.map(f => {
+            const tier = f.tierId ? ARENA_TIERS[f.tierId] : arena.getTier(f.rp || 250);
+            return {
+                name: f.name,
+                skinId: f.skinId,
+                weaponId: f.weaponId,
+                rank: `${tier.name} (${f.rp || 250} RP)`,
+                tierColor: tier.color,
+                isPlayer: false
+            };
+        });
+
+        this.showMatchLoadingScreen({
+            title: `ARENA ${matchType.toUpperCase()} RANKED MATCH`,
+            blueTeam,
+            redTeam
+        }, () => {
+            this.game.startArenaTeamMatch(matchType, weaponId);
+        });
     }
 
     // ==========================================

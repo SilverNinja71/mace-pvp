@@ -94,18 +94,24 @@ export class ArenaManager {
         const redTeam = [];
         const blueTeam = [];
 
-        // User is always Captain of Red Team
-        redTeam.push({
+        const userRP = userProfile.arenaRP || 250;
+        const userTier = this.getTier(userRP);
+
+        // User is ALWAYS Captain of Blue Team (User is always Blue against opponents)
+        blueTeam.push({
             id: "player_user",
             name: userProfile.username || "Player",
             isPlayer: true,
-            team: "red",
+            team: "blue",
             weaponId: selectedWeaponId,
             skinId: userProfile.skinId || "steve",
             maxHp: 100,
             x: 120,
             y: 300,
-            facing: 1
+            facing: 1,
+            rank: userTier.name,
+            tierId: userTier.id,
+            rp: userRP
         });
 
         const botNames = [
@@ -115,31 +121,15 @@ export class ArenaManager {
         ];
         const weaponPool = ["mace", "spear", "sword", "fists", "bow"];
         const skinPool = ["steve", "alex", "noob", "man_face", "creeper", "enderman"];
+        const botTiers = ["bronze", "silver", "gold", "diamond", "obsidian"];
 
-        // Fill remaining Red Team slots if 2v2 or 5v5
+        // Fill remaining Blue Team slots (Allies) if 2v2 or 5v5
         for (let i = 1; i < totalPerTeam; i++) {
             const bName = botNames[i % botNames.length];
             const wep = weaponPool[Math.floor(Math.random() * weaponPool.length)];
             const skin = skinPool[Math.floor(Math.random() * skinPool.length)];
-            redTeam.push({
-                id: `bot_red_${i}`,
-                name: `[BOT] ${bName}`,
-                isPlayer: false,
-                team: "red",
-                weaponId: wep,
-                skinId: skin,
-                maxHp: 100,
-                x: 100 + i * 45,
-                y: 300,
-                facing: 1
-            });
-        }
-
-        // Fill Blue Team slots
-        for (let i = 0; i < totalPerTeam; i++) {
-            const bName = botNames[(i + 4) % botNames.length];
-            const wep = weaponPool[Math.floor(Math.random() * weaponPool.length)];
-            const skin = skinPool[Math.floor(Math.random() * skinPool.length)];
+            const tierKey = botTiers[Math.min(botTiers.length - 1, Math.floor(Math.random() * botTiers.length))];
+            const tierObj = ARENA_TIERS[tierKey];
             blueTeam.push({
                 id: `bot_blue_${i}`,
                 name: `[BOT] ${bName}`,
@@ -148,9 +138,36 @@ export class ArenaManager {
                 weaponId: wep,
                 skinId: skin,
                 maxHp: 100,
+                x: 100 + i * 45,
+                y: 300,
+                facing: 1,
+                rank: tierObj.name,
+                tierId: tierObj.id,
+                rp: Math.floor(tierObj.minRP + Math.random() * 400)
+            });
+        }
+
+        // Fill Red Team slots (Opponents)
+        for (let i = 0; i < totalPerTeam; i++) {
+            const bName = botNames[(i + 4) % botNames.length];
+            const wep = weaponPool[Math.floor(Math.random() * weaponPool.length)];
+            const skin = skinPool[Math.floor(Math.random() * skinPool.length)];
+            const tierKey = botTiers[Math.min(botTiers.length - 1, Math.floor(Math.random() * botTiers.length))];
+            const tierObj = ARENA_TIERS[tierKey];
+            redTeam.push({
+                id: `bot_red_${i}`,
+                name: `[BOT] ${bName}`,
+                isPlayer: false,
+                team: "red",
+                weaponId: wep,
+                skinId: skin,
+                maxHp: 100,
                 x: 680 - i * 45,
                 y: 300,
-                facing: -1
+                facing: -1,
+                rank: tierObj.name,
+                tierId: tierObj.id,
+                rp: Math.floor(tierObj.minRP + Math.random() * 400)
             });
         }
 

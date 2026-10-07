@@ -610,12 +610,13 @@ export class Renderer {
         // Draw skin / block face
         this.drawSkin(f, 1.0);
 
-        // Team highlight border and aura (Red vs Blue in arena)
+        // Team highlight border and aura (Blue vs Red)
         if (f.team) {
-            const teamColor = f.team === "red" ? "#ff4757" : "#1e90ff";
-            const teamAura = f.team === "red" ? "rgba(255, 71, 87, 0.28)" : "rgba(30, 144, 255, 0.28)";
+            const isBlue = f.team === "blue";
+            const teamColor = isBlue ? "#1e90ff" : "#ff4757";
+            const teamAura = isBlue ? "rgba(30, 144, 255, 0.28)" : "rgba(255, 71, 87, 0.28)";
 
-            // Soft highlight aura around the character
+            // Soft highlight aura around character
             ctx.fillStyle = teamAura;
             ctx.fillRect(f.x - 3, f.y - 3, f.w + 6, f.h + 6);
 
@@ -630,6 +631,36 @@ export class Renderer {
             ctx.fillRect(f.x + f.w - 1, f.y - 2, 3, 3);
             ctx.fillRect(f.x - 2, f.y + f.h - 1, 3, 3);
             ctx.fillRect(f.x + f.w - 1, f.y + f.h - 1, 3, 3);
+        }
+
+        // WHITE HIGHLIGHT ON PLAYER
+        if (f.isPlayer) {
+            // Radiant white aura
+            ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
+            ctx.fillRect(f.x - 3, f.y - 3, f.w + 6, f.h + 6);
+
+            // Crisp 2px solid white outline
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(f.x - 1, f.y - 1, f.w + 2, f.h + 2);
+
+            // Blocky white corner brackets
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(f.x - 2, f.y - 2, 3, 3);
+            ctx.fillRect(f.x + f.w - 1, f.y - 2, 3, 3);
+            ctx.fillRect(f.x - 2, f.y + f.h - 1, 3, 3);
+            ctx.fillRect(f.x + f.w - 1, f.y + f.h - 1, 3, 3);
+
+            // Floating white indicator arrow above player's head
+            const bob = Math.sin(this.frameCount * 0.15) * 2;
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            const tipY = f.y - 8 + bob;
+            ctx.moveTo(centerX, tipY);
+            ctx.lineTo(centerX - 4, tipY - 5);
+            ctx.lineTo(centerX + 4, tipY - 5);
+            ctx.closePath();
+            ctx.fill();
         }
 
         // Slamming effect ring
@@ -820,13 +851,13 @@ export class Renderer {
             ctx.fillText(`⚔️ TIEBREAKER: ${(Math.max(0, tiebreakerTimer) / 60).toFixed(1)}s`, this.width / 2, 18);
             ctx.fillStyle = "#ffffff";
             ctx.font = "bold 9px monospace";
-            ctx.fillText(`RED: ${Math.round(redDmg)} | BLUE: ${Math.round(blueDmg)} DMG`, this.width / 2, 30);
+            ctx.fillText(`BLUE: ${Math.round(blueDmg)} | RED: ${Math.round(redDmg)} DMG`, this.width / 2, 30);
         } else {
             ctx.fillStyle = "#ffffff";
             ctx.font = "bold 13px monospace";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.fillText(`${scoreRed}  -  ${scoreBlue}`, this.width / 2, 19);
+            ctx.fillText(`${scoreBlue}  -  ${scoreRed}`, this.width / 2, 19);
             ctx.fillStyle = "#f1c40f";
             ctx.font = "bold 9px monospace";
             ctx.fillText("FIRST TO 11 KILLS", this.width / 2, 31);
@@ -858,21 +889,20 @@ export class Renderer {
             ctx.fillText(`⚔️ TIEBREAKER: ${(Math.max(0, tiebreakerTimer) / 60).toFixed(1)}s`, this.width / 2, 18);
             ctx.fillStyle = "#ffffff";
             ctx.font = "bold 9px monospace";
-            ctx.fillText(`RED: ${Math.round(redDmg)} | BLUE: ${Math.round(blueDmg)} DMG`, this.width / 2, 30);
+            ctx.fillText(`BLUE: ${Math.round(blueDmg)} | RED: ${Math.round(redDmg)} DMG`, this.width / 2, 30);
         } else {
             ctx.fillStyle = "#ffffff";
             ctx.font = "bold 13px monospace";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.fillText(`RED ${scoreRed} : ${scoreBlue} BLUE`, this.width / 2, 19);
+            ctx.fillText(`BLUE ${scoreBlue} : ${scoreRed} RED`, this.width / 2, 19);
             ctx.fillStyle = "#f1c40f";
             ctx.font = "bold 9px monospace";
             ctx.fillText(`ARENA ${matchType.toUpperCase()} • FIRST TO 11`, this.width / 2, 31);
         }
 
-        // --- RED TEAM ROSTER (Left Side) ---
-        // Header
-        ctx.fillStyle = "rgba(231, 76, 60, 0.95)";
+        // --- BLUE TEAM ROSTER (Left Side - YOUR TEAM) ---
+        ctx.fillStyle = "rgba(41, 128, 185, 0.95)";
         ctx.fillRect(16, 10, 160, 24);
         ctx.strokeStyle = "#000";
         ctx.lineWidth = 1;
@@ -880,29 +910,28 @@ export class Renderer {
         ctx.fillStyle = "#fff";
         ctx.font = "bold 12px monospace";
         ctx.textAlign = "center";
-        ctx.fillText(`RED TEAM (${redAlive}/${redTeam.length})`, 96, 22);
+        ctx.fillText(`BLUE TEAM (${blueAlive}/${blueTeam.length})`, 96, 22);
 
-        // Each Red Team fighter's health bar
         const rItemH = matchType === "5v5" ? 18 : 22;
-        redTeam.forEach((f, idx) => {
+        blueTeam.forEach((f, idx) => {
             const itemY = 38 + idx * (rItemH + 4);
             const isAlive = f.hp > 0;
             const hpRatio = Math.max(0, Math.min(1, f.hp / f.maxHp));
             const ghostRatio = Math.max(0, Math.min(1, (f.ghostHp || f.hp) / f.maxHp));
 
             // Card background
-            ctx.fillStyle = isAlive ? "rgba(20, 20, 20, 0.85)" : "rgba(40, 20, 20, 0.6)";
+            ctx.fillStyle = isAlive ? "rgba(20, 20, 20, 0.85)" : "rgba(20, 30, 40, 0.6)";
             ctx.fillRect(16, itemY, 160, rItemH);
-            ctx.strokeStyle = isAlive ? "#c0392b" : "#555";
-            ctx.lineWidth = 1;
+            ctx.strokeStyle = f.isPlayer ? "#ffffff" : (isAlive ? "#2980b9" : "#555");
+            ctx.lineWidth = f.isPlayer ? 2 : 1;
             ctx.strokeRect(16, itemY, 160, rItemH);
 
             // Fighter Name
             ctx.font = "bold 10px monospace";
             ctx.textAlign = "left";
             ctx.textBaseline = "middle";
-            ctx.fillStyle = isAlive ? "#ffffff" : "#888888";
-            const name = (f.name || `Red ${idx + 1}`).substring(0, 10);
+            ctx.fillStyle = f.isPlayer ? "#ffffff" : (isAlive ? "#74b9ff" : "#888888");
+            const name = (f.name || `Blue ${idx + 1}`).substring(0, 10);
             ctx.fillText(name, 22, itemY + rItemH / 2);
 
             // HP Bar inside card
@@ -915,15 +944,10 @@ export class Renderer {
             ctx.fillRect(barX, barY, barW, barH);
 
             if (isAlive) {
-                // Ghost HP
                 ctx.fillStyle = "#e74c3c";
                 ctx.fillRect(barX, barY, barW * ghostRatio, barH);
-
-                // Current HP
                 ctx.fillStyle = hpRatio > 0.5 ? "#2ecc71" : (hpRatio > 0.25 ? "#f1c40f" : "#e74c3c");
                 ctx.fillRect(barX, barY, barW * hpRatio, barH);
-
-                // HP Text
                 ctx.fillStyle = "#ffffff";
                 ctx.font = "bold 9px monospace";
                 ctx.textAlign = "center";
@@ -936,10 +960,9 @@ export class Renderer {
             }
         });
 
-        // --- BLUE TEAM ROSTER (Right Side) ---
+        // --- RED TEAM ROSTER (Right Side - OPPONENTS) ---
         const bStartX = this.width - 176;
-        // Header
-        ctx.fillStyle = "rgba(41, 128, 185, 0.95)";
+        ctx.fillStyle = "rgba(231, 76, 60, 0.95)";
         ctx.fillRect(bStartX, 10, 160, 24);
         ctx.strokeStyle = "#000";
         ctx.lineWidth = 1;
@@ -947,31 +970,27 @@ export class Renderer {
         ctx.fillStyle = "#fff";
         ctx.font = "bold 12px monospace";
         ctx.textAlign = "center";
-        ctx.fillText(`BLUE TEAM (${blueAlive}/${blueTeam.length})`, bStartX + 80, 22);
+        ctx.fillText(`RED TEAM (${redAlive}/${redTeam.length})`, bStartX + 80, 22);
 
-        // Each Blue Team fighter's health bar
-        blueTeam.forEach((f, idx) => {
+        redTeam.forEach((f, idx) => {
             const itemY = 38 + idx * (rItemH + 4);
             const isAlive = f.hp > 0;
             const hpRatio = Math.max(0, Math.min(1, f.hp / f.maxHp));
             const ghostRatio = Math.max(0, Math.min(1, (f.ghostHp || f.hp) / f.maxHp));
 
-            // Card background
-            ctx.fillStyle = isAlive ? "rgba(20, 20, 20, 0.85)" : "rgba(20, 30, 40, 0.6)";
+            ctx.fillStyle = isAlive ? "rgba(20, 20, 20, 0.85)" : "rgba(40, 20, 20, 0.6)";
             ctx.fillRect(bStartX, itemY, 160, rItemH);
-            ctx.strokeStyle = isAlive ? "#2980b9" : "#555";
+            ctx.strokeStyle = isAlive ? "#c0392b" : "#555";
             ctx.lineWidth = 1;
             ctx.strokeRect(bStartX, itemY, 160, rItemH);
 
-            // Fighter Name
             ctx.font = "bold 10px monospace";
             ctx.textAlign = "left";
             ctx.textBaseline = "middle";
-            ctx.fillStyle = isAlive ? "#ffffff" : "#888888";
-            const name = (f.name || `Blue ${idx + 1}`).substring(0, 10);
+            ctx.fillStyle = isAlive ? "#ff7675" : "#888888";
+            const name = (f.name || `Red ${idx + 1}`).substring(0, 10);
             ctx.fillText(name, bStartX + 6, itemY + rItemH / 2);
 
-            // HP Bar inside card
             const barX = bStartX + 74;
             const barW = 80;
             const barH = rItemH - 8;
@@ -981,15 +1000,10 @@ export class Renderer {
             ctx.fillRect(barX, barY, barW, barH);
 
             if (isAlive) {
-                // Ghost HP
                 ctx.fillStyle = "#e74c3c";
                 ctx.fillRect(barX, barY, barW * ghostRatio, barH);
-
-                // Current HP
                 ctx.fillStyle = hpRatio > 0.5 ? "#2ecc71" : (hpRatio > 0.25 ? "#f1c40f" : "#e74c3c");
                 ctx.fillRect(barX, barY, barW * hpRatio, barH);
-
-                // HP Text
                 ctx.fillStyle = "#ffffff";
                 ctx.font = "bold 9px monospace";
                 ctx.textAlign = "center";

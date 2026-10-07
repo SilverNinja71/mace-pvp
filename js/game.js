@@ -104,7 +104,7 @@ export class Game {
         this.player.reset(150, 1, maxHp);
         this.player.setWeapon(user.equippedWeapon || "mace", user.weaponUpgrades || {});
         this.player.setSkin(user.skinId || "steve");
-        this.player.setTeam(null);
+        this.player.setTeam("blue"); // PLAYER IS ALWAYS BLUE
         this.player.isBotGame = isBot;
         this.player.isPlayer = true;
         this.player.name = this.playerName || "Player";
@@ -114,15 +114,15 @@ export class Game {
         this.bot.name = (mode === "pvp") ? "Player 2" : `[BOT] ${botMeta.name}`;
         this.bot.setWeapon(mode === "god" ? "mace" : (mode === "pro" ? "sword" : "spear"), {});
         this.bot.setSkin(mode === "god" ? "enderman" : (mode === "pro" ? "diamond_knight" : "alex"));
-        this.bot.setTeam(null);
+        this.bot.setTeam("red"); // OPPONENT IS ALWAYS RED
         this.bot.isBotGame = isBot;
 
         this.botAI.setParams(this.botParams);
         this.botAI.reset();
         this.bot._botAI = this.botAI;
 
-        this.redTeam = [this.player];
-        this.blueTeam = [this.bot];
+        this.blueTeam = [this.player];
+        this.redTeam = [this.bot];
         this.allBots = [{ fighter: this.bot, ai: this.botAI }];
         this.allFighters = [this.player, this.bot];
 
@@ -159,13 +159,13 @@ export class Game {
         const user = auth.getUser();
         const roster = arena.generateTeamRoster(matchType, user, selectedWeaponId);
 
-        // Build Red Team
-        this.redTeam = roster.redTeam.map((data, idx) => {
+        // Build Blue Team (Player is always on Blue Team)
+        this.blueTeam = roster.blueTeam.map((data) => {
             if (data.isPlayer) {
                 this.player.reset(data.x, data.facing, data.maxHp);
                 this.player.setWeapon(selectedWeaponId, user.weaponUpgrades || {});
                 this.player.setSkin(user.skinId || "steve");
-                this.player.setTeam("red");
+                this.player.setTeam("blue");
                 this.player.name = user.username || "Player";
                 this.player.isBotGame = false;
                 this.player.isPlayer = true;
@@ -175,24 +175,24 @@ export class Game {
                 fighter.reset(data.x, data.facing, data.maxHp);
                 fighter.setWeapon(data.weaponId, {});
                 fighter.setSkin(data.skinId);
-                fighter.setTeam("red");
+                fighter.setTeam("blue");
                 return fighter;
             }
         });
 
-        // Build Blue Team
-        this.blueTeam = roster.blueTeam.map((data) => {
+        // Build Red Team (Opponents are on Red Team)
+        this.redTeam = roster.redTeam.map((data) => {
             const fighter = new Fighter(true, data.id, data.name);
             fighter.reset(data.x, data.facing, data.maxHp);
             fighter.setWeapon(data.weaponId, {});
             fighter.setSkin(data.skinId);
-            fighter.setTeam("blue");
+            fighter.setTeam("red");
             return fighter;
         });
 
         // Initialize Bot AIs for all non-player fighters
         this.allBots = [];
-        this.redTeam.forEach(f => {
+        this.blueTeam.forEach(f => {
             if (f.isBot) {
                 const ai = new BotAI(f);
                 ai.setParams(this.botParams);
@@ -202,14 +202,14 @@ export class Game {
                 f._botAI = null;
             }
         });
-        this.blueTeam.forEach(f => {
+        this.redTeam.forEach(f => {
             const ai = new BotAI(f);
             ai.setParams(this.botParams);
             f._botAI = ai;
             this.allBots.push({ fighter: f, ai });
         });
 
-        this.allFighters = [...this.redTeam, ...this.blueTeam];
+        this.allFighters = [...this.blueTeam, ...this.redTeam];
 
         this.arrowManager.reset();
         this.particles.reset();
@@ -315,12 +315,19 @@ export class Game {
 
             // Menu Keys
             if (this.state === "menu") {
-                if (e.code === "KeyT") this.startGame("practice");
-                if (e.code === "KeyE") this.startGame("easy");
-                if (e.code === "KeyN") this.startGame("normal");
-                if (e.code === "KeyP") this.startGame("pro");
-                if (e.code === "KeyG") this.startGame("god");
-                if (e.code === "Digit2") this.startGame("pvp");
+                const launch = (mode) => {
+                    if (this.uiCallbacks.onStartModeRequested) {
+                        this.uiCallbacks.onStartModeRequested(mode);
+                    } else {
+                        this.startGame(mode);
+                    }
+                };
+                if (e.code === "KeyT") launch("practice");
+                if (e.code === "KeyE") launch("easy");
+                if (e.code === "KeyN") launch("normal");
+                if (e.code === "KeyP") launch("pro");
+                if (e.code === "KeyG") launch("god");
+                if (e.code === "Digit2") launch("pvp");
                 return;
             }
 
@@ -621,25 +628,25 @@ export class Game {
 
                 // Check Win Conditions
                 if (!this.isTiebreaker) {
-                    if (this.scoreRed >= 11 && this.scoreBlue < 10) {
-                        this.finishMatch(true);
+                    if (this.scoreBlue >= 11 && this.scoreRed < 10) {
+                        this.finishMatch(true); // Blue (Player) wins!
                         return;
-                    } else if (this.scoreBlue >= 11 && this.scoreRed < 10) {
-                        this.finishMatch(false);
+                    } else if (this.scoreRed >= 11 && this.scoreBlue < 10) {
+                        this.finishMatch(false); // Red (Opponent) wins
                         return;
                     }
                 } else {
-                    if (this.scoreRed >= 11) {
-                        this.finishMatch(true);
+                    if (this.scoreBlue >= 11) {
+                        this.finishMatch(true); // Blue wins
                         return;
-                    } else if (this.scoreBlue >= 11) {
-                        this.finishMatch(false);
+                    } else if (this.scoreRed >= 11) {
+                        this.finishMatch(false); // Red wins
                         return;
                     }
                 }
 
                 // Schedule fighter respawn
-                const spawnX = isRedFighter ? (120 + Math.random() * 80) : (600 + Math.random() * 80);
+                const spawnX = isRedFighter ? (600 + Math.random() * 80) : (120 + Math.random() * 80);
                 const spawnY = 160;
                 this.respawnQueue.push({ fighter: f, timer: 60, spawnX, spawnY });
             }
@@ -662,22 +669,22 @@ export class Game {
             this.tiebreakerTimer--;
             if (this.tiebreakerTimer <= 0) {
                 // 10 seconds expired! Compare damage dealt
-                if (this.tiebreakerRedDamage > this.tiebreakerBlueDamage) {
+                if (this.tiebreakerBlueDamage > this.tiebreakerRedDamage) {
                     this.finishMatch(true);
-                } else if (this.tiebreakerBlueDamage > this.tiebreakerRedDamage) {
+                } else if (this.tiebreakerRedDamage > this.tiebreakerBlueDamage) {
                     this.finishMatch(false);
                 } else {
-                    this.finishMatch(this.scoreRed >= this.scoreBlue);
+                    this.finishMatch(this.scoreBlue >= this.scoreRed);
                 }
                 return;
             }
         }
     }
 
-    finishMatch(isRedWin) {
+    finishMatch(isPlayerWin) {
         this.state = "gameover";
-        this.winnerTeam = isRedWin ? "red" : "blue";
-        if (isRedWin) sound.playWin(); else sound.playLoss();
+        this.winnerTeam = isPlayerWin ? "blue" : "red";
+        if (isPlayerWin) sound.playWin(); else sound.playLoss();
 
         // Calculate missed mace slams, missed dashes, and missed arrows for all fighters
         this.allFighters.forEach(f => {
@@ -697,10 +704,10 @@ export class Game {
 
         // Scale reward economy
         if (this.isTeamMatch) {
-            this.lastRewardInfo = auth.recordArenaMatchResult(isRedWin, this.matchType);
+            this.lastRewardInfo = auth.recordArenaMatchResult(isPlayerWin, this.matchType);
         } else {
             if (this.mode !== "pvp") {
-                this.lastRewardInfo = auth.recordMatchResult(isRedWin, this.mode, this.player.stats);
+                this.lastRewardInfo = auth.recordMatchResult(isPlayerWin, this.mode, this.player.stats);
             }
         }
 

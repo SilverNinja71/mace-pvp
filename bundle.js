@@ -1391,18 +1391,24 @@
           const redTeam = [];
           const blueTeam = [];
   
-          // User is always Captain of Red Team
-          redTeam.push({
+          const userRP = userProfile.arenaRP || 250;
+          const userTier = this.getTier(userRP);
+  
+          // User is ALWAYS Captain of Blue Team (User is always Blue against opponents)
+          blueTeam.push({
               id: "player_user",
               name: userProfile.username || "Player",
               isPlayer: true,
-              team: "red",
+              team: "blue",
               weaponId: selectedWeaponId,
               skinId: userProfile.skinId || "steve",
               maxHp: 100,
               x: 120,
               y: 300,
-              facing: 1
+              facing: 1,
+              rank: userTier.name,
+              tierId: userTier.id,
+              rp: userRP
           });
   
           const botNames = [
@@ -1412,31 +1418,15 @@
           ];
           const weaponPool = ["mace", "spear", "sword", "fists", "bow"];
           const skinPool = ["steve", "alex", "noob", "man_face", "creeper", "enderman"];
+          const botTiers = ["bronze", "silver", "gold", "diamond", "obsidian"];
   
-          // Fill remaining Red Team slots if 2v2 or 5v5
+          // Fill remaining Blue Team slots (Allies) if 2v2 or 5v5
           for (let i = 1; i < totalPerTeam; i++) {
               const bName = botNames[i % botNames.length];
               const wep = weaponPool[Math.floor(Math.random() * weaponPool.length)];
               const skin = skinPool[Math.floor(Math.random() * skinPool.length)];
-              redTeam.push({
-                  id: `bot_red_${i}`,
-                  name: `[BOT] ${bName}`,
-                  isPlayer: false,
-                  team: "red",
-                  weaponId: wep,
-                  skinId: skin,
-                  maxHp: 100,
-                  x: 100 + i * 45,
-                  y: 300,
-                  facing: 1
-              });
-          }
-  
-          // Fill Blue Team slots
-          for (let i = 0; i < totalPerTeam; i++) {
-              const bName = botNames[(i + 4) % botNames.length];
-              const wep = weaponPool[Math.floor(Math.random() * weaponPool.length)];
-              const skin = skinPool[Math.floor(Math.random() * skinPool.length)];
+              const tierKey = botTiers[Math.min(botTiers.length - 1, Math.floor(Math.random() * botTiers.length))];
+              const tierObj = ARENA_TIERS[tierKey];
               blueTeam.push({
                   id: `bot_blue_${i}`,
                   name: `[BOT] ${bName}`,
@@ -1445,9 +1435,36 @@
                   weaponId: wep,
                   skinId: skin,
                   maxHp: 100,
+                  x: 100 + i * 45,
+                  y: 300,
+                  facing: 1,
+                  rank: tierObj.name,
+                  tierId: tierObj.id,
+                  rp: Math.floor(tierObj.minRP + Math.random() * 400)
+              });
+          }
+  
+          // Fill Red Team slots (Opponents)
+          for (let i = 0; i < totalPerTeam; i++) {
+              const bName = botNames[(i + 4) % botNames.length];
+              const wep = weaponPool[Math.floor(Math.random() * weaponPool.length)];
+              const skin = skinPool[Math.floor(Math.random() * skinPool.length)];
+              const tierKey = botTiers[Math.min(botTiers.length - 1, Math.floor(Math.random() * botTiers.length))];
+              const tierObj = ARENA_TIERS[tierKey];
+              redTeam.push({
+                  id: `bot_red_${i}`,
+                  name: `[BOT] ${bName}`,
+                  isPlayer: false,
+                  team: "red",
+                  weaponId: wep,
+                  skinId: skin,
+                  maxHp: 100,
                   x: 680 - i * 45,
                   y: 300,
-                  facing: -1
+                  facing: -1,
+                  rank: tierObj.name,
+                  tierId: tierObj.id,
+                  rp: Math.floor(tierObj.minRP + Math.random() * 400)
               });
           }
   
@@ -3908,12 +3925,13 @@
           // Draw skin / block face
           this.drawSkin(f, 1.0);
   
-          // Team highlight border and aura (Red vs Blue in arena)
+          // Team highlight border and aura (Blue vs Red)
           if (f.team) {
-              const teamColor = f.team === "red" ? "#ff4757" : "#1e90ff";
-              const teamAura = f.team === "red" ? "rgba(255, 71, 87, 0.28)" : "rgba(30, 144, 255, 0.28)";
+              const isBlue = f.team === "blue";
+              const teamColor = isBlue ? "#1e90ff" : "#ff4757";
+              const teamAura = isBlue ? "rgba(30, 144, 255, 0.28)" : "rgba(255, 71, 87, 0.28)";
   
-              // Soft highlight aura around the character
+              // Soft highlight aura around character
               ctx.fillStyle = teamAura;
               ctx.fillRect(f.x - 3, f.y - 3, f.w + 6, f.h + 6);
   
@@ -3928,6 +3946,36 @@
               ctx.fillRect(f.x + f.w - 1, f.y - 2, 3, 3);
               ctx.fillRect(f.x - 2, f.y + f.h - 1, 3, 3);
               ctx.fillRect(f.x + f.w - 1, f.y + f.h - 1, 3, 3);
+          }
+  
+          // WHITE HIGHLIGHT ON PLAYER
+          if (f.isPlayer) {
+              // Radiant white aura
+              ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
+              ctx.fillRect(f.x - 3, f.y - 3, f.w + 6, f.h + 6);
+  
+              // Crisp 2px solid white outline
+              ctx.strokeStyle = "#ffffff";
+              ctx.lineWidth = 2;
+              ctx.strokeRect(f.x - 1, f.y - 1, f.w + 2, f.h + 2);
+  
+              // Blocky white corner brackets
+              ctx.fillStyle = "#ffffff";
+              ctx.fillRect(f.x - 2, f.y - 2, 3, 3);
+              ctx.fillRect(f.x + f.w - 1, f.y - 2, 3, 3);
+              ctx.fillRect(f.x - 2, f.y + f.h - 1, 3, 3);
+              ctx.fillRect(f.x + f.w - 1, f.y + f.h - 1, 3, 3);
+  
+              // Floating white indicator arrow above player's head
+              const bob = Math.sin(this.frameCount * 0.15) * 2;
+              ctx.fillStyle = "#ffffff";
+              ctx.beginPath();
+              const tipY = f.y - 8 + bob;
+              ctx.moveTo(centerX, tipY);
+              ctx.lineTo(centerX - 4, tipY - 5);
+              ctx.lineTo(centerX + 4, tipY - 5);
+              ctx.closePath();
+              ctx.fill();
           }
   
           // Slamming effect ring
@@ -4118,13 +4166,13 @@
               ctx.fillText(`⚔️ TIEBREAKER: ${(Math.max(0, tiebreakerTimer) / 60).toFixed(1)}s`, this.width / 2, 18);
               ctx.fillStyle = "#ffffff";
               ctx.font = "bold 9px monospace";
-              ctx.fillText(`RED: ${Math.round(redDmg)} | BLUE: ${Math.round(blueDmg)} DMG`, this.width / 2, 30);
+              ctx.fillText(`BLUE: ${Math.round(blueDmg)} | RED: ${Math.round(redDmg)} DMG`, this.width / 2, 30);
           } else {
               ctx.fillStyle = "#ffffff";
               ctx.font = "bold 13px monospace";
               ctx.textAlign = "center";
               ctx.textBaseline = "middle";
-              ctx.fillText(`${scoreRed}  -  ${scoreBlue}`, this.width / 2, 19);
+              ctx.fillText(`${scoreBlue}  -  ${scoreRed}`, this.width / 2, 19);
               ctx.fillStyle = "#f1c40f";
               ctx.font = "bold 9px monospace";
               ctx.fillText("FIRST TO 11 KILLS", this.width / 2, 31);
@@ -4156,21 +4204,20 @@
               ctx.fillText(`⚔️ TIEBREAKER: ${(Math.max(0, tiebreakerTimer) / 60).toFixed(1)}s`, this.width / 2, 18);
               ctx.fillStyle = "#ffffff";
               ctx.font = "bold 9px monospace";
-              ctx.fillText(`RED: ${Math.round(redDmg)} | BLUE: ${Math.round(blueDmg)} DMG`, this.width / 2, 30);
+              ctx.fillText(`BLUE: ${Math.round(blueDmg)} | RED: ${Math.round(redDmg)} DMG`, this.width / 2, 30);
           } else {
               ctx.fillStyle = "#ffffff";
               ctx.font = "bold 13px monospace";
               ctx.textAlign = "center";
               ctx.textBaseline = "middle";
-              ctx.fillText(`RED ${scoreRed} : ${scoreBlue} BLUE`, this.width / 2, 19);
+              ctx.fillText(`BLUE ${scoreBlue} : ${scoreRed} RED`, this.width / 2, 19);
               ctx.fillStyle = "#f1c40f";
               ctx.font = "bold 9px monospace";
               ctx.fillText(`ARENA ${matchType.toUpperCase()} • FIRST TO 11`, this.width / 2, 31);
           }
   
-          // --- RED TEAM ROSTER (Left Side) ---
-          // Header
-          ctx.fillStyle = "rgba(231, 76, 60, 0.95)";
+          // --- BLUE TEAM ROSTER (Left Side - YOUR TEAM) ---
+          ctx.fillStyle = "rgba(41, 128, 185, 0.95)";
           ctx.fillRect(16, 10, 160, 24);
           ctx.strokeStyle = "#000";
           ctx.lineWidth = 1;
@@ -4178,29 +4225,28 @@
           ctx.fillStyle = "#fff";
           ctx.font = "bold 12px monospace";
           ctx.textAlign = "center";
-          ctx.fillText(`RED TEAM (${redAlive}/${redTeam.length})`, 96, 22);
+          ctx.fillText(`BLUE TEAM (${blueAlive}/${blueTeam.length})`, 96, 22);
   
-          // Each Red Team fighter's health bar
           const rItemH = matchType === "5v5" ? 18 : 22;
-          redTeam.forEach((f, idx) => {
+          blueTeam.forEach((f, idx) => {
               const itemY = 38 + idx * (rItemH + 4);
               const isAlive = f.hp > 0;
               const hpRatio = Math.max(0, Math.min(1, f.hp / f.maxHp));
               const ghostRatio = Math.max(0, Math.min(1, (f.ghostHp || f.hp) / f.maxHp));
   
               // Card background
-              ctx.fillStyle = isAlive ? "rgba(20, 20, 20, 0.85)" : "rgba(40, 20, 20, 0.6)";
+              ctx.fillStyle = isAlive ? "rgba(20, 20, 20, 0.85)" : "rgba(20, 30, 40, 0.6)";
               ctx.fillRect(16, itemY, 160, rItemH);
-              ctx.strokeStyle = isAlive ? "#c0392b" : "#555";
-              ctx.lineWidth = 1;
+              ctx.strokeStyle = f.isPlayer ? "#ffffff" : (isAlive ? "#2980b9" : "#555");
+              ctx.lineWidth = f.isPlayer ? 2 : 1;
               ctx.strokeRect(16, itemY, 160, rItemH);
   
               // Fighter Name
               ctx.font = "bold 10px monospace";
               ctx.textAlign = "left";
               ctx.textBaseline = "middle";
-              ctx.fillStyle = isAlive ? "#ffffff" : "#888888";
-              const name = (f.name || `Red ${idx + 1}`).substring(0, 10);
+              ctx.fillStyle = f.isPlayer ? "#ffffff" : (isAlive ? "#74b9ff" : "#888888");
+              const name = (f.name || `Blue ${idx + 1}`).substring(0, 10);
               ctx.fillText(name, 22, itemY + rItemH / 2);
   
               // HP Bar inside card
@@ -4213,15 +4259,10 @@
               ctx.fillRect(barX, barY, barW, barH);
   
               if (isAlive) {
-                  // Ghost HP
                   ctx.fillStyle = "#e74c3c";
                   ctx.fillRect(barX, barY, barW * ghostRatio, barH);
-  
-                  // Current HP
                   ctx.fillStyle = hpRatio > 0.5 ? "#2ecc71" : (hpRatio > 0.25 ? "#f1c40f" : "#e74c3c");
                   ctx.fillRect(barX, barY, barW * hpRatio, barH);
-  
-                  // HP Text
                   ctx.fillStyle = "#ffffff";
                   ctx.font = "bold 9px monospace";
                   ctx.textAlign = "center";
@@ -4234,10 +4275,9 @@
               }
           });
   
-          // --- BLUE TEAM ROSTER (Right Side) ---
+          // --- RED TEAM ROSTER (Right Side - OPPONENTS) ---
           const bStartX = this.width - 176;
-          // Header
-          ctx.fillStyle = "rgba(41, 128, 185, 0.95)";
+          ctx.fillStyle = "rgba(231, 76, 60, 0.95)";
           ctx.fillRect(bStartX, 10, 160, 24);
           ctx.strokeStyle = "#000";
           ctx.lineWidth = 1;
@@ -4245,31 +4285,27 @@
           ctx.fillStyle = "#fff";
           ctx.font = "bold 12px monospace";
           ctx.textAlign = "center";
-          ctx.fillText(`BLUE TEAM (${blueAlive}/${blueTeam.length})`, bStartX + 80, 22);
+          ctx.fillText(`RED TEAM (${redAlive}/${redTeam.length})`, bStartX + 80, 22);
   
-          // Each Blue Team fighter's health bar
-          blueTeam.forEach((f, idx) => {
+          redTeam.forEach((f, idx) => {
               const itemY = 38 + idx * (rItemH + 4);
               const isAlive = f.hp > 0;
               const hpRatio = Math.max(0, Math.min(1, f.hp / f.maxHp));
               const ghostRatio = Math.max(0, Math.min(1, (f.ghostHp || f.hp) / f.maxHp));
   
-              // Card background
-              ctx.fillStyle = isAlive ? "rgba(20, 20, 20, 0.85)" : "rgba(20, 30, 40, 0.6)";
+              ctx.fillStyle = isAlive ? "rgba(20, 20, 20, 0.85)" : "rgba(40, 20, 20, 0.6)";
               ctx.fillRect(bStartX, itemY, 160, rItemH);
-              ctx.strokeStyle = isAlive ? "#2980b9" : "#555";
+              ctx.strokeStyle = isAlive ? "#c0392b" : "#555";
               ctx.lineWidth = 1;
               ctx.strokeRect(bStartX, itemY, 160, rItemH);
   
-              // Fighter Name
               ctx.font = "bold 10px monospace";
               ctx.textAlign = "left";
               ctx.textBaseline = "middle";
-              ctx.fillStyle = isAlive ? "#ffffff" : "#888888";
-              const name = (f.name || `Blue ${idx + 1}`).substring(0, 10);
+              ctx.fillStyle = isAlive ? "#ff7675" : "#888888";
+              const name = (f.name || `Red ${idx + 1}`).substring(0, 10);
               ctx.fillText(name, bStartX + 6, itemY + rItemH / 2);
   
-              // HP Bar inside card
               const barX = bStartX + 74;
               const barW = 80;
               const barH = rItemH - 8;
@@ -4279,15 +4315,10 @@
               ctx.fillRect(barX, barY, barW, barH);
   
               if (isAlive) {
-                  // Ghost HP
                   ctx.fillStyle = "#e74c3c";
                   ctx.fillRect(barX, barY, barW * ghostRatio, barH);
-  
-                  // Current HP
                   ctx.fillStyle = hpRatio > 0.5 ? "#2ecc71" : (hpRatio > 0.25 ? "#f1c40f" : "#e74c3c");
                   ctx.fillRect(barX, barY, barW * hpRatio, barH);
-  
-                  // HP Text
                   ctx.fillStyle = "#ffffff";
                   ctx.font = "bold 9px monospace";
                   ctx.textAlign = "center";
@@ -4475,7 +4506,7 @@
           this.player.reset(150, 1, maxHp);
           this.player.setWeapon(user.equippedWeapon || "mace", user.weaponUpgrades || {});
           this.player.setSkin(user.skinId || "steve");
-          this.player.setTeam(null);
+          this.player.setTeam("blue"); // PLAYER IS ALWAYS BLUE
           this.player.isBotGame = isBot;
           this.player.isPlayer = true;
           this.player.name = this.playerName || "Player";
@@ -4485,15 +4516,15 @@
           this.bot.name = (mode === "pvp") ? "Player 2" : `[BOT] ${botMeta.name}`;
           this.bot.setWeapon(mode === "god" ? "mace" : (mode === "pro" ? "sword" : "spear"), {});
           this.bot.setSkin(mode === "god" ? "enderman" : (mode === "pro" ? "diamond_knight" : "alex"));
-          this.bot.setTeam(null);
+          this.bot.setTeam("red"); // OPPONENT IS ALWAYS RED
           this.bot.isBotGame = isBot;
   
           this.botAI.setParams(this.botParams);
           this.botAI.reset();
           this.bot._botAI = this.botAI;
   
-          this.redTeam = [this.player];
-          this.blueTeam = [this.bot];
+          this.blueTeam = [this.player];
+          this.redTeam = [this.bot];
           this.allBots = [{ fighter: this.bot, ai: this.botAI }];
           this.allFighters = [this.player, this.bot];
   
@@ -4530,13 +4561,13 @@
           const user = auth.getUser();
           const roster = arena.generateTeamRoster(matchType, user, selectedWeaponId);
   
-          // Build Red Team
-          this.redTeam = roster.redTeam.map((data, idx) => {
+          // Build Blue Team (Player is always on Blue Team)
+          this.blueTeam = roster.blueTeam.map((data) => {
               if (data.isPlayer) {
                   this.player.reset(data.x, data.facing, data.maxHp);
                   this.player.setWeapon(selectedWeaponId, user.weaponUpgrades || {});
                   this.player.setSkin(user.skinId || "steve");
-                  this.player.setTeam("red");
+                  this.player.setTeam("blue");
                   this.player.name = user.username || "Player";
                   this.player.isBotGame = false;
                   this.player.isPlayer = true;
@@ -4546,24 +4577,24 @@
                   fighter.reset(data.x, data.facing, data.maxHp);
                   fighter.setWeapon(data.weaponId, {});
                   fighter.setSkin(data.skinId);
-                  fighter.setTeam("red");
+                  fighter.setTeam("blue");
                   return fighter;
               }
           });
   
-          // Build Blue Team
-          this.blueTeam = roster.blueTeam.map((data) => {
+          // Build Red Team (Opponents are on Red Team)
+          this.redTeam = roster.redTeam.map((data) => {
               const fighter = new Fighter(true, data.id, data.name);
               fighter.reset(data.x, data.facing, data.maxHp);
               fighter.setWeapon(data.weaponId, {});
               fighter.setSkin(data.skinId);
-              fighter.setTeam("blue");
+              fighter.setTeam("red");
               return fighter;
           });
   
           // Initialize Bot AIs for all non-player fighters
           this.allBots = [];
-          this.redTeam.forEach(f => {
+          this.blueTeam.forEach(f => {
               if (f.isBot) {
                   const ai = new BotAI(f);
                   ai.setParams(this.botParams);
@@ -4573,14 +4604,14 @@
                   f._botAI = null;
               }
           });
-          this.blueTeam.forEach(f => {
+          this.redTeam.forEach(f => {
               const ai = new BotAI(f);
               ai.setParams(this.botParams);
               f._botAI = ai;
               this.allBots.push({ fighter: f, ai });
           });
   
-          this.allFighters = [...this.redTeam, ...this.blueTeam];
+          this.allFighters = [...this.blueTeam, ...this.redTeam];
   
           this.arrowManager.reset();
           this.particles.reset();
@@ -4686,12 +4717,19 @@
   
               // Menu Keys
               if (this.state === "menu") {
-                  if (e.code === "KeyT") this.startGame("practice");
-                  if (e.code === "KeyE") this.startGame("easy");
-                  if (e.code === "KeyN") this.startGame("normal");
-                  if (e.code === "KeyP") this.startGame("pro");
-                  if (e.code === "KeyG") this.startGame("god");
-                  if (e.code === "Digit2") this.startGame("pvp");
+                  const launch = (mode) => {
+                      if (this.uiCallbacks.onStartModeRequested) {
+                          this.uiCallbacks.onStartModeRequested(mode);
+                      } else {
+                          this.startGame(mode);
+                      }
+                  };
+                  if (e.code === "KeyT") launch("practice");
+                  if (e.code === "KeyE") launch("easy");
+                  if (e.code === "KeyN") launch("normal");
+                  if (e.code === "KeyP") launch("pro");
+                  if (e.code === "KeyG") launch("god");
+                  if (e.code === "Digit2") launch("pvp");
                   return;
               }
   
@@ -4992,25 +5030,25 @@
   
                   // Check Win Conditions
                   if (!this.isTiebreaker) {
-                      if (this.scoreRed >= 11 && this.scoreBlue < 10) {
-                          this.finishMatch(true);
+                      if (this.scoreBlue >= 11 && this.scoreRed < 10) {
+                          this.finishMatch(true); // Blue (Player) wins!
                           return;
-                      } else if (this.scoreBlue >= 11 && this.scoreRed < 10) {
-                          this.finishMatch(false);
+                      } else if (this.scoreRed >= 11 && this.scoreBlue < 10) {
+                          this.finishMatch(false); // Red (Opponent) wins
                           return;
                       }
                   } else {
-                      if (this.scoreRed >= 11) {
-                          this.finishMatch(true);
+                      if (this.scoreBlue >= 11) {
+                          this.finishMatch(true); // Blue wins
                           return;
-                      } else if (this.scoreBlue >= 11) {
-                          this.finishMatch(false);
+                      } else if (this.scoreRed >= 11) {
+                          this.finishMatch(false); // Red wins
                           return;
                       }
                   }
   
                   // Schedule fighter respawn
-                  const spawnX = isRedFighter ? (120 + Math.random() * 80) : (600 + Math.random() * 80);
+                  const spawnX = isRedFighter ? (600 + Math.random() * 80) : (120 + Math.random() * 80);
                   const spawnY = 160;
                   this.respawnQueue.push({ fighter: f, timer: 60, spawnX, spawnY });
               }
@@ -5033,22 +5071,22 @@
               this.tiebreakerTimer--;
               if (this.tiebreakerTimer <= 0) {
                   // 10 seconds expired! Compare damage dealt
-                  if (this.tiebreakerRedDamage > this.tiebreakerBlueDamage) {
+                  if (this.tiebreakerBlueDamage > this.tiebreakerRedDamage) {
                       this.finishMatch(true);
-                  } else if (this.tiebreakerBlueDamage > this.tiebreakerRedDamage) {
+                  } else if (this.tiebreakerRedDamage > this.tiebreakerBlueDamage) {
                       this.finishMatch(false);
                   } else {
-                      this.finishMatch(this.scoreRed >= this.scoreBlue);
+                      this.finishMatch(this.scoreBlue >= this.scoreRed);
                   }
                   return;
               }
           }
       }
   
-      finishMatch(isRedWin) {
+      finishMatch(isPlayerWin) {
           this.state = "gameover";
-          this.winnerTeam = isRedWin ? "red" : "blue";
-          if (isRedWin) sound.playWin(); else sound.playLoss();
+          this.winnerTeam = isPlayerWin ? "blue" : "red";
+          if (isPlayerWin) sound.playWin(); else sound.playLoss();
   
           // Calculate missed mace slams, missed dashes, and missed arrows for all fighters
           this.allFighters.forEach(f => {
@@ -5068,10 +5106,10 @@
   
           // Scale reward economy
           if (this.isTeamMatch) {
-              this.lastRewardInfo = auth.recordArenaMatchResult(isRedWin, this.matchType);
+              this.lastRewardInfo = auth.recordArenaMatchResult(isPlayerWin, this.matchType);
           } else {
               if (this.mode !== "pvp") {
-                  this.lastRewardInfo = auth.recordMatchResult(isRedWin, this.mode, this.player.stats);
+                  this.lastRewardInfo = auth.recordMatchResult(isPlayerWin, this.mode, this.player.stats);
               }
           }
   
@@ -5338,7 +5376,7 @@
                   if (modeKey === "custom") {
                       this.openCustomBotModal();
                   } else {
-                      this.game.startGame(modeKey);
+                      this.launchMatchWithLoading(modeKey);
                   }
               });
   
@@ -5514,6 +5552,14 @@
           });
   
           this.setupTouchButtons();
+  
+          // Wire game callbacks to ui
+          if (this.game) {
+              this.game.uiCallbacks = this.game.uiCallbacks || {};
+              this.game.uiCallbacks.onStartModeRequested = (mode) => this.launchMatchWithLoading(mode);
+              this.game.uiCallbacks.onRestartRequested = () => this.triggerMatchmakingRestart();
+              this.game.uiCallbacks.onHomeRequested = () => this.handleHomeClick();
+          }
       }
   
       updateMuteButton(isMuted) {
@@ -6180,7 +6226,7 @@
           if (btnLaunchPrivate) {
               btnLaunchPrivate.onclick = () => {
                   this.arenaModal.classList.add("hidden");
-                  this.game.startArenaTeamMatch(this.selectedArenaMode, this.selectedArenaWeapon);
+                  this.launchArenaMatchWithLoading(this.selectedArenaMode, this.selectedArenaWeapon);
               };
           }
   
@@ -6196,7 +6242,7 @@
                   }
                   sound.playWin();
                   this.arenaModal.classList.add("hidden");
-                  this.game.startArenaTeamMatch(this.selectedArenaMode, this.selectedArenaWeapon);
+                  this.launchArenaMatchWithLoading(this.selectedArenaMode, this.selectedArenaWeapon);
               };
           }
       }
@@ -6274,7 +6320,7 @@
   
                   setTimeout(() => {
                       this.queueModal.classList.add("hidden");
-                      this.game.startArenaTeamMatch(matchType, weaponId);
+                      this.launchArenaMatchWithLoading(matchType, weaponId);
                   }, 800);
               }
           }, 800);
@@ -6427,7 +6473,7 @@
               }
   
               this.customBotModal.classList.add("hidden");
-              this.game.startGame("custom", customOverrides);
+              this.launchMatchWithLoading("custom", customOverrides);
           });
       }
   
@@ -6485,7 +6531,11 @@
                   this.matchmakingInterval = null;
                   if (modal) modal.classList.add("hidden");
                   sound.playDoubleJump();
-                  this.game.restartMatch();
+                  if (this.game.isTeamMatch) {
+                      this.launchArenaMatchWithLoading(this.game.matchType, this.game.player.weaponId);
+                  } else {
+                      this.launchMatchWithLoading(this.game.mode);
+                  }
               } else {
                   if (countSpan) countSpan.textContent = `${timeLeft.toFixed(1)}s`;
                   if (statusText) {
@@ -6506,6 +6556,192 @@
           }
           if (this.matchmakingModal) this.matchmakingModal.classList.add("hidden");
           this.game.goHome();
+      }
+  
+      // ==========================================
+      // MATCHUP LOADING / VS SCREEN (Who vs Who & Ranks)
+      // ==========================================
+      showMatchLoadingScreen(matchConfig, onStartCallback) {
+          const modal = document.getElementById("match-loading-modal");
+          if (!modal) {
+              onStartCallback();
+              return;
+          }
+  
+          // Close all other overlays so loading stage is pristine
+          document.querySelectorAll(".overlay, .modal-backdrop").forEach(m => m.classList.add("hidden"));
+          modal.classList.remove("hidden");
+          sound.playClick();
+  
+          const badgeEl = document.getElementById("ml-match-badge");
+          const countEl = document.getElementById("ml-countdown-num");
+          const fillEl = document.getElementById("ml-progress-fill");
+          const blueRosterEl = document.getElementById("ml-blue-roster");
+          const redRosterEl = document.getElementById("ml-red-roster");
+          const skipBtn = document.getElementById("btn-skip-loading");
+  
+          if (badgeEl) badgeEl.textContent = matchConfig.title || "ARENA MATCH";
+  
+          const renderRoster = (fighters, container) => {
+              if (!container) return;
+              container.innerHTML = fighters.map(f => {
+                  const weaponData = WEAPON_TYPES[f.weaponId] || WEAPON_TYPES.mace;
+                  const tierColor = f.tierColor || "#f1c40f";
+                  const rankText = f.rank || "Bronze I";
+                  return `
+                      <div class="ml-fighter-item ${f.isPlayer ? 'is-player-item' : ''}">
+                          <div class="ml-avatar-box">
+                              ${headImgHTML(f.skinId || 'steve', 32)}
+                          </div>
+                          <div class="ml-info-box">
+                              <div class="ml-name-row">
+                                  <span class="ml-fighter-name">${f.name || 'Fighter'}</span>
+                                  ${f.isPlayer ? '<span class="ml-you-badge">YOU</span>' : ''}
+                              </div>
+                              <div class="ml-detail-row">
+                                  <span class="ml-weapon-tag">${weaponIconHTML(f.weaponId || 'mace', 16)} ${weaponData.name}</span>
+                                  <span class="ml-rank-pill" style="border-color:${tierColor}; background:rgba(0,0,0,0.45);">
+                                      <span class="tier-pip" style="background:${tierColor}"></span> ${rankText}
+                                  </span>
+                              </div>
+                          </div>
+                      </div>
+                  `;
+              }).join("");
+          };
+  
+          renderRoster(matchConfig.blueTeam || [], blueRosterEl);
+          renderRoster(matchConfig.redTeam || [], redRosterEl);
+  
+          let countdown = 3;
+          let progress = 0;
+          if (countEl) countEl.textContent = countdown;
+          if (fillEl) fillEl.style.width = "0%";
+  
+          let isFinished = false;
+          let timerInterval = null;
+          let progressInterval = null;
+  
+          const finishLoading = () => {
+              if (isFinished) return;
+              isFinished = true;
+              if (timerInterval) clearInterval(timerInterval);
+              if (progressInterval) clearInterval(progressInterval);
+              modal.classList.add("hidden");
+              sound.playDoubleJump();
+              onStartCallback();
+          };
+  
+          if (skipBtn) {
+              skipBtn.onclick = () => finishLoading();
+          }
+  
+          progressInterval = setInterval(() => {
+              progress += 3;
+              if (fillEl) fillEl.style.width = `${Math.min(100, progress)}%`;
+          }, 50);
+  
+          timerInterval = setInterval(() => {
+              countdown--;
+              if (countdown > 0) {
+                  if (countEl) countEl.textContent = countdown;
+                  sound.playClick();
+              } else {
+                  if (countEl) countEl.textContent = "FIGHT!";
+                  sound.playDash();
+                  setTimeout(() => finishLoading(), 350);
+              }
+          }, 750);
+      }
+  
+      launchMatchWithLoading(modeKey, customOverrides = null) {
+          const user = auth.getUser();
+          const userTier = arena.getTier(user.arenaRP || 250);
+          const botMeta = MODE_METADATA[modeKey] || { name: "Bot" };
+  
+          const blueTeam = [{
+              name: user.username || "Steve",
+              skinId: user.skinId || "steve",
+              weaponId: user.equippedWeapon || "mace",
+              rank: `${userTier.name} (${user.arenaRP || 250} RP)`,
+              tierColor: userTier.color,
+              isPlayer: true
+          }];
+  
+          let botSkin = "alex";
+          let botWeapon = "spear";
+          let botRank = "Bronze II (450 RP)";
+          let botTierColor = "#cd7f32";
+  
+          if (modeKey === "practice") {
+              botSkin = "steve"; botWeapon = "mace"; botRank = "Training Ring"; botTierColor = "#95a5a6";
+          } else if (modeKey === "easy") {
+              botSkin = "alex"; botWeapon = "spear"; botRank = "Bronze II (450 RP)"; botTierColor = "#cd7f32";
+          } else if (modeKey === "normal") {
+              botSkin = "noob"; botWeapon = "sword"; botRank = "Gold I (1,280 RP)"; botTierColor = "#f1c40f";
+          } else if (modeKey === "pro") {
+              botSkin = "diamond_knight"; botWeapon = "sword"; botRank = "Diamond II (1,840 RP)"; botTierColor = "#00d2d3";
+          } else if (modeKey === "god") {
+              botSkin = "enderman"; botWeapon = "mace"; botRank = "Obsidian Grandmaster (2,950 RP)"; botTierColor = "#9b59b6";
+          } else if (modeKey === "pvp") {
+              botSkin = "alex"; botWeapon = "spear"; botRank = "Challenger Red"; botTierColor = "#e74c3c";
+          } else if (modeKey === "custom") {
+              botSkin = "man_face"; botWeapon = "mace"; botRank = "Custom Bot"; botTierColor = "#e67e22";
+          }
+  
+          const redTeam = [{
+              name: (modeKey === "pvp") ? "Player 2" : `[BOT] ${botMeta.name}`,
+              skinId: botSkin,
+              weaponId: botWeapon,
+              rank: botRank,
+              tierColor: botTierColor,
+              isPlayer: false
+          }];
+  
+          this.showMatchLoadingScreen({
+              title: `${botMeta.name.toUpperCase()} • 1v1 MATCH`,
+              blueTeam,
+              redTeam
+          }, () => {
+              this.game.startGame(modeKey, customOverrides);
+          });
+      }
+  
+      launchArenaMatchWithLoading(matchType, weaponId) {
+          const user = auth.getUser();
+          const roster = arena.generateTeamRoster(matchType, user, weaponId);
+  
+          const blueTeam = roster.blueTeam.map(f => {
+              const tier = f.tierId ? ARENA_TIERS[f.tierId] : arena.getTier(f.rp || 250);
+              return {
+                  name: f.name,
+                  skinId: f.skinId,
+                  weaponId: f.weaponId,
+                  rank: `${tier.name} (${f.rp || 250} RP)`,
+                  tierColor: tier.color,
+                  isPlayer: f.isPlayer
+              };
+          });
+  
+          const redTeam = roster.redTeam.map(f => {
+              const tier = f.tierId ? ARENA_TIERS[f.tierId] : arena.getTier(f.rp || 250);
+              return {
+                  name: f.name,
+                  skinId: f.skinId,
+                  weaponId: f.weaponId,
+                  rank: `${tier.name} (${f.rp || 250} RP)`,
+                  tierColor: tier.color,
+                  isPlayer: false
+              };
+          });
+  
+          this.showMatchLoadingScreen({
+              title: `ARENA ${matchType.toUpperCase()} RANKED MATCH`,
+              blueTeam,
+              redTeam
+          }, () => {
+              this.game.startArenaTeamMatch(matchType, weaponId);
+          });
       }
   
       // ==========================================

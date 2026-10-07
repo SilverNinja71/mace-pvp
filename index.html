@@ -562,6 +562,58 @@
                 </div>
             </div>
         </div>
+
+        <!-- Pre-Match VS Loading Screen Modal (Shows Who vs Who & Ranks) -->
+        <div id="match-loading-modal" class="overlay hidden match-loading-overlay">
+            <div class="match-loading-box">
+                <div class="ml-top-banner">
+                    <span id="ml-match-badge" class="ml-match-badge">ARENA MATCH</span>
+                    <h2 class="ml-title">PREPARING ARENA</h2>
+                    <div class="ml-timer-wrapper">
+                        <span id="ml-countdown-num" class="ml-countdown-num">3</span>
+                        <div class="ml-progress-track">
+                            <div id="ml-progress-fill" class="ml-progress-fill"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ml-vs-stage">
+                    <!-- Blue Team Card (Player & Allies) -->
+                    <div class="ml-team-card ml-team-blue">
+                        <div class="ml-team-header blue-banner">
+                            <span class="ml-team-tag">BLUE SQUAD</span>
+                            <span class="ml-team-subtag">(YOUR TEAM)</span>
+                        </div>
+                        <div id="ml-blue-roster" class="ml-roster-list">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Center VS Shield -->
+                    <div class="ml-vs-center">
+                        <div class="ml-vs-shield">
+                            <span class="ml-vs-text">VS</span>
+                        </div>
+                        <span class="ml-vs-subtitle">FIRST TO 11</span>
+                    </div>
+
+                    <!-- Red Team Card (Opponents) -->
+                    <div class="ml-team-card ml-team-red">
+                        <div class="ml-team-header red-banner">
+                            <span class="ml-team-tag">RED SQUAD</span>
+                            <span class="ml-team-subtag">(OPPONENTS)</span>
+                        </div>
+                        <div id="ml-red-roster" class="ml-roster-list">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ml-footer">
+                    <button id="btn-skip-loading" class="btn-ctrl btn-fight-now" title="Skip Countdown & Fight Now">⚡ FIGHT NOW</button>
+                </div>
+            </div>
+        </div>
     </main>
 
     <!-- Mobile Touch Controls -->
