@@ -42,7 +42,10 @@ export class CombatEngine {
             }
 
             const finalDamage = slamDamage * effDmgMult;
-            defender.hp -= finalDamage;
+            if (!defender.isPlayer || !defender.isBotGame) {
+                defender.hp -= finalDamage;
+                defender.stats.damageTaken += finalDamage;
+            }
             defender.hitCooldown = 25;
             defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier);
 
@@ -70,7 +73,6 @@ export class CombatEngine {
             if (finalDamage > attacker.stats.maxSlamDamage) {
                 attacker.stats.maxSlamDamage = finalDamage;
             }
-            defender.stats.damageTaken += finalDamage;
 
             if (onDefenderHit) onDefenderHit();
 
@@ -102,6 +104,15 @@ export class CombatEngine {
         this.particles.addDust(attackerCenter, attacker.y + attacker.h, 12);
         sound.playGroundSlam();
 
+        // Attacker lands firmly on the ground with ZERO delay, instant dash/jump readiness
+        attacker.yVel = 0;
+        attacker.onGround = true;
+        attacker.dashReady = true;
+        attacker.dashCooldown = 0;
+        attacker.slamming = false;
+        attacker.stun = 0;
+        attacker.jumpsLeft = 2;
+
         if (
             distance <= CORE_PHYSICS.slamRadius &&
             Math.abs(attacker.y - defender.y) < 40 &&
@@ -109,29 +120,26 @@ export class CombatEngine {
             defender.hitCooldown <= 0
         ) {
             const finalDamage = CORE_PHYSICS.slamGroundDamage * damageMultiplier;
-            defender.hp -= finalDamage;
-            defender.hitCooldown = 25;
+            if (!defender.isPlayer || !defender.isBotGame) {
+                defender.hp -= finalDamage;
+                defender.stats.damageTaken += finalDamage;
+            }
+            defender.hitCooldown = 20;
             defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier);
 
             defender.slamming = false;
             defender.dashing = false;
             defender.dashAttack = false;
 
-            // Attacker lands firmly on the ground without huge recoil boost or self-damage
-            attacker.yVel = 0;
-            attacker.onGround = true;
-            attacker.dashReady = true;
-
             attacker.stats.damageDealt += finalDamage;
             attacker.stats.slamsLanded++;
-            defender.stats.damageTaken += finalDamage;
 
             if (onDefenderHit) onDefenderHit();
 
             sound.playSlamHit(0.4);
             this.particles.addHitSparks(defenderCenter, defender.y + defender.h / 2, 12, "#ffaa00");
             this.particles.addDamageText(defender.x + defender.w / 2, defender.y, finalDamage, true);
-            this.particles.triggerShake(9, 12);
+            this.particles.triggerShake(6, 8);
 
             return true;
         }
@@ -158,7 +166,10 @@ export class CombatEngine {
             attacker.y + attacker.h > defender.y
         ) {
             const finalDamage = baseDmg * damageMultiplier;
-            defender.hp -= finalDamage;
+            if (!defender.isPlayer || !defender.isBotGame) {
+                defender.hp -= finalDamage;
+                defender.stats.damageTaken += finalDamage;
+            }
             defender.hitCooldown = 22;
             defender.stun = Math.round((CORE_PHYSICS.hitStun + stunBonus) * stunMultiplier);
 
@@ -176,7 +187,6 @@ export class CombatEngine {
 
             attacker.stats.damageDealt += finalDamage;
             attacker.stats.dashesLanded++;
-            defender.stats.damageTaken += finalDamage;
 
             if (onDefenderHit) onDefenderHit();
 

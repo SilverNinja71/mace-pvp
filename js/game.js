@@ -77,15 +77,19 @@ export class Game {
         const maxHp = (mode === "practice") ? 1000 : (this.botParams.maxHP || 100);
         const user = auth.getUser();
 
+        const isBot = (mode !== "pvp" && mode !== "arena");
         this.player.reset(150, 1, maxHp);
         this.player.setWeapon(user.equippedWeapon || "mace", user.weaponUpgrades || {});
         this.player.setSkin(user.skinId || "steve");
         this.player.setTeam(null);
+        this.player.isBotGame = isBot;
+        this.player.isPlayer = true;
 
         this.bot.reset(650, -1, maxHp);
         this.bot.setWeapon(mode === "god" ? "mace" : (mode === "pro" ? "sword" : "spear"), {});
         this.bot.setSkin(mode === "god" ? "enderman" : (mode === "pro" ? "diamond_knight" : "alex"));
         this.bot.setTeam(null);
+        this.bot.isBotGame = isBot;
 
         this.botAI.setParams(this.botParams);
         this.botAI.reset();
@@ -137,6 +141,8 @@ export class Game {
                 this.player.setSkin(user.skinId || "steve");
                 this.player.setTeam("red");
                 this.player.name = user.username || "Player";
+                this.player.isBotGame = false;
+                this.player.isPlayer = true;
                 return this.player;
             } else {
                 const fighter = new Fighter(true, data.id, data.name);
@@ -330,7 +336,7 @@ export class Game {
             const left = this.keys["KeyA"] || (this.mode !== "pvp" && this.keys["ArrowLeft"]);
             const right = this.keys["KeyD"] || (this.mode !== "pvp" && this.keys["ArrowRight"]);
 
-            const speed = 3;
+            const speed = 5.2; // Snappy, responsive movement
             if (left && !right) {
                 this.player.xVel = -speed;
                 this.player.facing = -1;
@@ -338,7 +344,7 @@ export class Game {
                 this.player.xVel = speed;
                 this.player.facing = 1;
             } else {
-                this.player.xVel *= 0.65;
+                this.player.xVel *= 0.55;
                 if (Math.abs(this.player.xVel) < 0.1) this.player.xVel = 0;
             }
         }
@@ -412,6 +418,15 @@ export class Game {
 
             // Ground slam on landing
             if (landed && f.slamming) {
+                f.slamming = false;
+                f.yVel = 0;
+                f.onGround = true;
+                f.dashReady = true;
+                f.dashCooldown = 0;
+                f.stun = 0;
+                f.hitCooldown = 0;
+                f.jumpsLeft = 2;
+
                 const opposingTeam = f.team === "red" ? this.blueTeam : (f.team === "blue" ? this.redTeam : (f.isPlayer ? this.blueTeam : this.redTeam));
                 const mult = f.isPlayer ? damageTakenMult : damageDealtMult;
                 for (let j = 0; j < opposingTeam.length; j++) {
@@ -420,7 +435,6 @@ export class Game {
                         if (def._botAI) def._botAI.onHit();
                     });
                 }
-                f.slamming = false;
             }
         }
 

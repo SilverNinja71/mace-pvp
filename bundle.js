@@ -14,30 +14,30 @@
   };
   
   const CORE_PHYSICS = {
-      gravity: 0.30,
-      jumpPower: -7.5,
-      coyoteTime: 10,
+      gravity: 0.35,
+      jumpPower: -8.5,
+      coyoteTime: 12,
       groundY: 390,
   
-      slamSpeed: 15,
-      dashSpeed: 20,
+      slamSpeed: 24,           // Swift and responsive downward slam
+      dashSpeed: 24,           // Fast, snappy dash
       dashTime: 6,
-      dashCooldown: 40,        // frames before player can dash again
+      dashCooldown: 15,        // Reduced from 40 to 15 frames for quick re-attacks
   
-      slamRadius: 30,
-      slamGroundDamage: 20,
-      slamAirDamage: 30,
+      slamRadius: 40,
+      slamGroundDamage: 25,
+      slamAirDamage: 35,
   
-      hitStun: 40,
+      hitStun: 28,             // Snappy hitstun
       maxHp: 100,
   
-      slamMinDamage: 20,
-      slamMaxDamage: 150,
+      slamMinDamage: 25,
+      slamMaxDamage: 160,
       slamHeightScale: 1,
   
-      dashDamage: 20,          // damage dealt when a dash connects
+      dashDamage: 25,          // damage dealt when a dash connects
       hitLaunch: -12,          // upward launch speed for attacker after hit
-      runAwayTime: 60          // frames bot runs away after stun ends
+      runAwayTime: 40          // frames bot runs away after stun ends
   };
   
   const PLATFORMS_CONFIG = [
@@ -1153,7 +1153,9 @@
                       f.hitCooldown <= 0
                   ) {
                       // Hit fighter!
-                      f.hp -= a.damage;
+                      if (!f.isPlayer || !f.isBotGame) {
+                          f.hp -= a.damage;
+                      }
                       f.hitCooldown = 20;
                       f.stun = 25;
                       f.xVel = a.facing * 7 * (a.knockbackMult || 1.0);
@@ -2136,6 +2138,7 @@
           this.ghostHp = this.maxHp;
           this.hitCooldown = 0;
           this.stun = 0;
+          this.isBotGame = false;
   
           // Visual squash & stretch
           this.squashX = 1.0;
@@ -2285,6 +2288,12 @@
               return false;
           }
   
+          if (this.slamming) {
+              this.slamming = false;
+              this.dashReady = true;
+              this.dashCooldown = 0;
+          }
+  
           if (this.dashReady && !this.dashing && this.dashCooldown <= 0) {
               this.dashReady = false;
               this.dashing = true;
@@ -2336,7 +2345,7 @@
               if (
                   this.x < p.x + p.w &&
                   this.x + this.w > p.x &&
-                  prevBottom <= p.y + 1 &&
+                  prevBottom <= p.y + Math.max(2, Math.abs(this.yVel)) &&
                   this.y + this.h >= p.y &&
                   this.yVel >= 0
               ) {
@@ -2344,13 +2353,12 @@
                   this.yVel = 0;
                   this.onGround = true;
   
-                  // Reset double jump
-                  this.jumpsLeft = 1;
+                  // Reset double jump instantly
+                  this.jumpsLeft = 2;
   
-                  // Landing recharges dash
-                  if (!this.dashing) {
-                      this.dashReady = true;
-                  }
+                  // Landing recharges dash with ZERO delay
+                  this.dashReady = true;
+                  this.dashCooldown = 0;
   
                   return true;
               }
@@ -2491,7 +2499,15 @@
   
           // Fell off bottom of screen
           if (this.y > ARENA_CONFIG.height + 50) {
-              this.hp = 0;
+              if (this.isPlayer && this.isBotGame) {
+                  this.x = 400;
+                  this.y = 200;
+                  this.yVel = 0;
+                  this.xVel = 0;
+                  this.hp = this.maxHp;
+              } else {
+                  this.hp = 0;
+              }
           }
   
           // Invulnerability hit cooldown
@@ -2853,7 +2869,10 @@
               }
   
               const finalDamage = slamDamage * effDmgMult;
-              defender.hp -= finalDamage;
+              if (!defender.isPlayer || !defender.isBotGame) {
+                  defender.hp -= finalDamage;
+                  defender.stats.damageTaken += finalDamage;
+              }
               defender.hitCooldown = 25;
               defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier);
   
@@ -2881,7 +2900,6 @@
               if (finalDamage > attacker.stats.maxSlamDamage) {
                   attacker.stats.maxSlamDamage = finalDamage;
               }
-              defender.stats.damageTaken += finalDamage;
   
               if (onDefenderHit) onDefenderHit();
   
@@ -2913,6 +2931,15 @@
           this.particles.addDust(attackerCenter, attacker.y + attacker.h, 12);
           sound.playGroundSlam();
   
+          // Attacker lands firmly on the ground with ZERO delay, instant dash/jump readiness
+          attacker.yVel = 0;
+          attacker.onGround = true;
+          attacker.dashReady = true;
+          attacker.dashCooldown = 0;
+          attacker.slamming = false;
+          attacker.stun = 0;
+          attacker.jumpsLeft = 2;
+  
           if (
               distance <= CORE_PHYSICS.slamRadius &&
               Math.abs(attacker.y - defender.y) < 40 &&
@@ -2920,29 +2947,26 @@
               defender.hitCooldown <= 0
           ) {
               const finalDamage = CORE_PHYSICS.slamGroundDamage * damageMultiplier;
-              defender.hp -= finalDamage;
-              defender.hitCooldown = 25;
+              if (!defender.isPlayer || !defender.isBotGame) {
+                  defender.hp -= finalDamage;
+                  defender.stats.damageTaken += finalDamage;
+              }
+              defender.hitCooldown = 20;
               defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier);
   
               defender.slamming = false;
               defender.dashing = false;
               defender.dashAttack = false;
   
-              // Attacker lands firmly on the ground without huge recoil boost or self-damage
-              attacker.yVel = 0;
-              attacker.onGround = true;
-              attacker.dashReady = true;
-  
               attacker.stats.damageDealt += finalDamage;
               attacker.stats.slamsLanded++;
-              defender.stats.damageTaken += finalDamage;
   
               if (onDefenderHit) onDefenderHit();
   
               sound.playSlamHit(0.4);
               this.particles.addHitSparks(defenderCenter, defender.y + defender.h / 2, 12, "#ffaa00");
               this.particles.addDamageText(defender.x + defender.w / 2, defender.y, finalDamage, true);
-              this.particles.triggerShake(9, 12);
+              this.particles.triggerShake(6, 8);
   
               return true;
           }
@@ -2969,7 +2993,10 @@
               attacker.y + attacker.h > defender.y
           ) {
               const finalDamage = baseDmg * damageMultiplier;
-              defender.hp -= finalDamage;
+              if (!defender.isPlayer || !defender.isBotGame) {
+                  defender.hp -= finalDamage;
+                  defender.stats.damageTaken += finalDamage;
+              }
               defender.hitCooldown = 22;
               defender.stun = Math.round((CORE_PHYSICS.hitStun + stunBonus) * stunMultiplier);
   
@@ -2987,7 +3014,6 @@
   
               attacker.stats.damageDealt += finalDamage;
               attacker.stats.dashesLanded++;
-              defender.stats.damageTaken += finalDamage;
   
               if (onDefenderHit) onDefenderHit();
   
@@ -3843,15 +3869,19 @@
           const maxHp = (mode === "practice") ? 1000 : (this.botParams.maxHP || 100);
           const user = auth.getUser();
   
+          const isBot = (mode !== "pvp" && mode !== "arena");
           this.player.reset(150, 1, maxHp);
           this.player.setWeapon(user.equippedWeapon || "mace", user.weaponUpgrades || {});
           this.player.setSkin(user.skinId || "steve");
           this.player.setTeam(null);
+          this.player.isBotGame = isBot;
+          this.player.isPlayer = true;
   
           this.bot.reset(650, -1, maxHp);
           this.bot.setWeapon(mode === "god" ? "mace" : (mode === "pro" ? "sword" : "spear"), {});
           this.bot.setSkin(mode === "god" ? "enderman" : (mode === "pro" ? "diamond_knight" : "alex"));
           this.bot.setTeam(null);
+          this.bot.isBotGame = isBot;
   
           this.botAI.setParams(this.botParams);
           this.botAI.reset();
@@ -3903,6 +3933,8 @@
                   this.player.setSkin(user.skinId || "steve");
                   this.player.setTeam("red");
                   this.player.name = user.username || "Player";
+                  this.player.isBotGame = false;
+                  this.player.isPlayer = true;
                   return this.player;
               } else {
                   const fighter = new Fighter(true, data.id, data.name);
@@ -4096,7 +4128,7 @@
               const left = this.keys["KeyA"] || (this.mode !== "pvp" && this.keys["ArrowLeft"]);
               const right = this.keys["KeyD"] || (this.mode !== "pvp" && this.keys["ArrowRight"]);
   
-              const speed = 3;
+              const speed = 5.2; // Snappy, responsive movement
               if (left && !right) {
                   this.player.xVel = -speed;
                   this.player.facing = -1;
@@ -4104,7 +4136,7 @@
                   this.player.xVel = speed;
                   this.player.facing = 1;
               } else {
-                  this.player.xVel *= 0.65;
+                  this.player.xVel *= 0.55;
                   if (Math.abs(this.player.xVel) < 0.1) this.player.xVel = 0;
               }
           }
@@ -4178,6 +4210,15 @@
   
               // Ground slam on landing
               if (landed && f.slamming) {
+                  f.slamming = false;
+                  f.yVel = 0;
+                  f.onGround = true;
+                  f.dashReady = true;
+                  f.dashCooldown = 0;
+                  f.stun = 0;
+                  f.hitCooldown = 0;
+                  f.jumpsLeft = 2;
+  
                   const opposingTeam = f.team === "red" ? this.blueTeam : (f.team === "blue" ? this.redTeam : (f.isPlayer ? this.blueTeam : this.redTeam));
                   const mult = f.isPlayer ? damageTakenMult : damageDealtMult;
                   for (let j = 0; j < opposingTeam.length; j++) {
@@ -4186,7 +4227,6 @@
                           if (def._botAI) def._botAI.onHit();
                       });
                   }
-                  f.slamming = false;
               }
           }
   

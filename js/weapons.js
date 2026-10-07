@@ -336,7 +336,9 @@ export class ArrowManager {
                     f.hitCooldown <= 0
                 ) {
                     // Hit fighter!
-                    f.hp -= a.damage;
+                    if (!f.isPlayer || !f.isBotGame) {
+                        f.hp -= a.damage;
+                    }
                     f.hitCooldown = 20;
                     f.stun = 25;
                     f.xVel = a.facing * 7 * (a.knockbackMult || 1.0);

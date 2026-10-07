@@ -10,30 +10,30 @@ export const ARENA_CONFIG = {
 };
 
 export const CORE_PHYSICS = {
-    gravity: 0.30,
-    jumpPower: -7.5,
-    coyoteTime: 10,
+    gravity: 0.35,
+    jumpPower: -8.5,
+    coyoteTime: 12,
     groundY: 390,
 
-    slamSpeed: 15,
-    dashSpeed: 20,
+    slamSpeed: 24,           // Swift and responsive downward slam
+    dashSpeed: 24,           // Fast, snappy dash
     dashTime: 6,
-    dashCooldown: 40,        // frames before player can dash again
+    dashCooldown: 15,        // Reduced from 40 to 15 frames for quick re-attacks
 
-    slamRadius: 30,
-    slamGroundDamage: 20,
-    slamAirDamage: 30,
+    slamRadius: 40,
+    slamGroundDamage: 25,
+    slamAirDamage: 35,
 
-    hitStun: 40,
+    hitStun: 28,             // Snappy hitstun
     maxHp: 100,
 
-    slamMinDamage: 20,
-    slamMaxDamage: 150,
+    slamMinDamage: 25,
+    slamMaxDamage: 160,
     slamHeightScale: 1,
 
-    dashDamage: 20,          // damage dealt when a dash connects
+    dashDamage: 25,          // damage dealt when a dash connects
     hitLaunch: -12,          // upward launch speed for attacker after hit
-    runAwayTime: 60          // frames bot runs away after stun ends
+    runAwayTime: 40          // frames bot runs away after stun ends
 };
 
 export const PLATFORMS_CONFIG = [

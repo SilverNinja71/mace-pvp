@@ -56,6 +56,7 @@ export class Fighter {
         this.ghostHp = this.maxHp;
         this.hitCooldown = 0;
         this.stun = 0;
+        this.isBotGame = false;
 
         // Visual squash & stretch
         this.squashX = 1.0;
@@ -205,6 +206,12 @@ export class Fighter {
             return false;
         }
 
+        if (this.slamming) {
+            this.slamming = false;
+            this.dashReady = true;
+            this.dashCooldown = 0;
+        }
+
         if (this.dashReady && !this.dashing && this.dashCooldown <= 0) {
             this.dashReady = false;
             this.dashing = true;
@@ -256,7 +263,7 @@ export class Fighter {
             if (
                 this.x < p.x + p.w &&
                 this.x + this.w > p.x &&
-                prevBottom <= p.y + 1 &&
+                prevBottom <= p.y + Math.max(2, Math.abs(this.yVel)) &&
                 this.y + this.h >= p.y &&
                 this.yVel >= 0
             ) {
@@ -264,13 +271,12 @@ export class Fighter {
                 this.yVel = 0;
                 this.onGround = true;
 
-                // Reset double jump
-                this.jumpsLeft = 1;
+                // Reset double jump instantly
+                this.jumpsLeft = 2;
 
-                // Landing recharges dash
-                if (!this.dashing) {
-                    this.dashReady = true;
-                }
+                // Landing recharges dash with ZERO delay
+                this.dashReady = true;
+                this.dashCooldown = 0;
 
                 return true;
             }
@@ -411,7 +417,15 @@ export class Fighter {
 
         // Fell off bottom of screen
         if (this.y > ARENA_CONFIG.height + 50) {
-            this.hp = 0;
+            if (this.isPlayer && this.isBotGame) {
+                this.x = 400;
+                this.y = 200;
+                this.yVel = 0;
+                this.xVel = 0;
+                this.hp = this.maxHp;
+            } else {
+                this.hp = 0;
+            }
         }
 
         // Invulnerability hit cooldown
