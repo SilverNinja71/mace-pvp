@@ -527,7 +527,10 @@ export class Game {
         for (let i = 0; i < this.allFighters.length; i++) {
             const f = this.allFighters[i];
             this.renderer.drawFighter(f, botColor, this.isTeamMatch);
-            this.renderer.drawOffscreenIndicator(f, f.team === "red" ? 0 : 255, f.team === "red" ? 255 : 80, 0, f.name);
+            const indR = f.team === "red" ? 255 : (f.team === "blue" ? 30 : 46);
+            const indG = f.team === "red" ? 71 : (f.team === "blue" ? 144 : 204);
+            const indB = f.team === "red" ? 87 : (f.team === "blue" ? 255 : 113);
+            this.renderer.drawOffscreenIndicator(f, indR, indG, indB, f.name);
         }
 
         // Render Flying Arrows

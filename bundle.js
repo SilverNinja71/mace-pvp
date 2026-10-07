@@ -3432,11 +3432,26 @@
           // Draw skin / block face
           this.drawSkin(f, 1.0);
   
-          // Team glow border (Red vs Blue in arena)
+          // Team highlight border and aura (Red vs Blue in arena)
           if (f.team) {
-              ctx.strokeStyle = f.team === "red" ? "#ff4757" : "#1e90ff";
+              const teamColor = f.team === "red" ? "#ff4757" : "#1e90ff";
+              const teamAura = f.team === "red" ? "rgba(255, 71, 87, 0.28)" : "rgba(30, 144, 255, 0.28)";
+  
+              // Soft highlight aura around the character
+              ctx.fillStyle = teamAura;
+              ctx.fillRect(f.x - 3, f.y - 3, f.w + 6, f.h + 6);
+  
+              // Crisp 2px team outline
+              ctx.strokeStyle = teamColor;
               ctx.lineWidth = 2;
               ctx.strokeRect(f.x - 1, f.y - 1, f.w + 2, f.h + 2);
+  
+              // Team corner pips for a blocky retro badge look
+              ctx.fillStyle = teamColor;
+              ctx.fillRect(f.x - 2, f.y - 2, 3, 3);
+              ctx.fillRect(f.x + f.w - 1, f.y - 2, 3, 3);
+              ctx.fillRect(f.x - 2, f.y + f.h - 1, 3, 3);
+              ctx.fillRect(f.x + f.w - 1, f.y + f.h - 1, 3, 3);
           }
   
           // Slamming effect ring
@@ -3603,27 +3618,31 @@
           const blueAlive = blueTeam.filter(f => f.hp > 0).length;
   
           // Red Banner (Left)
-          ctx.fillStyle = "rgba(231, 76, 60, 0.85)";
+          ctx.fillStyle = "rgba(231, 76, 60, 0.95)";
           ctx.fillRect(20, 16, 140, 26);
           ctx.strokeStyle = "#000";
           ctx.lineWidth = 2;
           ctx.strokeRect(20, 16, 140, 26);
           ctx.fillStyle = "#fff";
-          ctx.font = "bold 13px 'Segoe UI', system-ui, sans-serif";
+          ctx.font = "bold 13px monospace";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.fillText(`RED TEAM (${redAlive}/${redTeam.length})`, 90, 29);
   
           // Blue Banner (Right)
-          ctx.fillStyle = "rgba(41, 128, 185, 0.85)";
+          ctx.fillStyle = "rgba(41, 128, 185, 0.95)";
           ctx.fillRect(this.width - 160, 16, 140, 26);
           ctx.strokeRect(this.width - 160, 16, 140, 26);
           ctx.fillStyle = "#fff";
+          ctx.font = "bold 13px monospace";
           ctx.fillText(`BLUE TEAM (${blueAlive}/${blueTeam.length})`, this.width - 90, 29);
   
           // Center Match Type Badge
-          ctx.fillStyle = "#1e272e";
-          ctx.font = "bold 13px 'Segoe UI', system-ui, sans-serif";
+          ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+          ctx.fillRect(this.width / 2 - 60, 16, 120, 26);
+          ctx.strokeRect(this.width / 2 - 60, 16, 120, 26);
+          ctx.fillStyle = "#fff";
+          ctx.font = "bold 12px monospace";
           ctx.fillText(`ARENA ${matchType.toUpperCase()}`, this.width / 2, 29);
   
           ctx.restore();
@@ -4208,7 +4227,10 @@
           for (let i = 0; i < this.allFighters.length; i++) {
               const f = this.allFighters[i];
               this.renderer.drawFighter(f, botColor, this.isTeamMatch);
-              this.renderer.drawOffscreenIndicator(f, f.team === "red" ? 0 : 255, f.team === "red" ? 255 : 80, 0, f.name);
+              const indR = f.team === "red" ? 255 : (f.team === "blue" ? 30 : 46);
+              const indG = f.team === "red" ? 71 : (f.team === "blue" ? 144 : 204);
+              const indB = f.team === "red" ? 87 : (f.team === "blue" ? 255 : 113);
+              this.renderer.drawOffscreenIndicator(f, indR, indG, indB, f.name);
           }
   
           // Render Flying Arrows
