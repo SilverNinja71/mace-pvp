@@ -336,16 +336,21 @@ export class ArrowManager {
                     f.hitCooldown <= 0
                 ) {
                     // Hit fighter!
-                    if (!f.isPlayer || !f.isBotGame) {
-                        f.hp -= a.damage;
-                    }
+                    f.hp -= a.damage;
+                    f.stats.damageTaken += a.damage;
                     f.hitCooldown = 20;
                     f.stun = 25;
                     f.xVel = a.facing * 7 * (a.knockbackMult || 1.0);
                     f.yVel = -5;
 
+                    const shooter = fighters.find(fl => fl.id === a.ownerId);
+                    if (shooter) {
+                        shooter.stats.arrowsHit++;
+                        shooter.stats.damageDealt += a.damage;
+                    }
+
                     if (onHitCallback) {
-                        onHitCallback(f, a);
+                        onHitCallback(f, a, a.damage);
                     }
 
                     this.arrows.splice(i, 1);

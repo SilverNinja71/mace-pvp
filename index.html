@@ -33,9 +33,10 @@
             <button id="btn-theme" class="btn-ctrl" title="Cycle Biome Theme (Overworld, Nether, End)">Theme: Overworld</button>
             <button id="btn-inventory" class="btn-ctrl" title="Minecraft Inventory: Weapons, Crafting & Enchanting">Inventory [i]</button>
             <button id="btn-leaderboard" class="btn-ctrl" title="National Obsidian Leaderboard">Ranked</button>
+            <button id="btn-social" class="btn-ctrl" title="Friends, Mailbox & Minor Account Restrictions">Social & Mail</button>
             <button id="btn-mute" class="btn-ctrl" title="Toggle Audio">Sound On</button>
             <button id="btn-restart" class="btn-ctrl" title="Restart Match (R)">Restart</button>
-            <button id="btn-home" class="btn-ctrl" title="Home Menu (H)">Home</button>
+            <button id="btn-home" class="btn-ctrl btn-home-subtle" title="Home Menu (H)">Home</button>
             <button id="btn-download" class="btn-ctrl" title="Download Game as a Single-File Standalone HTML Document">Download</button>
         </div>
     </header>
@@ -431,15 +432,122 @@
             </div>
         </div>
 
+        <!-- Multiplayer Resign Warning Modal -->
+        <div id="resign-modal" class="modal-backdrop hidden">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h2>Leave Multiplayer Match?</h2>
+                    <button class="btn-close-modal">&times;</button>
+                </div>
+                <div class="resign-body">
+                    <p style="color: #ff6b6b; font-weight: bold; margin-bottom: 10px;">⚠️ WARNING: Live Match In Progress!</p>
+                    <p style="color: var(--text-muted); margin-bottom: 20px;">Returning to the home menu will forfeit this game as a defeat and you will lose Ranked RP.</p>
+                    <div class="modal-actions">
+                        <button id="btn-cancel-resign" class="btn-ctrl">Stay in Match</button>
+                        <button id="btn-confirm-resign" class="btn-ctrl" style="background: #c0392b; border-color: #78281f;">Forfeit &amp; Resign</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Matchmaking Radar Queue Modal (Realistic Queue Delay) -->
+        <div id="matchmaking-modal" class="modal-backdrop hidden">
+            <div class="modal-card matchmaking-card">
+                <div class="modal-header">
+                    <h2>Matchmaking Queue</h2>
+                </div>
+                <div class="matchmaking-body">
+                    <div class="radar-box">
+                        <div class="radar-circle"></div>
+                        <div class="radar-sweep"></div>
+                        <div class="radar-ping"></div>
+                    </div>
+                    <p id="matchmaking-status-text" class="matchmaking-status">Searching regional lobbies for opponent...</p>
+                    <p class="matchmaking-eta">Estimated Wait: <span id="matchmaking-countdown">2.5s</span></p>
+                    <button id="btn-cancel-matchmaking" class="btn-ctrl" style="margin-top: 14px;">Cancel Matchmaking</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Social, Friends & Mailbox Modal -->
+        <div id="social-modal" class="modal-backdrop hidden">
+            <div class="modal-card social-card">
+                <div class="modal-header">
+                    <h2>Friends &amp; Mailbox</h2>
+                    <button class="btn-close-modal">&times;</button>
+                </div>
+                <div class="social-tabs">
+                    <button class="social-tab-btn active" data-tab="friends">Friends (<span id="friends-count">0</span>)</button>
+                    <button class="social-tab-btn" data-tab="mailbox">Mailbox (<span id="mail-count">0</span>)</button>
+                    <button class="social-tab-btn" data-tab="safety">Account Safety</button>
+                </div>
+                <div class="social-tab-content">
+                    <!-- Friends Tab -->
+                    <div id="tab-friends" class="tab-pane active">
+                        <div class="add-friend-row">
+                            <input type="text" id="input-add-friend" class="auth-input" placeholder="Enter player username...">
+                            <button id="btn-add-friend" class="btn-ctrl">Add Friend</button>
+                        </div>
+                        <div id="add-friend-msg" class="form-feedback"></div>
+                        <div id="friends-list" class="friends-list"></div>
+                    </div>
+
+                    <!-- Mailbox Tab -->
+                    <div id="tab-mailbox" class="tab-pane">
+                        <div class="mail-compose-box">
+                            <h3 style="font-size: 16px; margin-bottom: 8px; color: var(--gold);">Send Message or Gold Gift</h3>
+                            <div class="mail-compose-grid">
+                                <input type="text" id="input-mail-to" class="auth-input" placeholder="Recipient username...">
+                                <input type="number" id="input-mail-gift" class="auth-input" placeholder="Gift Gold (e.g. 50)" min="0">
+                            </div>
+                            <textarea id="input-mail-text" class="auth-input mail-textarea" placeholder="Write your message..."></textarea>
+                            <div class="mail-compose-actions">
+                                <button id="btn-send-mail" class="btn-ctrl">Send Mail / Gift</button>
+                                <span id="send-mail-msg" class="form-feedback"></span>
+                            </div>
+                        </div>
+                        <div class="mail-inbox-header">
+                            <h3 style="font-size: 16px; color: var(--text-primary); margin-top: 10px;">Inbox</h3>
+                        </div>
+                        <div id="mail-list" class="mail-list"></div>
+                    </div>
+
+                    <!-- Safety Tab (Minor Playing Mode) -->
+                    <div id="tab-safety" class="tab-pane">
+                        <div class="safety-card">
+                            <div class="safety-header">
+                                <div>
+                                    <h3 style="font-size: 17px; color: #f1c40f;">Minor Playing Mode</h3>
+                                    <p style="font-size: 13px; color: #a4b0be; margin-top: 4px;">Parental &amp; Child Protection System</p>
+                                </div>
+                                <label class="safety-toggle-switch">
+                                    <input type="checkbox" id="toggle-minor-mode">
+                                    <span class="safety-slider"></span>
+                                </label>
+                            </div>
+                            <div class="safety-info-box">
+                                <p><strong>Safety Restriction:</strong> When Minor Playing Mode is enabled, incoming text messages from other players in the Mailbox are automatically filtered and hidden. Only game loot packages, event rewards, and Gold gifts can be opened and received.</p>
+                            </div>
+                            <div id="safety-status-badge" class="safety-badge">Active: Standard Account (All Mail Allowed)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Match Statistics Modal -->
         <div id="stats-modal" class="modal-backdrop hidden">
-            <div class="modal-card">
+            <div class="modal-card stats-modal-card">
                 <div class="modal-header">
                     <h2>Match Statistics</h2>
                     <button class="btn-close-modal">&times;</button>
                 </div>
                 <div id="stats-body">
                     <!-- Populated by ui.js -->
+                </div>
+                <div class="modal-actions" style="margin-top: 20px;">
+                    <button id="btn-stats-play-again" class="btn-ctrl">Play Again (Matchmake)</button>
+                    <button id="btn-stats-home" class="btn-ctrl btn-home-subtle">Home Menu</button>
                 </div>
             </div>
         </div>

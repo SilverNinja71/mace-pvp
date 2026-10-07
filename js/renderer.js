@@ -540,7 +540,10 @@ export class Renderer {
         const barY = Math.round(f.y - 18);
 
         // Name tag background & text
-        const nameText = f.name || (f.team ? f.team.toUpperCase() : "PLAYER");
+        let nameText = f.name || (f.team ? f.team.toUpperCase() : "PLAYER");
+        if (f.isBot && !nameText.startsWith("[BOT]")) {
+            nameText = `[BOT] ${nameText}`;
+        }
         ctx.font = "bold 9px monospace";
         ctx.textAlign = "center";
         ctx.textBaseline = "bottom";
@@ -613,7 +616,7 @@ export class Renderer {
     }
 
     // Standard 1v1 HUD
-    drawHUD(player, bot, botColor, modeLabel, p1Label = "YOU", p2Label = "BOT") {
+    drawHUD(player, bot, botColor, modeLabel, p1Label = "YOU", p2Label = "BOT", scoreRed = 0, scoreBlue = 0, isTiebreaker = false, tiebreakerTimer = 0, redDmg = 0, blueDmg = 0) {
         const ctx = this.ctx;
         ctx.save();
 
@@ -673,34 +676,70 @@ export class Renderer {
         ctx.fillStyle = "#ffffff";
         ctx.fillText(`${p2Label}: ${Math.max(0, Math.ceil(bot.hp))} / ${bot.maxHp} HP`, bX + 6, 27);
 
-        // Mode Label (Centered top)
-        ctx.fillStyle = "#1e272e";
-        ctx.font = "bold 13px 'Segoe UI', system-ui, sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText(modeLabel.toUpperCase() + " MODE", this.width / 2, 26);
+        // Center Scoreboard (First to 11) & 10-10 Tiebreaker Banner
+        ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+        ctx.fillRect(this.width / 2 - 80, 8, 160, 32);
+        ctx.strokeStyle = isTiebreaker ? "#f1c40f" : "#000000";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.width / 2 - 80, 8, 160, 32);
+
+        if (isTiebreaker) {
+            ctx.fillStyle = "#f1c40f";
+            ctx.font = "bold 11px monospace";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(`⚔️ TIEBREAKER: ${(Math.max(0, tiebreakerTimer) / 60).toFixed(1)}s`, this.width / 2, 18);
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 9px monospace";
+            ctx.fillText(`RED: ${Math.round(redDmg)} | BLUE: ${Math.round(blueDmg)} DMG`, this.width / 2, 30);
+        } else {
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 13px monospace";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(`${scoreRed}  -  ${scoreBlue}`, this.width / 2, 19);
+            ctx.fillStyle = "#f1c40f";
+            ctx.font = "bold 9px monospace";
+            ctx.fillText("FIRST TO 11 KILLS", this.width / 2, 31);
+        }
 
         ctx.restore();
     }
 
     // Team Arena 1v1, 2v2 and 5v5 HUD displaying every person and their exact health
-    drawTeamArenaHUD(redTeam, blueTeam, matchType) {
+    drawTeamArenaHUD(redTeam, blueTeam, matchType, scoreRed = 0, scoreBlue = 0, isTiebreaker = false, tiebreakerTimer = 0, redDmg = 0, blueDmg = 0) {
         const ctx = this.ctx;
         ctx.save();
 
         const redAlive = redTeam.filter(f => f.hp > 0).length;
         const blueAlive = blueTeam.filter(f => f.hp > 0).length;
 
-        // Center Match Type Badge
-        ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
-        ctx.fillRect(this.width / 2 - 60, 10, 120, 24);
-        ctx.strokeStyle = "#000";
+        // Center Match Score & Type Badge
+        ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+        ctx.fillRect(this.width / 2 - 80, 8, 160, 32);
+        ctx.strokeStyle = isTiebreaker ? "#f1c40f" : "#000000";
         ctx.lineWidth = 2;
-        ctx.strokeRect(this.width / 2 - 60, 10, 120, 24);
-        ctx.fillStyle = "#f1c40f";
-        ctx.font = "bold 12px monospace";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(`ARENA ${matchType.toUpperCase()}`, this.width / 2, 22);
+        ctx.strokeRect(this.width / 2 - 80, 8, 160, 32);
+
+        if (isTiebreaker) {
+            ctx.fillStyle = "#f1c40f";
+            ctx.font = "bold 11px monospace";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(`⚔️ TIEBREAKER: ${(Math.max(0, tiebreakerTimer) / 60).toFixed(1)}s`, this.width / 2, 18);
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 9px monospace";
+            ctx.fillText(`RED: ${Math.round(redDmg)} | BLUE: ${Math.round(blueDmg)} DMG`, this.width / 2, 30);
+        } else {
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 13px monospace";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(`RED ${scoreRed} : ${scoreBlue} BLUE`, this.width / 2, 19);
+            ctx.fillStyle = "#f1c40f";
+            ctx.font = "bold 9px monospace";
+            ctx.fillText(`ARENA ${matchType.toUpperCase()} • FIRST TO 11`, this.width / 2, 31);
+        }
 
         // --- RED TEAM ROSTER (Left Side) ---
         // Header
@@ -858,38 +897,54 @@ export class Renderer {
         ctx.restore();
     }
 
-    drawGameOver(winnerName, statsP1, statsP2, rewardInfo = null) {
+    drawGameOver(winnerName, statsP1, statsP2, rewardInfo = null, scoreRed = 0, scoreBlue = 0, highestJumper = null, isTiebreaker = false) {
         const ctx = this.ctx;
         ctx.save();
 
-        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+        ctx.fillStyle = "rgba(0, 0, 0, 0.78)";
         ctx.fillRect(0, 0, this.width, this.height);
 
         ctx.fillStyle = "#ffffff";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
 
-        ctx.font = "bold 38px 'Segoe UI', system-ui, sans-serif";
-        ctx.fillText(`${winnerName} WINS!`, this.width / 2, this.height / 2 - 45);
+        ctx.font = "bold 34px 'Segoe UI', system-ui, sans-serif";
+        ctx.fillText(`${winnerName} WINS!`, this.width / 2, this.height / 2 - 60);
+
+        // Final Score & Tiebreaker Indicator
+        ctx.font = "bold 16px monospace";
+        ctx.fillStyle = isTiebreaker ? "#f1c40f" : "#2ecc71";
+        const scoreBanner = isTiebreaker 
+            ? `⚔️ 10-10 TIEBREAKER VICTORY (MOST DAMAGE)` 
+            : `FINAL SCORE: ${scoreRed} - ${scoreBlue} (FIRST TO 11)`;
+        ctx.fillText(scoreBanner, this.width / 2, this.height / 2 - 28);
+
+        // Highest Jumper Highlight (Altitude Champion 👑)
+        if (highestJumper) {
+            ctx.font = "bold 13px monospace";
+            ctx.fillStyle = "#00d2d3";
+            const jumperName = highestJumper.name || "Fighter";
+            ctx.fillText(`👑 ALTITUDE CHAMPION: ${jumperName} (${Math.round(highestJumper.stats?.maxHeight || 0)} px peak)`, this.width / 2, this.height / 2 - 6);
+        }
 
         // Reward information pill (Gold & XP & RP earned)
         if (rewardInfo) {
-            ctx.font = "bold 15px 'Segoe UI', system-ui, sans-serif";
+            ctx.font = "bold 14px 'Segoe UI', system-ui, sans-serif";
             ctx.fillStyle = "#f1c40f";
             let rewText = `+${rewardInfo.goldEarned} Gold   •   +${rewardInfo.xpEarned} XP`;
             if (rewardInfo.rpDelta) {
                 const rpSign = rewardInfo.rpDelta > 0 ? `+${rewardInfo.rpDelta}` : `${rewardInfo.rpDelta}`;
                 rewText += `   •   ${rpSign} RP`;
             }
-            ctx.fillText(rewText, this.width / 2, this.height / 2 - 5);
+            ctx.fillText(rewText, this.width / 2, this.height / 2 + 18);
         }
 
         ctx.fillStyle = "#ffffff";
-        ctx.font = "15px 'Segoe UI', system-ui, sans-serif";
-        ctx.fillText("Press R to restart match", this.width / 2, this.height / 2 + 35);
-        ctx.font = "13px 'Segoe UI', system-ui, sans-serif";
+        ctx.font = "14px 'Segoe UI', system-ui, sans-serif";
+        ctx.fillText("Press R to matchmake next game", this.width / 2, this.height / 2 + 50);
+        ctx.font = "12px 'Segoe UI', system-ui, sans-serif";
         ctx.fillStyle = "#bdc3c7";
-        ctx.fillText("Press H for home screen", this.width / 2, this.height / 2 + 60);
+        ctx.fillText("Press H for home screen", this.width / 2, this.height / 2 + 74);
 
         ctx.restore();
     }

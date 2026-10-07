@@ -27,6 +27,9 @@ export class UIManager {
         this.arenaModal = document.getElementById("arena-modal");
         this.leaderboardModal = document.getElementById("leaderboard-modal");
         this.queueModal = document.getElementById("queue-modal");
+        this.socialModal = document.getElementById("social-modal");
+        this.resignModal = document.getElementById("resign-modal");
+        this.matchmakingModal = document.getElementById("matchmaking-modal");
 
         // Top Navigation & Action Buttons
         this.muteBtn = document.getElementById("btn-mute");
@@ -40,6 +43,7 @@ export class UIManager {
         this.skinsBtn = document.getElementById("btn-skins");
         this.arenaBtn = document.getElementById("btn-arena");
         this.leaderboardBtn = document.getElementById("btn-leaderboard");
+        this.socialBtn = document.getElementById("btn-social");
         this.goldDisplay = document.getElementById("gold-display");
         this.downloadBtn = document.getElementById("btn-download");
 
@@ -53,6 +57,7 @@ export class UIManager {
         this.selectedArenaWeapon = "mace";
         this.queueTimer = 0;
         this.queueInterval = null;
+        this.matchmakingInterval = null;
 
         this.init();
     }
@@ -67,6 +72,7 @@ export class UIManager {
         this.setupArmoryUI();
         this.setupSkinsUI();
         this.setupArenaUI();
+        this.setupSocialUI();
         this.setupTouchButtons();
         this.detectTouchDevice();
     }
@@ -212,12 +218,34 @@ export class UIManager {
         });
 
         // Navigation buttons
-        if (this.homeBtn) this.homeBtn.addEventListener("click", () => this.game.goHome());
-        if (this.restartBtn) this.restartBtn.addEventListener("click", () => this.game.restartMatch());
+        if (this.homeBtn) this.homeBtn.addEventListener("click", () => this.handleHomeClick());
+        if (this.restartBtn) this.restartBtn.addEventListener("click", () => this.triggerMatchmakingRestart());
         if (this.pauseBtn) this.pauseBtn.addEventListener("click", () => this.game.togglePause());
         if (this.userProfileBtn) this.userProfileBtn.addEventListener("click", () => this.openAuthModal());
+        if (this.socialBtn) this.socialBtn.addEventListener("click", () => this.openSocialModal());
         if (this.downloadBtn) this.downloadBtn.addEventListener("click", () => this.downloadGame());
         if (this.leaderboardBtn) this.leaderboardBtn.addEventListener("click", () => this.openLeaderboardModal());
+
+        // Multiplayer resignation modal buttons
+        const cancelResignBtn = document.getElementById("btn-cancel-resign");
+        if (cancelResignBtn) cancelResignBtn.addEventListener("click", () => {
+            if (this.resignModal) this.resignModal.classList.add("hidden");
+        });
+        const confirmResignBtn = document.getElementById("btn-confirm-resign");
+        if (confirmResignBtn) confirmResignBtn.addEventListener("click", () => this.confirmResign());
+
+        // Matchmaking queue modal buttons
+        const cancelMatchmakingBtn = document.getElementById("btn-cancel-matchmaking");
+        if (cancelMatchmakingBtn) cancelMatchmakingBtn.addEventListener("click", () => this.cancelMatchmaking());
+
+        // Stats modal action buttons
+        const statsPlayAgainBtn = document.getElementById("btn-stats-play-again");
+        if (statsPlayAgainBtn) statsPlayAgainBtn.addEventListener("click", () => this.triggerMatchmakingRestart());
+        const statsHomeBtn = document.getElementById("btn-stats-home");
+        if (statsHomeBtn) statsHomeBtn.addEventListener("click", () => {
+            if (this.statsModal) this.statsModal.classList.add("hidden");
+            this.game.goHome();
+        });
 
         // Home screen arena banner
         const arenaBanner = document.getElementById("home-arena-banner");
@@ -230,14 +258,14 @@ export class UIManager {
         if (pauseRestartBtn) {
             pauseRestartBtn.addEventListener("click", () => {
                 this.pauseModal.classList.add("hidden");
-                this.game.restartMatch();
+                this.triggerMatchmakingRestart();
             });
         }
         const pauseHomeBtn = document.getElementById("btn-pause-home");
         if (pauseHomeBtn) {
             pauseHomeBtn.addEventListener("click", () => {
                 this.pauseModal.classList.add("hidden");
-                this.game.goHome();
+                this.handleHomeClick();
             });
         }
 
@@ -1183,35 +1211,375 @@ export class UIManager {
         }
     }
 
-    openStatsModal() {
-        if (!this.statsModal) return;
+    handleHomeClick() {
+        const inMatch = (this.game.state === "play" || this.game.state === "paused");
+        const isMultiplayer = this.game.isTeamMatch || this.game.mode === "pvp";
 
-        const p1 = this.game.player.stats;
-        const p2 = this.game.bot.stats;
+        if (inMatch && isMultiplayer) {
+            if (this.resignModal) {
+                this.resignModal.classList.remove("hidden");
+                sound.playClick();
+                return;
+            }
+        }
 
-        const statsBody = document.getElementById("stats-body");
-        if (statsBody) {
-            statsBody.innerHTML = `
-                <div class="stats-grid">
-                    <div class="stat-col">
-                        <h4>${this.game.playerName || 'PLAYER 1'} (MATCH)</h4>
-                        <p>Total Damage Dealt: <b>${p1.damageDealt.toFixed(0)}</b></p>
-                        <p>Mace Slams Landed: <b>${p1.slamsLanded}</b></p>
-                        <p>Weapon Dashes Landed: <b>${p1.dashesLanded}</b></p>
-                        <p>Hardest Mace Slam: <b>${p1.maxSlamDamage.toFixed(0)} DMG</b></p>
-                        <p>Peak Altitude: <b>${Math.round(p1.maxHeight)} px</b></p>
+        this.game.goHome();
+    }
+
+    confirmResign() {
+        if (this.resignModal) this.resignModal.classList.add("hidden");
+        if (this.game.isTeamMatch) {
+            auth.recordArenaMatchResult(false, this.game.matchType);
+        }
+        sound.playLoss();
+        this.game.goHome();
+    }
+
+    triggerMatchmakingRestart() {
+        sound.playClick();
+        if (this.statsModal) this.statsModal.classList.add("hidden");
+        if (this.pauseModal) this.pauseModal.classList.add("hidden");
+
+        const modal = this.matchmakingModal || document.getElementById("matchmaking-modal");
+        const statusText = document.getElementById("matchmaking-status-text");
+        const countSpan = document.getElementById("matchmaking-countdown");
+
+        if (modal) modal.classList.remove("hidden");
+        if (statusText) statusText.textContent = "Searching regional servers for opponent...";
+
+        let timeLeft = 2.5;
+        if (countSpan) countSpan.textContent = `${timeLeft.toFixed(1)}s`;
+
+        if (this.matchmakingInterval) clearInterval(this.matchmakingInterval);
+
+        this.matchmakingInterval = setInterval(() => {
+            timeLeft -= 0.1;
+            if (timeLeft <= 0) {
+                clearInterval(this.matchmakingInterval);
+                this.matchmakingInterval = null;
+                if (modal) modal.classList.add("hidden");
+                sound.playDoubleJump();
+                this.game.restartMatch();
+            } else {
+                if (countSpan) countSpan.textContent = `${timeLeft.toFixed(1)}s`;
+                if (statusText) {
+                    if (timeLeft < 0.7) {
+                        statusText.textContent = "Opponent matched! Loading arena...";
+                    } else if (timeLeft < 1.6) {
+                        statusText.textContent = "Syncing network & combat physics...";
+                    }
+                }
+            }
+        }, 100);
+    }
+
+    cancelMatchmaking() {
+        if (this.matchmakingInterval) {
+            clearInterval(this.matchmakingInterval);
+            this.matchmakingInterval = null;
+        }
+        if (this.matchmakingModal) this.matchmakingModal.classList.add("hidden");
+        this.game.goHome();
+    }
+
+    // ==========================================
+    // FRIENDS, MAILBOX & CHILD/MINOR SAFETY UI
+    // ==========================================
+    setupSocialUI() {
+        const modal = this.socialModal;
+        if (!modal) return;
+
+        // Tab switching
+        const tabBtns = modal.querySelectorAll(".social-tab-btn");
+        const tabPanes = modal.querySelectorAll(".tab-pane");
+        tabBtns.forEach(btn => {
+            btn.addEventListener("click", () => {
+                sound.playClick();
+                const target = btn.dataset.tab;
+                tabBtns.forEach(b => b.classList.toggle("active", b === btn));
+                tabPanes.forEach(p => p.classList.toggle("active", p.id === `tab-${target}`));
+            });
+        });
+
+        // Add friend
+        const addBtn = document.getElementById("btn-add-friend");
+        const addInput = document.getElementById("input-add-friend");
+        const addMsg = document.getElementById("add-friend-msg");
+        if (addBtn && addInput) {
+            addBtn.addEventListener("click", () => {
+                sound.playClick();
+                const res = auth.addFriend(addInput.value);
+                if (res.success) {
+                    addInput.value = "";
+                    if (addMsg) {
+                        addMsg.style.color = "#2ecc71";
+                        addMsg.textContent = `Added ${res.friend.name} to friends!`;
+                        setTimeout(() => { if (addMsg) addMsg.textContent = ""; }, 3000);
+                    }
+                    this.renderFriendsList();
+                } else {
+                    if (addMsg) {
+                        addMsg.style.color = "#e74c3c";
+                        addMsg.textContent = res.error || "Could not add friend.";
+                    }
+                }
+            });
+        }
+
+        // Send mail & gifts
+        const sendBtn = document.getElementById("btn-send-mail");
+        const mailTo = document.getElementById("input-mail-to");
+        const mailGift = document.getElementById("input-mail-gift");
+        const mailText = document.getElementById("input-mail-text");
+        const sendMsg = document.getElementById("send-mail-msg");
+        if (sendBtn) {
+            sendBtn.addEventListener("click", () => {
+                sound.playClick();
+                const to = mailTo ? mailTo.value : "";
+                const gift = mailGift ? parseInt(mailGift.value) || 0 : 0;
+                const text = mailText ? mailText.value : "";
+
+                const res = auth.sendMail(to, "Letter from Arena", text, gift);
+                if (res.success) {
+                    if (mailTo) mailTo.value = "";
+                    if (mailGift) mailGift.value = "";
+                    if (mailText) mailText.value = "";
+                    if (sendMsg) {
+                        sendMsg.style.color = "#2ecc71";
+                        sendMsg.textContent = "Mail sent successfully!";
+                        setTimeout(() => { if (sendMsg) sendMsg.textContent = ""; }, 3000);
+                    }
+                    this.renderMailbox();
+                } else {
+                    if (sendMsg) {
+                        sendMsg.style.color = "#e74c3c";
+                        sendMsg.textContent = res.error || "Failed to send mail.";
+                    }
+                }
+            });
+        }
+
+        // Minor safety toggle
+        const minorToggle = document.getElementById("toggle-minor-mode");
+        if (minorToggle) {
+            minorToggle.checked = !!auth.getUser().isMinor;
+            minorToggle.addEventListener("change", () => {
+                sound.playClick();
+                auth.toggleMinorMode(minorToggle.checked);
+                this.updateSafetyBadge();
+                this.renderMailbox();
+            });
+        }
+
+        this.renderFriendsList();
+        this.renderMailbox();
+        this.updateSafetyBadge();
+    }
+
+    openSocialModal() {
+        if (!this.socialModal) return;
+        sound.playClick();
+        this.renderFriendsList();
+        this.renderMailbox();
+        this.updateSafetyBadge();
+        this.socialModal.classList.remove("hidden");
+    }
+
+    renderFriendsList() {
+        const list = document.getElementById("friends-list");
+        const countSpan = document.getElementById("friends-count");
+        if (!list) return;
+
+        const friends = auth.getFriends();
+        if (countSpan) countSpan.textContent = friends.length;
+
+        if (friends.length === 0) {
+            list.innerHTML = `<p style="color:var(--text-muted); padding:10px;">No friends added yet. Add players by username above!</p>`;
+            return;
+        }
+
+        list.innerHTML = friends.map(f => `
+            <div class="friend-item">
+                <div class="friend-name-col">
+                    <span class="friend-status-dot status-${f.status || 'offline'}" title="${f.status}"></span>
+                    <strong style="color:#fff;">${f.name}</strong>
+                    <span style="font-size:14px; color:var(--text-muted);">(${f.status || 'offline'})</span>
+                </div>
+                <div class="friend-actions">
+                    <button class="btn-ctrl btn-sm-ctrl btn-mail-friend" data-name="${f.name}">Mail / Gift</button>
+                    <button class="btn-ctrl btn-sm-ctrl btn-remove-friend" data-id="${f.id}" style="color:#e74c3c;">✕</button>
+                </div>
+            </div>
+        `).join("");
+
+        list.querySelectorAll(".btn-mail-friend").forEach(b => {
+            b.addEventListener("click", () => {
+                sound.playClick();
+                const name = b.dataset.name;
+                const mailTo = document.getElementById("input-mail-to");
+                if (mailTo) mailTo.value = name;
+                const mailboxTabBtn = this.socialModal?.querySelector(".social-tab-btn[data-tab='mailbox']");
+                if (mailboxTabBtn) mailboxTabBtn.click();
+            });
+        });
+
+        list.querySelectorAll(".btn-remove-friend").forEach(b => {
+            b.addEventListener("click", () => {
+                sound.playClick();
+                auth.removeFriend(b.dataset.id);
+                this.renderFriendsList();
+            });
+        });
+    }
+
+    renderMailbox() {
+        const list = document.getElementById("mail-list");
+        const countSpan = document.getElementById("mail-count");
+        if (!list) return;
+
+        const mail = auth.getMail();
+        if (countSpan) countSpan.textContent = mail.length;
+
+        if (mail.length === 0) {
+            list.innerHTML = `<p style="color:var(--text-muted); padding:10px;">Your mailbox is empty.</p>`;
+            return;
+        }
+
+        list.innerHTML = mail.map(m => {
+            const hasGift = (m.giftGold || 0) > 0;
+            const giftHtml = hasGift 
+                ? (m.claimed 
+                    ? `<span style="color:#2ecc71; font-weight:bold; font-size:15px;">Claimed ✓ (+${m.giftGold} G)</span>` 
+                    : `<button class="btn-ctrl btn-sm-ctrl btn-claim-gift" data-id="${m.id}" style="background:#f1c40f; color:#000; font-weight:bold;">Claim ${m.giftGold} Gold 🎁</button>`)
+                : ``;
+
+            return `
+                <div class="mail-item ${hasGift && !m.claimed ? 'has-gift' : ''}">
+                    <div class="mail-top-line">
+                        <span class="mail-from">From: ${m.from}</span>
+                        <span class="mail-date">${m.date || 'Today'}</span>
                     </div>
-                    <div class="stat-col">
-                        <h4>${this.game.mode === 'pvp' ? 'PLAYER 2' : 'BOT'}</h4>
-                        <p>Total Damage Dealt: <b>${p2.damageDealt.toFixed(0)}</b></p>
-                        <p>Mace Slams Landed: <b>${p2.slamsLanded}</b></p>
-                        <p>Weapon Dashes Landed: <b>${p2.dashesLanded}</b></p>
-                        <p>Hardest Mace Slam: <b>${p2.maxSlamDamage.toFixed(0)} DMG</b></p>
-                        <p>Peak Altitude: <b>${Math.round(p2.maxHeight)} px</b></p>
+                    <div class="mail-text ${m.isRestricted ? 'restricted' : ''}">
+                        ${m.text}
+                    </div>
+                    <div class="mail-footer">
+                        <div>${giftHtml}</div>
+                        <button class="btn-ctrl btn-sm-ctrl btn-del-mail" data-id="${m.id}" style="color:#e74c3c;">Delete</button>
                     </div>
                 </div>
             `;
+        }).join("");
+
+        list.querySelectorAll(".btn-claim-gift").forEach(b => {
+            b.addEventListener("click", () => {
+                const res = auth.claimMailGift(b.dataset.id);
+                if (res.success) {
+                    sound.playWin();
+                    this.renderMailbox();
+                }
+            });
+        });
+
+        list.querySelectorAll(".btn-del-mail").forEach(b => {
+            b.addEventListener("click", () => {
+                sound.playClick();
+                auth.deleteMail(b.dataset.id);
+                this.renderMailbox();
+            });
+        });
+    }
+
+    updateSafetyBadge() {
+        const badge = document.getElementById("safety-status-badge");
+        const toggle = document.getElementById("toggle-minor-mode");
+        const isMinor = auth.getUser().isMinor;
+
+        if (toggle) toggle.checked = !!isMinor;
+        if (badge) {
+            if (isMinor) {
+                badge.className = "safety-badge active-minor";
+                badge.textContent = "Active: Minor Protection Active (Text Mail Hidden, Loot Only)";
+            } else {
+                badge.className = "safety-badge";
+                badge.textContent = "Active: Standard Account (All Mail & Messages Allowed)";
+            }
         }
+    }
+
+    openStatsModal() {
+        if (!this.statsModal) return;
+
+        const p1 = this.game.player;
+        const p2 = this.game.bot;
+        const statsBody = document.getElementById("stats-body");
+        if (!statsBody) return;
+
+        const highest = this.game.highestJumper || p1;
+        const isTiebreaker = this.game.isTiebreaker;
+        const winner = this.game.winnerTeam === "red" 
+            ? (this.game.playerName || "Player 1") 
+            : (p2.name || "Opponent");
+
+        let tableRows = "";
+        const fightersToDisplay = (this.game.allFighters && this.game.allFighters.length > 2)
+            ? this.game.allFighters
+            : [p1, p2];
+
+        fightersToDisplay.forEach(f => {
+            const st = f.stats || {};
+            const slamsMissed = Math.max(0, (st.slamsAttempted || 0) - (st.slamsLanded || 0));
+            const dashesMissed = Math.max(0, (st.dashesAttempted || 0) - (st.dashesLanded || 0));
+            const arrowsMissed = Math.max(0, (st.arrowsAttempted || 0) - (st.arrowsHit || 0));
+            const teamBadge = f.team ? ` [${f.team.toUpperCase()}]` : "";
+
+            tableRows += `
+                <tr>
+                    <td><strong>${f.name}${teamBadge}</strong></td>
+                    <td style="color:#2ecc71; font-weight:bold;">${st.kills || 0}</td>
+                    <td>${st.slamsLanded || 0} <span style="color:#ff7675;">(${slamsMissed} miss)</span></td>
+                    <td>${st.dashesLanded || 0} <span style="color:#ff7675;">(${dashesMissed} miss)</span></td>
+                    <td>${st.arrowsHit || 0} <span style="color:#ff7675;">(${arrowsMissed} miss)</span></td>
+                    <td>${Math.round(st.damageDealt || 0)}</td>
+                    <td style="color:#00d2d3; font-weight:bold;">${Math.round(st.maxHeight || 0)} px</td>
+                </tr>
+            `;
+        });
+
+        statsBody.innerHTML = `
+            <div class="stats-winner-banner">
+                <div class="stats-winner-title">👑 ${winner} VICTORY!</div>
+                <div class="stats-score-line">
+                    ${isTiebreaker ? '⚔️ 10-10 Sudden Death Tiebreaker (Highest Damage Won)' : `Final Score: ${this.game.scoreRed} - ${this.game.scoreBlue} (First to 11 Kills)`}
+                </div>
+            </div>
+
+            <div class="altitude-champion-box">
+                <div class="altitude-crown">👑</div>
+                <div class="altitude-info">
+                    <h4>HIGHEST ALTITUDE CHAMPION</h4>
+                    <p><strong>${highest.name}</strong> jumped the highest into the sky at <strong>${Math.round(highest.stats?.maxHeight || 0)} px</strong> altitude!</p>
+                </div>
+            </div>
+
+            <div class="stats-table-container">
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>Fighter</th>
+                            <th>Kills</th>
+                            <th>Mace Slams</th>
+                            <th>Dashes</th>
+                            <th>Arrows</th>
+                            <th>Damage</th>
+                            <th>Peak Jump</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                    </tbody>
+                </table>
+            </div>
+        `;
 
         this.statsModal.classList.remove("hidden");
     }
@@ -1270,11 +1638,20 @@ export class UIManager {
         if (state === "menu") {
             if (this.menuOverlay) this.menuOverlay.classList.remove("hidden");
             if (this.pauseModal) this.pauseModal.classList.add("hidden");
+            if (this.statsModal) this.statsModal.classList.add("hidden");
         } else if (state === "play") {
             if (this.menuOverlay) this.menuOverlay.classList.add("hidden");
             if (this.pauseModal) this.pauseModal.classList.add("hidden");
+            if (this.statsModal) this.statsModal.classList.add("hidden");
         } else if (state === "paused") {
             if (this.pauseModal) this.pauseModal.classList.remove("hidden");
+        } else if (state === "gameover") {
+            // Automatically show detailed post-match stats after 800ms banner display
+            setTimeout(() => {
+                if (this.game.state === "gameover") {
+                    this.openStatsModal();
+                }
+            }, 800);
         }
     }
 

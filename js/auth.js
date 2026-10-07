@@ -56,7 +56,20 @@ export class AuthManager {
                 if (!parsed.weaponUpgrades) parsed.weaponUpgrades = {};
                 if (!parsed.skinId) parsed.skinId = "steve";
                 if (!parsed.unlockedSkins) parsed.unlockedSkins = ["steve", "alex"];
-                if (parsed.arenaRP === undefined) parsed.arenaRP = 250;
+                if (parsed.friends === undefined) {
+                    parsed.friends = [
+                        { id: "f1", name: "AlexPro", status: "online" },
+                        { id: "f2", name: "EndKnight", status: "in-match" },
+                        { id: "f3", name: "BreezeDasher", status: "offline" }
+                    ];
+                }
+                if (parsed.mail === undefined) {
+                    parsed.mail = [
+                        { id: "m1", from: "Arena Master", type: "gift", title: "Daily Combat Bounty", text: "Heroic work in the Arena! Claim your daily combat bounty.", giftGold: 100, claimed: false, date: "Today" },
+                        { id: "m2", from: "AlexPro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
+                    ];
+                }
+                if (parsed.isMinor === undefined) parsed.isMinor = false;
                 return parsed;
             }
         } catch (e) {
@@ -81,6 +94,16 @@ export class AuthManager {
             skinId: "steve",
             unlockedSkins: ["steve", "alex"],
             arenaRP: 250,
+            isMinor: false,
+            friends: [
+                { id: "f1", name: "AlexPro", status: "online" },
+                { id: "f2", name: "EndKnight", status: "in-match" },
+                { id: "f3", name: "BreezeDasher", status: "offline" }
+            ],
+            mail: [
+                { id: "m1", from: "Arena Master", type: "gift", title: "Daily Combat Bounty", text: "Heroic work in the Arena! Claim your daily combat bounty.", giftGold: 100, claimed: false, date: "Today" },
+                { id: "m2", from: "AlexPro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
+            ],
             stats: {
                 matches: 0,
                 wins: 0,
@@ -302,7 +325,120 @@ export class AuthManager {
     }
 
     // ==========================================
-    // PROGRESSION & COMBAT RESULTS
+    // FRIENDS, MAILBOX & PARENTAL/MINOR PROTECTION
+    // ==========================================
+
+    toggleMinorMode(enabled) {
+        this.user.isMinor = !!enabled;
+        this.saveUser();
+        return this.user.isMinor;
+    }
+
+    getFriends() {
+        return this.user.friends || [];
+    }
+
+    addFriend(name) {
+        const clean = (name || "").trim();
+        if (clean.length < 2) return { success: false, error: "Friend name too short." };
+        if (!this.user.friends) this.user.friends = [];
+        if (this.user.friends.some(f => f.name.toLowerCase() === clean.toLowerCase())) {
+            return { success: false, error: "Friend already added!" };
+        }
+        const statuses = ["online", "in-match", "offline"];
+        const randStatus = statuses[Math.floor(Math.random() * statuses.length)];
+        const newFriend = { id: "f_" + Date.now(), name: clean, status: randStatus };
+        this.user.friends.push(newFriend);
+        this.saveUser();
+        return { success: true, friend: newFriend };
+    }
+
+    removeFriend(id) {
+        if (!this.user.friends) return false;
+        this.user.friends = this.user.friends.filter(f => f.id !== id);
+        this.saveUser();
+        return true;
+    }
+
+    getMail() {
+        const rawMail = this.user.mail || [];
+        // If minor playing mode is active, they can't get text messages, ONLY loot/gifts!
+        if (this.user.isMinor) {
+            return rawMail.map(m => {
+                if (m.type === "message" && (!m.giftGold || m.giftGold <= 0)) {
+                    return {
+                        ...m,
+                        text: "[Message hidden by Minor Account Protection. Only loot packages and gifts can be received.]",
+                        isRestricted: true
+                    };
+                }
+                return m;
+            });
+        }
+        return rawMail;
+    }
+
+    sendMail(toName, title, text, giftGold = 0) {
+        const cleanTo = (toName || "").trim();
+        const cleanTitle = (title || "Letter from Arena").trim();
+        const cleanText = (text || "").trim();
+        const goldToSend = Math.max(0, parseInt(giftGold) || 0);
+
+        if (!cleanTo) return { success: false, error: "Please specify a recipient." };
+        if (goldToSend > 0) {
+            if ((this.user.gold || 0) < goldToSend) {
+                return { success: false, error: "Not enough gold to send this gift!" };
+            }
+            this.spendGold(goldToSend);
+        }
+
+        // Simulate delivery & auto-reply after sending
+        setTimeout(() => {
+            if (!this.user.mail) this.user.mail = [];
+            const isGift = goldToSend > 0;
+            const replyGift = isGift ? Math.round(goldToSend * 1.25) : 0;
+            this.user.mail.unshift({
+                id: "m_" + Date.now(),
+                from: cleanTo,
+                type: replyGift > 0 ? "gift" : "message",
+                title: `Re: ${cleanTitle}`,
+                text: replyGift > 0 
+                    ? `Thanks for your gift package! Here is a bounty return from our raid!` 
+                    : `Hey ${this.getUsername()}, received your message! Let's conquer the next match together.`,
+                giftGold: replyGift,
+                claimed: false,
+                date: "Just now"
+            });
+            this.saveUser();
+        }, 1200);
+
+        return { success: true, message: "Mail delivered successfully!" };
+    }
+
+    claimMailGift(mailId) {
+        if (!this.user.mail) return { success: false, error: "No mail found." };
+        const item = this.user.mail.find(m => m.id === mailId);
+        if (!item) return { success: false, error: "Mail not found." };
+        if (item.claimed) return { success: false, error: "Loot already claimed." };
+        const gold = item.giftGold || 0;
+        if (gold > 0) {
+            this.addGold(gold);
+            item.claimed = true;
+            this.saveUser();
+            return { success: true, goldClaimed: gold };
+        }
+        return { success: false, error: "No loot attached to this mail." };
+    }
+
+    deleteMail(mailId) {
+        if (!this.user.mail) return false;
+        this.user.mail = this.user.mail.filter(m => m.id !== mailId);
+        this.saveUser();
+        return true;
+    }
+
+    // ==========================================
+    // PROGRESSION & COMBAT RESULTS (SCALED ECONOMY)
     // ==========================================
 
     recordMatchResult(isWin, mode = "normal", matchStats = null) {
@@ -312,6 +448,7 @@ export class AuthManager {
         let goldEarned = 0;
         let xpEarned = 0;
 
+        // Scaled economy: Starter matches award less gold; higher tiers award substantially more!
         if (isWin) {
             s.wins++;
             s.currentStreak++;
@@ -319,28 +456,27 @@ export class AuthManager {
                 s.bestStreak = s.currentStreak;
             }
 
-            // Defeating bots creates gold & XP scaled by difficulty!
             if (mode === "god") {
-                goldEarned = 350;
+                goldEarned = 320; // High stakes apex match
                 xpEarned = 300;
             } else if (mode === "pro") {
-                goldEarned = 180;
+                goldEarned = 140;
                 xpEarned = 160;
             } else if (mode === "normal") {
-                goldEarned = 100;
-                xpEarned = 90;
+                goldEarned = 45;
+                xpEarned = 70;
             } else if (mode === "easy") {
-                goldEarned = 50;
-                xpEarned = 50;
+                goldEarned = 18;  // Lower starter match
+                xpEarned = 35;
             } else {
-                goldEarned = 25; // practice
-                xpEarned = 25;
+                goldEarned = 8;   // Practice starter match
+                xpEarned = 15;
             }
         } else {
             s.losses++;
             s.currentStreak = 0;
-            goldEarned = 20; // consolation
-            xpEarned = 35;
+            goldEarned = mode === "god" ? 35 : (mode === "pro" ? 20 : (mode === "normal" ? 10 : 4));
+            xpEarned = 25;
         }
 
         if (matchStats) {
@@ -358,14 +494,18 @@ export class AuthManager {
         return { isWin, goldEarned, xpEarned };
     }
 
-    // Ranked Arena Match Outcome
+    // Ranked Arena Match Outcome (Scales heavily as rank increases)
     recordArenaMatchResult(isWin, matchType = "1v1") {
         const s = this.user.stats;
         s.matches++;
 
+        const curRP = this.user.arenaRP || 250;
         let rpDelta = 0;
         let goldEarned = 0;
         let xpEarned = 0;
+
+        // Tier multipliers: Bronze (<400), Silver (<800), Gold (<1400), Diamond (<2200), Obsidian (2200+)
+        const tierFactor = curRP >= 2200 ? 3.0 : (curRP >= 1400 ? 2.2 : (curRP >= 800 ? 1.6 : (curRP >= 400 ? 1.2 : 0.8)));
 
         if (isWin) {
             s.wins++;
@@ -375,18 +515,19 @@ export class AuthManager {
             }
 
             rpDelta = matchType === "5v5" ? 45 : (matchType === "2v2" ? 35 : 30);
-            goldEarned = matchType === "5v5" ? 280 : (matchType === "2v2" ? 200 : 160);
-            xpEarned = 150;
+            const baseGold = matchType === "5v5" ? 160 : (matchType === "2v2" ? 120 : 90);
+            goldEarned = Math.round(baseGold * tierFactor);
+            xpEarned = Math.round(100 * tierFactor);
 
-            this.user.arenaRP = (this.user.arenaRP || 250) + rpDelta;
+            this.user.arenaRP = curRP + rpDelta;
         } else {
             s.losses++;
             s.currentStreak = 0;
-            rpDelta = -12;
-            goldEarned = 40;
-            xpEarned = 50;
+            rpDelta = -14;
+            goldEarned = Math.round(20 * tierFactor);
+            xpEarned = 35;
 
-            this.user.arenaRP = Math.max(0, (this.user.arenaRP || 250) + rpDelta);
+            this.user.arenaRP = Math.max(0, curRP + rpDelta);
         }
 
         this.addGold(goldEarned);

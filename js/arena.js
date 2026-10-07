@@ -123,7 +123,7 @@ export class ArenaManager {
             const skin = skinPool[Math.floor(Math.random() * skinPool.length)];
             redTeam.push({
                 id: `bot_red_${i}`,
-                name: `${bName}`,
+                name: `[BOT] ${bName}`,
                 isPlayer: false,
                 team: "red",
                 weaponId: wep,
@@ -142,7 +142,7 @@ export class ArenaManager {
             const skin = skinPool[Math.floor(Math.random() * skinPool.length)];
             blueTeam.push({
                 id: `bot_blue_${i}`,
-                name: `Rival_${bName}`,
+                name: `[BOT] ${bName}`,
                 isPlayer: false,
                 team: "blue",
                 weaponId: wep,

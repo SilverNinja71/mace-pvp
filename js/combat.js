@@ -42,10 +42,8 @@ export class CombatEngine {
             }
 
             const finalDamage = slamDamage * effDmgMult;
-            if (!defender.isPlayer || !defender.isBotGame) {
-                defender.hp -= finalDamage;
-                defender.stats.damageTaken += finalDamage;
-            }
+            defender.hp -= finalDamage;
+            defender.stats.damageTaken += finalDamage;
             defender.hitCooldown = 25;
             defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier);
 
@@ -74,7 +72,7 @@ export class CombatEngine {
                 attacker.stats.maxSlamDamage = finalDamage;
             }
 
-            if (onDefenderHit) onDefenderHit();
+            if (onDefenderHit) onDefenderHit(finalDamage, attacker, defender);
 
             const hitX = (attacker.x + defender.x) / 2 + 12;
             const hitY = (attacker.y + defender.y) / 2 + 12;
@@ -120,10 +118,8 @@ export class CombatEngine {
             defender.hitCooldown <= 0
         ) {
             const finalDamage = CORE_PHYSICS.slamGroundDamage * damageMultiplier;
-            if (!defender.isPlayer || !defender.isBotGame) {
-                defender.hp -= finalDamage;
-                defender.stats.damageTaken += finalDamage;
-            }
+            defender.hp -= finalDamage;
+            defender.stats.damageTaken += finalDamage;
             defender.hitCooldown = 20;
             defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier);
 
@@ -134,7 +130,7 @@ export class CombatEngine {
             attacker.stats.damageDealt += finalDamage;
             attacker.stats.slamsLanded++;
 
-            if (onDefenderHit) onDefenderHit();
+            if (onDefenderHit) onDefenderHit(finalDamage, attacker, defender);
 
             sound.playSlamHit(0.4);
             this.particles.addHitSparks(defenderCenter, defender.y + defender.h / 2, 12, "#ffaa00");
@@ -166,10 +162,8 @@ export class CombatEngine {
             attacker.y + attacker.h > defender.y
         ) {
             const finalDamage = baseDmg * damageMultiplier;
-            if (!defender.isPlayer || !defender.isBotGame) {
-                defender.hp -= finalDamage;
-                defender.stats.damageTaken += finalDamage;
-            }
+            defender.hp -= finalDamage;
+            defender.stats.damageTaken += finalDamage;
             defender.hitCooldown = 22;
             defender.stun = Math.round((CORE_PHYSICS.hitStun + stunBonus) * stunMultiplier);
 
@@ -188,7 +182,7 @@ export class CombatEngine {
             attacker.stats.damageDealt += finalDamage;
             attacker.stats.dashesLanded++;
 
-            if (onDefenderHit) onDefenderHit();
+            if (onDefenderHit) onDefenderHit(finalDamage, attacker, defender);
 
             const hitX = (attacker.x + defender.x) / 2 + 12;
             const hitY = (attacker.y + defender.y) / 2 + 12;

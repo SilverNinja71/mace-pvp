@@ -41,6 +41,18 @@ export class Game {
         this.allBots = [{ fighter: this.bot, ai: this.botAI }];
         this.allFighters = [this.player, this.bot];
 
+        // Match Scoring & Sudden Death Tiebreaker (First to 11 Kills, 10-10 Tiebreaker)
+        this.targetKills = 11;
+        this.scoreRed = 0;
+        this.scoreBlue = 0;
+        this.isTiebreaker = false;
+        this.tiebreakerTimer = 0;
+        this.tiebreakerRedDamage = 0;
+        this.tiebreakerBlueDamage = 0;
+        this.respawnQueue = [];
+        this.highestJumper = null;
+        this.winnerTeam = null;
+
         // State
         this.state = "menu"; // "menu", "play", "paused", "gameover"
         this.mode = "normal";
@@ -74,6 +86,17 @@ export class Game {
         this.customBotParams = customOverrides;
         this.botParams = getBotParamsForMode(mode, customOverrides);
 
+        // Reset match score & tiebreaker
+        this.scoreRed = 0;
+        this.scoreBlue = 0;
+        this.isTiebreaker = false;
+        this.tiebreakerTimer = 0;
+        this.tiebreakerRedDamage = 0;
+        this.tiebreakerBlueDamage = 0;
+        this.respawnQueue = [];
+        this.highestJumper = null;
+        this.winnerTeam = null;
+
         const maxHp = (mode === "practice") ? 1000 : (this.botParams.maxHP || 100);
         const user = auth.getUser();
 
@@ -84,8 +107,11 @@ export class Game {
         this.player.setTeam(null);
         this.player.isBotGame = isBot;
         this.player.isPlayer = true;
+        this.player.name = this.playerName || "Player";
 
+        const botMeta = MODE_METADATA[mode] || { name: "Bot" };
         this.bot.reset(650, -1, maxHp);
+        this.bot.name = (mode === "pvp") ? "Player 2" : `[BOT] ${botMeta.name}`;
         this.bot.setWeapon(mode === "god" ? "mace" : (mode === "pro" ? "sword" : "spear"), {});
         this.bot.setSkin(mode === "god" ? "enderman" : (mode === "pro" ? "diamond_knight" : "alex"));
         this.bot.setTeam(null);
@@ -188,6 +214,18 @@ export class Game {
         this.arrowManager.reset();
         this.particles.reset();
         this.lastRewardInfo = null;
+
+        // Reset match score & tiebreaker
+        this.scoreRed = 0;
+        this.scoreBlue = 0;
+        this.isTiebreaker = false;
+        this.tiebreakerTimer = 0;
+        this.tiebreakerRedDamage = 0;
+        this.tiebreakerBlueDamage = 0;
+        this.respawnQueue = [];
+        this.highestJumper = null;
+        this.winnerTeam = null;
+
         this.state = "play";
 
         if (this.uiCallbacks.onStateChanged) {
@@ -211,6 +249,17 @@ export class Game {
         this.arrowManager.reset();
         this.particles.reset();
         this.lastRewardInfo = null;
+
+        this.scoreRed = 0;
+        this.scoreBlue = 0;
+        this.isTiebreaker = false;
+        this.tiebreakerTimer = 0;
+        this.tiebreakerRedDamage = 0;
+        this.tiebreakerBlueDamage = 0;
+        this.respawnQueue = [];
+        this.highestJumper = null;
+        this.winnerTeam = null;
+
         this.state = "play";
 
         if (this.uiCallbacks.onStateChanged) {
@@ -278,11 +327,19 @@ export class Game {
             // Match Restart / Home keys
             if (this.state === "gameover" || this.player.hp <= 0 || (this.isTeamMatch ? false : this.bot.hp <= 0)) {
                 if (e.code === "KeyR") {
-                    this.restartMatch();
+                    if (this.uiCallbacks.onRestartRequested) {
+                        this.uiCallbacks.onRestartRequested();
+                    } else {
+                        this.restartMatch();
+                    }
                     return;
                 }
                 if (e.code === "KeyH") {
-                    this.goHome();
+                    if (this.uiCallbacks.onHomeRequested) {
+                        this.uiCallbacks.onHomeRequested();
+                    } else {
+                        this.goHome();
+                    }
                     return;
                 }
             }
@@ -431,21 +488,40 @@ export class Game {
                 const mult = f.isPlayer ? damageTakenMult : damageDealtMult;
                 for (let j = 0; j < opposingTeam.length; j++) {
                     const def = opposingTeam[j];
-                    this.combat.checkGroundSlam(f, def, mult, stunMult, () => {
-                        if (def._botAI) def._botAI.onHit();
+                    this.combat.checkGroundSlam(f, def, mult, stunMult, (dmg, atk, defender) => {
+                        if (defender._botAI) defender._botAI.onHit();
+                        if (this.isTiebreaker) {
+                            if (atk.team === "red" || (!atk.team && atk === this.player)) {
+                                this.tiebreakerRedDamage += dmg;
+                            } else {
+                                this.tiebreakerBlueDamage += dmg;
+                            }
+                        }
                     });
                 }
             }
         }
 
         // Update Arrow Projectiles
-        this.arrowManager.update(PLATFORMS_CONFIG, this.allFighters, (hitFighter, arrow) => {
+        this.arrowManager.update(PLATFORMS_CONFIG, this.allFighters, (hitFighter, arrow, dmg) => {
             sound.playDashHit();
+            const arrowDmg = dmg || arrow.damage || 30;
             this.particles.addHitSparks(arrow.x, arrow.y, 10, "#e74c3c");
-            this.particles.addDamageText(hitFighter.x + hitFighter.w / 2, hitFighter.y, arrow.damage, false);
+            this.particles.addDamageText(hitFighter.x + hitFighter.w / 2, hitFighter.y, arrowDmg, false);
             this.particles.triggerShake(4, 6);
 
             if (hitFighter._botAI) hitFighter._botAI.onHit();
+
+            if (this.isTiebreaker) {
+                const shooter = this.allFighters.find(f => f.id === arrow.ownerId);
+                if (shooter) {
+                    if (shooter.team === "red" || (!shooter.team && shooter === this.player)) {
+                        this.tiebreakerRedDamage += arrowDmg;
+                    } else {
+                        this.tiebreakerBlueDamage += arrowDmg;
+                    }
+                }
+            }
         });
 
         // Resolve mid-air slams and dash collisions between opposing teams (zero temporary array allocation)
@@ -456,11 +532,13 @@ export class Game {
                 const def = this.blueTeam[j];
                 if (def.hp <= 0) continue;
 
-                this.combat.checkAirSlam(atk, def, damageTakenMult, stunMult, () => {
+                this.combat.checkAirSlam(atk, def, damageTakenMult, stunMult, (dmg) => {
                     if (def._botAI) def._botAI.onHit();
+                    if (this.isTiebreaker) this.tiebreakerRedDamage += dmg;
                 });
-                this.combat.checkDashHit(atk, def, damageTakenMult, stunMult, () => {
+                this.combat.checkDashHit(atk, def, damageTakenMult, stunMult, (dmg) => {
                     if (def._botAI) def._botAI.onHit();
+                    if (this.isTiebreaker) this.tiebreakerRedDamage += dmg;
                 });
             }
         }
@@ -472,11 +550,13 @@ export class Game {
                 const def = this.redTeam[j];
                 if (def.hp <= 0) continue;
 
-                this.combat.checkAirSlam(atk, def, damageDealtMult, 1.0, () => {
+                this.combat.checkAirSlam(atk, def, damageDealtMult, 1.0, (dmg) => {
                     if (def._botAI) def._botAI.onHit();
+                    if (this.isTiebreaker) this.tiebreakerBlueDamage += dmg;
                 });
-                this.combat.checkDashHit(atk, def, damageDealtMult, 1.0, () => {
+                this.combat.checkDashHit(atk, def, damageDealtMult, 1.0, (dmg) => {
                     if (def._botAI) def._botAI.onHit();
+                    if (this.isTiebreaker) this.tiebreakerBlueDamage += dmg;
                 });
             }
         }
@@ -484,44 +564,128 @@ export class Game {
         // Particles & Camera Shake
         this.particles.update();
 
-        // Check match resolution
+        // 1. Process Fighter Eliminations & Score Updates
+        for (let i = 0; i < this.allFighters.length; i++) {
+            const f = this.allFighters[i];
+            if (f.hp <= 0 && !f.isDead) {
+                f.isDead = true;
+                sound.playDashHit();
+                this.particles.addHitSparks(f.x + f.w / 2, f.y + f.h / 2, 22, "#e74c3c");
+                this.particles.addDust(f.x + f.w / 2, f.y + f.h / 2, 16);
+
+                const isRedFighter = f.team === "red" || (!f.team && f === this.player);
+                if (isRedFighter) {
+                    this.scoreBlue++;
+                    this.particles.addDamageText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, true);
+                    const killer = this.blueTeam.find(b => b.hp > 0) || this.blueTeam[0] || this.bot;
+                    if (killer) killer.stats.kills++;
+                } else {
+                    this.scoreRed++;
+                    this.particles.addDamageText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, true);
+                    const killer = this.redTeam.find(r => r.hp > 0) || this.redTeam[0] || this.player;
+                    if (killer) killer.stats.kills++;
+                }
+
+                // Check 10-10 Sudden Death Tiebreaker Trigger
+                if (this.scoreRed === 10 && this.scoreBlue === 10 && !this.isTiebreaker) {
+                    this.isTiebreaker = true;
+                    this.tiebreakerTimer = 10 * 60; // 10.0 seconds (600 frames)
+                    this.tiebreakerRedDamage = 0;
+                    this.tiebreakerBlueDamage = 0;
+                    sound.playDoubleJump();
+                    this.particles.addShockwave(400, 200, 120, "#f1c40f", 5);
+                }
+
+                // Check Win Conditions
+                if (!this.isTiebreaker) {
+                    if (this.scoreRed >= 11 && this.scoreBlue < 10) {
+                        this.finishMatch(true);
+                        return;
+                    } else if (this.scoreBlue >= 11 && this.scoreRed < 10) {
+                        this.finishMatch(false);
+                        return;
+                    }
+                } else {
+                    if (this.scoreRed >= 11) {
+                        this.finishMatch(true);
+                        return;
+                    } else if (this.scoreBlue >= 11) {
+                        this.finishMatch(false);
+                        return;
+                    }
+                }
+
+                // Schedule fighter respawn
+                const spawnX = isRedFighter ? (120 + Math.random() * 80) : (600 + Math.random() * 80);
+                const spawnY = 160;
+                this.respawnQueue.push({ fighter: f, timer: 60, spawnX, spawnY });
+            }
+        }
+
+        // 2. Process Respawn Queue
+        for (let i = this.respawnQueue.length - 1; i >= 0; i--) {
+            const item = this.respawnQueue[i];
+            item.timer--;
+            if (item.timer <= 0) {
+                item.fighter.respawn(item.spawnX, item.spawnY);
+                this.particles.addDust(item.fighter.x + 12, item.fighter.y + 24, 15);
+                this.particles.addDamageText(item.fighter.x + 12, item.fighter.y - 10, "RESPAWNED!", false);
+                this.respawnQueue.splice(i, 1);
+            }
+        }
+
+        // 3. Process Tiebreaker Timer (10 Seconds, Whoever Dealt Most Damage Wins)
+        if (this.isTiebreaker) {
+            this.tiebreakerTimer--;
+            if (this.tiebreakerTimer <= 0) {
+                // 10 seconds expired! Compare damage dealt
+                if (this.tiebreakerRedDamage > this.tiebreakerBlueDamage) {
+                    this.finishMatch(true);
+                } else if (this.tiebreakerBlueDamage > this.tiebreakerRedDamage) {
+                    this.finishMatch(false);
+                } else {
+                    this.finishMatch(this.scoreRed >= this.scoreBlue);
+                }
+                return;
+            }
+        }
+    }
+
+    finishMatch(isRedWin) {
+        this.state = "gameover";
+        this.winnerTeam = isRedWin ? "red" : "blue";
+        if (isRedWin) sound.playWin(); else sound.playLoss();
+
+        // Calculate missed mace slams, missed dashes, and missed arrows for all fighters
+        this.allFighters.forEach(f => {
+            f.stats.slamsMissed = Math.max(0, (f.stats.slamsAttempted || 0) - (f.stats.slamsLanded || 0));
+            f.stats.dashesMissed = Math.max(0, (f.stats.dashesAttempted || 0) - (f.stats.dashesLanded || 0));
+            f.stats.arrowsMissed = Math.max(0, (f.stats.arrowsAttempted || 0) - (f.stats.arrowsHit || 0));
+        });
+
+        // Determine who jumped the highest (Altitude Champion 👑)
+        let highest = this.allFighters[0];
+        for (let i = 1; i < this.allFighters.length; i++) {
+            if ((this.allFighters[i].stats.maxHeight || 0) > (highest.stats.maxHeight || 0)) {
+                highest = this.allFighters[i];
+            }
+        }
+        this.highestJumper = highest;
+
+        // Scale reward economy
         if (this.isTeamMatch) {
-            let redAllDead = true;
-            for (let i = 0; i < this.redTeam.length; i++) {
-                if (this.redTeam[i].hp > 0) { redAllDead = false; break; }
-            }
-            let blueAllDead = true;
-            for (let i = 0; i < this.blueTeam.length; i++) {
-                if (this.blueTeam[i].hp > 0) { blueAllDead = false; break; }
-            }
-
-            if (redAllDead || blueAllDead) {
-                this.state = "gameover";
-                const isWin = !redAllDead && blueAllDead;
-                if (isWin) sound.playWin(); else sound.playLoss();
-
-                // Record ranked arena outcome
-                this.lastRewardInfo = auth.recordArenaMatchResult(isWin, this.matchType);
-
-                if (this.uiCallbacks.onStateChanged) {
-                    this.uiCallbacks.onStateChanged(this.state);
-                }
-            }
+            this.lastRewardInfo = auth.recordArenaMatchResult(isRedWin, this.matchType);
         } else {
-            // Standard Single-Player / PvP 1v1
-            if (this.player.hp <= 0 || this.bot.hp <= 0) {
-                this.state = "gameover";
-                const isWin = this.player.hp > 0;
-                if (isWin) sound.playWin(); else sound.playLoss();
-
-                if (this.mode !== "pvp") {
-                    this.lastRewardInfo = auth.recordMatchResult(isWin, this.mode, this.player.stats);
-                }
-
-                if (this.uiCallbacks.onStateChanged) {
-                    this.uiCallbacks.onStateChanged(this.state);
-                }
+            if (this.mode !== "pvp") {
+                this.lastRewardInfo = auth.recordMatchResult(isRedWin, this.mode, this.player.stats);
             }
+        }
+
+        if (this.uiCallbacks.onStateChanged) {
+            this.uiCallbacks.onStateChanged(this.state);
+        }
+        if (this.uiCallbacks.onMatchFinished) {
+            this.uiCallbacks.onMatchFinished(this);
         }
     }
 
@@ -554,13 +718,23 @@ export class Game {
         // Particle FX & floating combat text
         this.particles.draw(ctx);
 
-        // HUD & Controls Hint
+        // HUD & Controls Hint with Score and Tiebreaker Status
         if (this.isTeamMatch) {
-            this.renderer.drawTeamArenaHUD(this.redTeam, this.blueTeam, this.matchType);
+            this.renderer.drawTeamArenaHUD(
+                this.redTeam, this.blueTeam, this.matchType,
+                this.scoreRed, this.scoreBlue,
+                this.isTiebreaker, this.tiebreakerTimer,
+                this.tiebreakerRedDamage, this.tiebreakerBlueDamage
+            );
         } else {
             const p1Label = this.mode === "pvp" ? "PLAYER 1" : (this.playerName || "YOU");
-            const p2Label = this.mode === "pvp" ? "PLAYER 2" : (this.mode === "god" ? "GOD BOT" : "BOT");
-            this.renderer.drawHUD(this.player, this.bot, botColor, botMeta.name, p1Label, p2Label);
+            const p2Label = this.mode === "pvp" ? "PLAYER 2" : (this.bot.name || "BOT");
+            this.renderer.drawHUD(
+                this.player, this.bot, botColor, botMeta.name, p1Label, p2Label,
+                this.scoreRed, this.scoreBlue,
+                this.isTiebreaker, this.tiebreakerTimer,
+                this.tiebreakerRedDamage, this.tiebreakerBlueDamage
+            );
         }
 
         this.renderer.drawControlsHint(this.mode === "pvp");
@@ -569,16 +743,17 @@ export class Game {
         if (this.state === "gameover") {
             let winner = "YOU";
             if (this.isTeamMatch) {
-                let redAllDead = true;
-                for (let i = 0; i < this.redTeam.length; i++) {
-                    if (this.redTeam[i].hp > 0) { redAllDead = false; break; }
-                }
-                winner = redAllDead ? "BLUE TEAM" : "RED TEAM";
+                winner = this.winnerTeam === "red" ? "RED TEAM" : "BLUE TEAM";
             } else {
-                winner = this.player.hp > 0 ? (this.mode === "pvp" ? "PLAYER 1" : (this.playerName || "YOU")) : (this.mode === "pvp" ? "PLAYER 2" : "BOT");
+                winner = this.winnerTeam === "red" 
+                    ? (this.mode === "pvp" ? "PLAYER 1" : (this.playerName || "YOU")) 
+                    : (this.mode === "pvp" ? "PLAYER 2" : (this.bot.name || "BOT"));
             }
 
-            this.renderer.drawGameOver(winner, this.player.stats, this.bot.stats, this.lastRewardInfo);
+            this.renderer.drawGameOver(
+                winner, this.player.stats, this.bot.stats, this.lastRewardInfo,
+                this.scoreRed, this.scoreBlue, this.highestJumper, this.isTiebreaker
+            );
         }
 
         ctx.restore();

@@ -118,15 +118,42 @@ export class Fighter {
         this.squashX = 1.0;
         this.squashY = 1.0;
 
+        this.isDead = false;
         this.stats = {
+            kills: 0,
             damageDealt: 0,
             damageTaken: 0,
+            slamsAttempted: 0,
             slamsLanded: 0,
+            slamsMissed: 0,
+            dashesAttempted: 0,
             dashesLanded: 0,
+            dashesMissed: 0,
+            arrowsAttempted: 0,
             arrowsHit: 0,
+            arrowsMissed: 0,
             maxSlamDamage: 0,
             maxHeight: 0
         };
+    }
+
+    respawn(x, y) {
+        this.x = x;
+        this.y = y;
+        this.xVel = 0;
+        this.yVel = 0;
+        this.hp = this.maxHp;
+        this.ghostHp = this.maxHp;
+        this.slamming = false;
+        this.dashing = false;
+        this.dashAttack = false;
+        this.dashReady = true;
+        this.dashCooldown = 0;
+        this.stun = 0;
+        this.hitCooldown = 60; // 1 second invulnerability
+        this.isDead = false;
+        this.squashX = 1.0;
+        this.squashY = 1.0;
     }
 
     // Jump / Double Jump execution with Input Buffering
@@ -219,6 +246,10 @@ export class Fighter {
             this.dashTimer = duration;
             this.dashCooldown = cooldown;
 
+            if (isAttack) {
+                this.stats.dashesAttempted++;
+            }
+
             this.yVel = 0;
             this.xVel = this.facing * speed;
 
@@ -245,6 +276,7 @@ export class Fighter {
         this.slamming = true;
         this.slamStartY = this.y;
         this.yVel = CORE_PHYSICS.slamSpeed;
+        this.stats.slamsAttempted++;
 
         this.squashX = 0.75;
         this.squashY = 1.35;

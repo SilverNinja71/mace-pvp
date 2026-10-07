@@ -1153,16 +1153,21 @@
                       f.hitCooldown <= 0
                   ) {
                       // Hit fighter!
-                      if (!f.isPlayer || !f.isBotGame) {
-                          f.hp -= a.damage;
-                      }
+                      f.hp -= a.damage;
+                      f.stats.damageTaken += a.damage;
                       f.hitCooldown = 20;
                       f.stun = 25;
                       f.xVel = a.facing * 7 * (a.knockbackMult || 1.0);
                       f.yVel = -5;
   
+                      const shooter = fighters.find(fl => fl.id === a.ownerId);
+                      if (shooter) {
+                          shooter.stats.arrowsHit++;
+                          shooter.stats.damageDealt += a.damage;
+                      }
+  
                       if (onHitCallback) {
-                          onHitCallback(f, a);
+                          onHitCallback(f, a, a.damage);
                       }
   
                       this.arrows.splice(i, 1);
@@ -1335,7 +1340,7 @@
               const skin = skinPool[Math.floor(Math.random() * skinPool.length)];
               redTeam.push({
                   id: `bot_red_${i}`,
-                  name: `${bName}`,
+                  name: `[BOT] ${bName}`,
                   isPlayer: false,
                   team: "red",
                   weaponId: wep,
@@ -1354,7 +1359,7 @@
               const skin = skinPool[Math.floor(Math.random() * skinPool.length)];
               blueTeam.push({
                   id: `bot_blue_${i}`,
-                  name: `Rival_${bName}`,
+                  name: `[BOT] ${bName}`,
                   isPlayer: false,
                   team: "blue",
                   weaponId: wep,
@@ -1476,7 +1481,20 @@
                   if (!parsed.weaponUpgrades) parsed.weaponUpgrades = {};
                   if (!parsed.skinId) parsed.skinId = "steve";
                   if (!parsed.unlockedSkins) parsed.unlockedSkins = ["steve", "alex"];
-                  if (parsed.arenaRP === undefined) parsed.arenaRP = 250;
+                  if (parsed.friends === undefined) {
+                      parsed.friends = [
+                          { id: "f1", name: "AlexPro", status: "online" },
+                          { id: "f2", name: "EndKnight", status: "in-match" },
+                          { id: "f3", name: "BreezeDasher", status: "offline" }
+                      ];
+                  }
+                  if (parsed.mail === undefined) {
+                      parsed.mail = [
+                          { id: "m1", from: "Arena Master", type: "gift", title: "Daily Combat Bounty", text: "Heroic work in the Arena! Claim your daily combat bounty.", giftGold: 100, claimed: false, date: "Today" },
+                          { id: "m2", from: "AlexPro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
+                      ];
+                  }
+                  if (parsed.isMinor === undefined) parsed.isMinor = false;
                   return parsed;
               }
           } catch (e) {
@@ -1501,6 +1519,16 @@
               skinId: "steve",
               unlockedSkins: ["steve", "alex"],
               arenaRP: 250,
+              isMinor: false,
+              friends: [
+                  { id: "f1", name: "AlexPro", status: "online" },
+                  { id: "f2", name: "EndKnight", status: "in-match" },
+                  { id: "f3", name: "BreezeDasher", status: "offline" }
+              ],
+              mail: [
+                  { id: "m1", from: "Arena Master", type: "gift", title: "Daily Combat Bounty", text: "Heroic work in the Arena! Claim your daily combat bounty.", giftGold: 100, claimed: false, date: "Today" },
+                  { id: "m2", from: "AlexPro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
+              ],
               stats: {
                   matches: 0,
                   wins: 0,
@@ -1722,7 +1750,120 @@
       }
   
       // ==========================================
-      // PROGRESSION & COMBAT RESULTS
+      // FRIENDS, MAILBOX & PARENTAL/MINOR PROTECTION
+      // ==========================================
+  
+      toggleMinorMode(enabled) {
+          this.user.isMinor = !!enabled;
+          this.saveUser();
+          return this.user.isMinor;
+      }
+  
+      getFriends() {
+          return this.user.friends || [];
+      }
+  
+      addFriend(name) {
+          const clean = (name || "").trim();
+          if (clean.length < 2) return { success: false, error: "Friend name too short." };
+          if (!this.user.friends) this.user.friends = [];
+          if (this.user.friends.some(f => f.name.toLowerCase() === clean.toLowerCase())) {
+              return { success: false, error: "Friend already added!" };
+          }
+          const statuses = ["online", "in-match", "offline"];
+          const randStatus = statuses[Math.floor(Math.random() * statuses.length)];
+          const newFriend = { id: "f_" + Date.now(), name: clean, status: randStatus };
+          this.user.friends.push(newFriend);
+          this.saveUser();
+          return { success: true, friend: newFriend };
+      }
+  
+      removeFriend(id) {
+          if (!this.user.friends) return false;
+          this.user.friends = this.user.friends.filter(f => f.id !== id);
+          this.saveUser();
+          return true;
+      }
+  
+      getMail() {
+          const rawMail = this.user.mail || [];
+          // If minor playing mode is active, they can't get text messages, ONLY loot/gifts!
+          if (this.user.isMinor) {
+              return rawMail.map(m => {
+                  if (m.type === "message" && (!m.giftGold || m.giftGold <= 0)) {
+                      return {
+                          ...m,
+                          text: "[Message hidden by Minor Account Protection. Only loot packages and gifts can be received.]",
+                          isRestricted: true
+                      };
+                  }
+                  return m;
+              });
+          }
+          return rawMail;
+      }
+  
+      sendMail(toName, title, text, giftGold = 0) {
+          const cleanTo = (toName || "").trim();
+          const cleanTitle = (title || "Letter from Arena").trim();
+          const cleanText = (text || "").trim();
+          const goldToSend = Math.max(0, parseInt(giftGold) || 0);
+  
+          if (!cleanTo) return { success: false, error: "Please specify a recipient." };
+          if (goldToSend > 0) {
+              if ((this.user.gold || 0) < goldToSend) {
+                  return { success: false, error: "Not enough gold to send this gift!" };
+              }
+              this.spendGold(goldToSend);
+          }
+  
+          // Simulate delivery & auto-reply after sending
+          setTimeout(() => {
+              if (!this.user.mail) this.user.mail = [];
+              const isGift = goldToSend > 0;
+              const replyGift = isGift ? Math.round(goldToSend * 1.25) : 0;
+              this.user.mail.unshift({
+                  id: "m_" + Date.now(),
+                  from: cleanTo,
+                  type: replyGift > 0 ? "gift" : "message",
+                  title: `Re: ${cleanTitle}`,
+                  text: replyGift > 0 
+                      ? `Thanks for your gift package! Here is a bounty return from our raid!` 
+                      : `Hey ${this.getUsername()}, received your message! Let's conquer the next match together.`,
+                  giftGold: replyGift,
+                  claimed: false,
+                  date: "Just now"
+              });
+              this.saveUser();
+          }, 1200);
+  
+          return { success: true, message: "Mail delivered successfully!" };
+      }
+  
+      claimMailGift(mailId) {
+          if (!this.user.mail) return { success: false, error: "No mail found." };
+          const item = this.user.mail.find(m => m.id === mailId);
+          if (!item) return { success: false, error: "Mail not found." };
+          if (item.claimed) return { success: false, error: "Loot already claimed." };
+          const gold = item.giftGold || 0;
+          if (gold > 0) {
+              this.addGold(gold);
+              item.claimed = true;
+              this.saveUser();
+              return { success: true, goldClaimed: gold };
+          }
+          return { success: false, error: "No loot attached to this mail." };
+      }
+  
+      deleteMail(mailId) {
+          if (!this.user.mail) return false;
+          this.user.mail = this.user.mail.filter(m => m.id !== mailId);
+          this.saveUser();
+          return true;
+      }
+  
+      // ==========================================
+      // PROGRESSION & COMBAT RESULTS (SCALED ECONOMY)
       // ==========================================
   
       recordMatchResult(isWin, mode = "normal", matchStats = null) {
@@ -1732,6 +1873,7 @@
           let goldEarned = 0;
           let xpEarned = 0;
   
+          // Scaled economy: Starter matches award less gold; higher tiers award substantially more!
           if (isWin) {
               s.wins++;
               s.currentStreak++;
@@ -1739,28 +1881,27 @@
                   s.bestStreak = s.currentStreak;
               }
   
-              // Defeating bots creates gold & XP scaled by difficulty!
               if (mode === "god") {
-                  goldEarned = 350;
+                  goldEarned = 320; // High stakes apex match
                   xpEarned = 300;
               } else if (mode === "pro") {
-                  goldEarned = 180;
+                  goldEarned = 140;
                   xpEarned = 160;
               } else if (mode === "normal") {
-                  goldEarned = 100;
-                  xpEarned = 90;
+                  goldEarned = 45;
+                  xpEarned = 70;
               } else if (mode === "easy") {
-                  goldEarned = 50;
-                  xpEarned = 50;
+                  goldEarned = 18;  // Lower starter match
+                  xpEarned = 35;
               } else {
-                  goldEarned = 25; // practice
-                  xpEarned = 25;
+                  goldEarned = 8;   // Practice starter match
+                  xpEarned = 15;
               }
           } else {
               s.losses++;
               s.currentStreak = 0;
-              goldEarned = 20; // consolation
-              xpEarned = 35;
+              goldEarned = mode === "god" ? 35 : (mode === "pro" ? 20 : (mode === "normal" ? 10 : 4));
+              xpEarned = 25;
           }
   
           if (matchStats) {
@@ -1778,14 +1919,18 @@
           return { isWin, goldEarned, xpEarned };
       }
   
-      // Ranked Arena Match Outcome
+      // Ranked Arena Match Outcome (Scales heavily as rank increases)
       recordArenaMatchResult(isWin, matchType = "1v1") {
           const s = this.user.stats;
           s.matches++;
   
+          const curRP = this.user.arenaRP || 250;
           let rpDelta = 0;
           let goldEarned = 0;
           let xpEarned = 0;
+  
+          // Tier multipliers: Bronze (<400), Silver (<800), Gold (<1400), Diamond (<2200), Obsidian (2200+)
+          const tierFactor = curRP >= 2200 ? 3.0 : (curRP >= 1400 ? 2.2 : (curRP >= 800 ? 1.6 : (curRP >= 400 ? 1.2 : 0.8)));
   
           if (isWin) {
               s.wins++;
@@ -1795,18 +1940,19 @@
               }
   
               rpDelta = matchType === "5v5" ? 45 : (matchType === "2v2" ? 35 : 30);
-              goldEarned = matchType === "5v5" ? 280 : (matchType === "2v2" ? 200 : 160);
-              xpEarned = 150;
+              const baseGold = matchType === "5v5" ? 160 : (matchType === "2v2" ? 120 : 90);
+              goldEarned = Math.round(baseGold * tierFactor);
+              xpEarned = Math.round(100 * tierFactor);
   
-              this.user.arenaRP = (this.user.arenaRP || 250) + rpDelta;
+              this.user.arenaRP = curRP + rpDelta;
           } else {
               s.losses++;
               s.currentStreak = 0;
-              rpDelta = -12;
-              goldEarned = 40;
-              xpEarned = 50;
+              rpDelta = -14;
+              goldEarned = Math.round(20 * tierFactor);
+              xpEarned = 35;
   
-              this.user.arenaRP = Math.max(0, (this.user.arenaRP || 250) + rpDelta);
+              this.user.arenaRP = Math.max(0, curRP + rpDelta);
           }
   
           this.addGold(goldEarned);
@@ -2200,15 +2346,42 @@
           this.squashX = 1.0;
           this.squashY = 1.0;
   
+          this.isDead = false;
           this.stats = {
+              kills: 0,
               damageDealt: 0,
               damageTaken: 0,
+              slamsAttempted: 0,
               slamsLanded: 0,
+              slamsMissed: 0,
+              dashesAttempted: 0,
               dashesLanded: 0,
+              dashesMissed: 0,
+              arrowsAttempted: 0,
               arrowsHit: 0,
+              arrowsMissed: 0,
               maxSlamDamage: 0,
               maxHeight: 0
           };
+      }
+  
+      respawn(x, y) {
+          this.x = x;
+          this.y = y;
+          this.xVel = 0;
+          this.yVel = 0;
+          this.hp = this.maxHp;
+          this.ghostHp = this.maxHp;
+          this.slamming = false;
+          this.dashing = false;
+          this.dashAttack = false;
+          this.dashReady = true;
+          this.dashCooldown = 0;
+          this.stun = 0;
+          this.hitCooldown = 60; // 1 second invulnerability
+          this.isDead = false;
+          this.squashX = 1.0;
+          this.squashY = 1.0;
       }
   
       // Jump / Double Jump execution with Input Buffering
@@ -2301,6 +2474,10 @@
               this.dashTimer = duration;
               this.dashCooldown = cooldown;
   
+              if (isAttack) {
+                  this.stats.dashesAttempted++;
+              }
+  
               this.yVel = 0;
               this.xVel = this.facing * speed;
   
@@ -2327,6 +2504,7 @@
           this.slamming = true;
           this.slamStartY = this.y;
           this.yVel = CORE_PHYSICS.slamSpeed;
+          this.stats.slamsAttempted++;
   
           this.squashX = 0.75;
           this.squashY = 1.35;
@@ -2869,10 +3047,8 @@
               }
   
               const finalDamage = slamDamage * effDmgMult;
-              if (!defender.isPlayer || !defender.isBotGame) {
-                  defender.hp -= finalDamage;
-                  defender.stats.damageTaken += finalDamage;
-              }
+              defender.hp -= finalDamage;
+              defender.stats.damageTaken += finalDamage;
               defender.hitCooldown = 25;
               defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier);
   
@@ -2901,7 +3077,7 @@
                   attacker.stats.maxSlamDamage = finalDamage;
               }
   
-              if (onDefenderHit) onDefenderHit();
+              if (onDefenderHit) onDefenderHit(finalDamage, attacker, defender);
   
               const hitX = (attacker.x + defender.x) / 2 + 12;
               const hitY = (attacker.y + defender.y) / 2 + 12;
@@ -2947,10 +3123,8 @@
               defender.hitCooldown <= 0
           ) {
               const finalDamage = CORE_PHYSICS.slamGroundDamage * damageMultiplier;
-              if (!defender.isPlayer || !defender.isBotGame) {
-                  defender.hp -= finalDamage;
-                  defender.stats.damageTaken += finalDamage;
-              }
+              defender.hp -= finalDamage;
+              defender.stats.damageTaken += finalDamage;
               defender.hitCooldown = 20;
               defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier);
   
@@ -2961,7 +3135,7 @@
               attacker.stats.damageDealt += finalDamage;
               attacker.stats.slamsLanded++;
   
-              if (onDefenderHit) onDefenderHit();
+              if (onDefenderHit) onDefenderHit(finalDamage, attacker, defender);
   
               sound.playSlamHit(0.4);
               this.particles.addHitSparks(defenderCenter, defender.y + defender.h / 2, 12, "#ffaa00");
@@ -2993,10 +3167,8 @@
               attacker.y + attacker.h > defender.y
           ) {
               const finalDamage = baseDmg * damageMultiplier;
-              if (!defender.isPlayer || !defender.isBotGame) {
-                  defender.hp -= finalDamage;
-                  defender.stats.damageTaken += finalDamage;
-              }
+              defender.hp -= finalDamage;
+              defender.stats.damageTaken += finalDamage;
               defender.hitCooldown = 22;
               defender.stun = Math.round((CORE_PHYSICS.hitStun + stunBonus) * stunMultiplier);
   
@@ -3015,7 +3187,7 @@
               attacker.stats.damageDealt += finalDamage;
               attacker.stats.dashesLanded++;
   
-              if (onDefenderHit) onDefenderHit();
+              if (onDefenderHit) onDefenderHit(finalDamage, attacker, defender);
   
               const hitX = (attacker.x + defender.x) / 2 + 12;
               const hitY = (attacker.y + defender.y) / 2 + 12;
@@ -3583,7 +3755,10 @@
           const barY = Math.round(f.y - 18);
   
           // Name tag background & text
-          const nameText = f.name || (f.team ? f.team.toUpperCase() : "PLAYER");
+          let nameText = f.name || (f.team ? f.team.toUpperCase() : "PLAYER");
+          if (f.isBot && !nameText.startsWith("[BOT]")) {
+              nameText = `[BOT] ${nameText}`;
+          }
           ctx.font = "bold 9px monospace";
           ctx.textAlign = "center";
           ctx.textBaseline = "bottom";
@@ -3656,7 +3831,7 @@
       }
   
       // Standard 1v1 HUD
-      drawHUD(player, bot, botColor, modeLabel, p1Label = "YOU", p2Label = "BOT") {
+      drawHUD(player, bot, botColor, modeLabel, p1Label = "YOU", p2Label = "BOT", scoreRed = 0, scoreBlue = 0, isTiebreaker = false, tiebreakerTimer = 0, redDmg = 0, blueDmg = 0) {
           const ctx = this.ctx;
           ctx.save();
   
@@ -3716,34 +3891,70 @@
           ctx.fillStyle = "#ffffff";
           ctx.fillText(`${p2Label}: ${Math.max(0, Math.ceil(bot.hp))} / ${bot.maxHp} HP`, bX + 6, 27);
   
-          // Mode Label (Centered top)
-          ctx.fillStyle = "#1e272e";
-          ctx.font = "bold 13px 'Segoe UI', system-ui, sans-serif";
-          ctx.textAlign = "center";
-          ctx.fillText(modeLabel.toUpperCase() + " MODE", this.width / 2, 26);
+          // Center Scoreboard (First to 11) & 10-10 Tiebreaker Banner
+          ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+          ctx.fillRect(this.width / 2 - 80, 8, 160, 32);
+          ctx.strokeStyle = isTiebreaker ? "#f1c40f" : "#000000";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(this.width / 2 - 80, 8, 160, 32);
+  
+          if (isTiebreaker) {
+              ctx.fillStyle = "#f1c40f";
+              ctx.font = "bold 11px monospace";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText(`⚔️ TIEBREAKER: ${(Math.max(0, tiebreakerTimer) / 60).toFixed(1)}s`, this.width / 2, 18);
+              ctx.fillStyle = "#ffffff";
+              ctx.font = "bold 9px monospace";
+              ctx.fillText(`RED: ${Math.round(redDmg)} | BLUE: ${Math.round(blueDmg)} DMG`, this.width / 2, 30);
+          } else {
+              ctx.fillStyle = "#ffffff";
+              ctx.font = "bold 13px monospace";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText(`${scoreRed}  -  ${scoreBlue}`, this.width / 2, 19);
+              ctx.fillStyle = "#f1c40f";
+              ctx.font = "bold 9px monospace";
+              ctx.fillText("FIRST TO 11 KILLS", this.width / 2, 31);
+          }
   
           ctx.restore();
       }
   
       // Team Arena 1v1, 2v2 and 5v5 HUD displaying every person and their exact health
-      drawTeamArenaHUD(redTeam, blueTeam, matchType) {
+      drawTeamArenaHUD(redTeam, blueTeam, matchType, scoreRed = 0, scoreBlue = 0, isTiebreaker = false, tiebreakerTimer = 0, redDmg = 0, blueDmg = 0) {
           const ctx = this.ctx;
           ctx.save();
   
           const redAlive = redTeam.filter(f => f.hp > 0).length;
           const blueAlive = blueTeam.filter(f => f.hp > 0).length;
   
-          // Center Match Type Badge
-          ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
-          ctx.fillRect(this.width / 2 - 60, 10, 120, 24);
-          ctx.strokeStyle = "#000";
+          // Center Match Score & Type Badge
+          ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+          ctx.fillRect(this.width / 2 - 80, 8, 160, 32);
+          ctx.strokeStyle = isTiebreaker ? "#f1c40f" : "#000000";
           ctx.lineWidth = 2;
-          ctx.strokeRect(this.width / 2 - 60, 10, 120, 24);
-          ctx.fillStyle = "#f1c40f";
-          ctx.font = "bold 12px monospace";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(`ARENA ${matchType.toUpperCase()}`, this.width / 2, 22);
+          ctx.strokeRect(this.width / 2 - 80, 8, 160, 32);
+  
+          if (isTiebreaker) {
+              ctx.fillStyle = "#f1c40f";
+              ctx.font = "bold 11px monospace";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText(`⚔️ TIEBREAKER: ${(Math.max(0, tiebreakerTimer) / 60).toFixed(1)}s`, this.width / 2, 18);
+              ctx.fillStyle = "#ffffff";
+              ctx.font = "bold 9px monospace";
+              ctx.fillText(`RED: ${Math.round(redDmg)} | BLUE: ${Math.round(blueDmg)} DMG`, this.width / 2, 30);
+          } else {
+              ctx.fillStyle = "#ffffff";
+              ctx.font = "bold 13px monospace";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText(`RED ${scoreRed} : ${scoreBlue} BLUE`, this.width / 2, 19);
+              ctx.fillStyle = "#f1c40f";
+              ctx.font = "bold 9px monospace";
+              ctx.fillText(`ARENA ${matchType.toUpperCase()} • FIRST TO 11`, this.width / 2, 31);
+          }
   
           // --- RED TEAM ROSTER (Left Side) ---
           // Header
@@ -3901,38 +4112,54 @@
           ctx.restore();
       }
   
-      drawGameOver(winnerName, statsP1, statsP2, rewardInfo = null) {
+      drawGameOver(winnerName, statsP1, statsP2, rewardInfo = null, scoreRed = 0, scoreBlue = 0, highestJumper = null, isTiebreaker = false) {
           const ctx = this.ctx;
           ctx.save();
   
-          ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+          ctx.fillStyle = "rgba(0, 0, 0, 0.78)";
           ctx.fillRect(0, 0, this.width, this.height);
   
           ctx.fillStyle = "#ffffff";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
   
-          ctx.font = "bold 38px 'Segoe UI', system-ui, sans-serif";
-          ctx.fillText(`${winnerName} WINS!`, this.width / 2, this.height / 2 - 45);
+          ctx.font = "bold 34px 'Segoe UI', system-ui, sans-serif";
+          ctx.fillText(`${winnerName} WINS!`, this.width / 2, this.height / 2 - 60);
+  
+          // Final Score & Tiebreaker Indicator
+          ctx.font = "bold 16px monospace";
+          ctx.fillStyle = isTiebreaker ? "#f1c40f" : "#2ecc71";
+          const scoreBanner = isTiebreaker 
+              ? `⚔️ 10-10 TIEBREAKER VICTORY (MOST DAMAGE)` 
+              : `FINAL SCORE: ${scoreRed} - ${scoreBlue} (FIRST TO 11)`;
+          ctx.fillText(scoreBanner, this.width / 2, this.height / 2 - 28);
+  
+          // Highest Jumper Highlight (Altitude Champion 👑)
+          if (highestJumper) {
+              ctx.font = "bold 13px monospace";
+              ctx.fillStyle = "#00d2d3";
+              const jumperName = highestJumper.name || "Fighter";
+              ctx.fillText(`👑 ALTITUDE CHAMPION: ${jumperName} (${Math.round(highestJumper.stats?.maxHeight || 0)} px peak)`, this.width / 2, this.height / 2 - 6);
+          }
   
           // Reward information pill (Gold & XP & RP earned)
           if (rewardInfo) {
-              ctx.font = "bold 15px 'Segoe UI', system-ui, sans-serif";
+              ctx.font = "bold 14px 'Segoe UI', system-ui, sans-serif";
               ctx.fillStyle = "#f1c40f";
               let rewText = `+${rewardInfo.goldEarned} Gold   •   +${rewardInfo.xpEarned} XP`;
               if (rewardInfo.rpDelta) {
                   const rpSign = rewardInfo.rpDelta > 0 ? `+${rewardInfo.rpDelta}` : `${rewardInfo.rpDelta}`;
                   rewText += `   •   ${rpSign} RP`;
               }
-              ctx.fillText(rewText, this.width / 2, this.height / 2 - 5);
+              ctx.fillText(rewText, this.width / 2, this.height / 2 + 18);
           }
   
           ctx.fillStyle = "#ffffff";
-          ctx.font = "15px 'Segoe UI', system-ui, sans-serif";
-          ctx.fillText("Press R to restart match", this.width / 2, this.height / 2 + 35);
-          ctx.font = "13px 'Segoe UI', system-ui, sans-serif";
+          ctx.font = "14px 'Segoe UI', system-ui, sans-serif";
+          ctx.fillText("Press R to matchmake next game", this.width / 2, this.height / 2 + 50);
+          ctx.font = "12px 'Segoe UI', system-ui, sans-serif";
           ctx.fillStyle = "#bdc3c7";
-          ctx.fillText("Press H for home screen", this.width / 2, this.height / 2 + 60);
+          ctx.fillText("Press H for home screen", this.width / 2, this.height / 2 + 74);
   
           ctx.restore();
       }
@@ -3973,6 +4200,18 @@
           this.allBots = [{ fighter: this.bot, ai: this.botAI }];
           this.allFighters = [this.player, this.bot];
   
+          // Match Scoring & Sudden Death Tiebreaker (First to 11 Kills, 10-10 Tiebreaker)
+          this.targetKills = 11;
+          this.scoreRed = 0;
+          this.scoreBlue = 0;
+          this.isTiebreaker = false;
+          this.tiebreakerTimer = 0;
+          this.tiebreakerRedDamage = 0;
+          this.tiebreakerBlueDamage = 0;
+          this.respawnQueue = [];
+          this.highestJumper = null;
+          this.winnerTeam = null;
+  
           // State
           this.state = "menu"; // "menu", "play", "paused", "gameover"
           this.mode = "normal";
@@ -4006,6 +4245,17 @@
           this.customBotParams = customOverrides;
           this.botParams = getBotParamsForMode(mode, customOverrides);
   
+          // Reset match score & tiebreaker
+          this.scoreRed = 0;
+          this.scoreBlue = 0;
+          this.isTiebreaker = false;
+          this.tiebreakerTimer = 0;
+          this.tiebreakerRedDamage = 0;
+          this.tiebreakerBlueDamage = 0;
+          this.respawnQueue = [];
+          this.highestJumper = null;
+          this.winnerTeam = null;
+  
           const maxHp = (mode === "practice") ? 1000 : (this.botParams.maxHP || 100);
           const user = auth.getUser();
   
@@ -4016,8 +4266,11 @@
           this.player.setTeam(null);
           this.player.isBotGame = isBot;
           this.player.isPlayer = true;
+          this.player.name = this.playerName || "Player";
   
+          const botMeta = MODE_METADATA[mode] || { name: "Bot" };
           this.bot.reset(650, -1, maxHp);
+          this.bot.name = (mode === "pvp") ? "Player 2" : `[BOT] ${botMeta.name}`;
           this.bot.setWeapon(mode === "god" ? "mace" : (mode === "pro" ? "sword" : "spear"), {});
           this.bot.setSkin(mode === "god" ? "enderman" : (mode === "pro" ? "diamond_knight" : "alex"));
           this.bot.setTeam(null);
@@ -4120,6 +4373,18 @@
           this.arrowManager.reset();
           this.particles.reset();
           this.lastRewardInfo = null;
+  
+          // Reset match score & tiebreaker
+          this.scoreRed = 0;
+          this.scoreBlue = 0;
+          this.isTiebreaker = false;
+          this.tiebreakerTimer = 0;
+          this.tiebreakerRedDamage = 0;
+          this.tiebreakerBlueDamage = 0;
+          this.respawnQueue = [];
+          this.highestJumper = null;
+          this.winnerTeam = null;
+  
           this.state = "play";
   
           if (this.uiCallbacks.onStateChanged) {
@@ -4143,6 +4408,17 @@
           this.arrowManager.reset();
           this.particles.reset();
           this.lastRewardInfo = null;
+  
+          this.scoreRed = 0;
+          this.scoreBlue = 0;
+          this.isTiebreaker = false;
+          this.tiebreakerTimer = 0;
+          this.tiebreakerRedDamage = 0;
+          this.tiebreakerBlueDamage = 0;
+          this.respawnQueue = [];
+          this.highestJumper = null;
+          this.winnerTeam = null;
+  
           this.state = "play";
   
           if (this.uiCallbacks.onStateChanged) {
@@ -4210,11 +4486,19 @@
               // Match Restart / Home keys
               if (this.state === "gameover" || this.player.hp <= 0 || (this.isTeamMatch ? false : this.bot.hp <= 0)) {
                   if (e.code === "KeyR") {
-                      this.restartMatch();
+                      if (this.uiCallbacks.onRestartRequested) {
+                          this.uiCallbacks.onRestartRequested();
+                      } else {
+                          this.restartMatch();
+                      }
                       return;
                   }
                   if (e.code === "KeyH") {
-                      this.goHome();
+                      if (this.uiCallbacks.onHomeRequested) {
+                          this.uiCallbacks.onHomeRequested();
+                      } else {
+                          this.goHome();
+                      }
                       return;
                   }
               }
@@ -4363,21 +4647,40 @@
                   const mult = f.isPlayer ? damageTakenMult : damageDealtMult;
                   for (let j = 0; j < opposingTeam.length; j++) {
                       const def = opposingTeam[j];
-                      this.combat.checkGroundSlam(f, def, mult, stunMult, () => {
-                          if (def._botAI) def._botAI.onHit();
+                      this.combat.checkGroundSlam(f, def, mult, stunMult, (dmg, atk, defender) => {
+                          if (defender._botAI) defender._botAI.onHit();
+                          if (this.isTiebreaker) {
+                              if (atk.team === "red" || (!atk.team && atk === this.player)) {
+                                  this.tiebreakerRedDamage += dmg;
+                              } else {
+                                  this.tiebreakerBlueDamage += dmg;
+                              }
+                          }
                       });
                   }
               }
           }
   
           // Update Arrow Projectiles
-          this.arrowManager.update(PLATFORMS_CONFIG, this.allFighters, (hitFighter, arrow) => {
+          this.arrowManager.update(PLATFORMS_CONFIG, this.allFighters, (hitFighter, arrow, dmg) => {
               sound.playDashHit();
+              const arrowDmg = dmg || arrow.damage || 30;
               this.particles.addHitSparks(arrow.x, arrow.y, 10, "#e74c3c");
-              this.particles.addDamageText(hitFighter.x + hitFighter.w / 2, hitFighter.y, arrow.damage, false);
+              this.particles.addDamageText(hitFighter.x + hitFighter.w / 2, hitFighter.y, arrowDmg, false);
               this.particles.triggerShake(4, 6);
   
               if (hitFighter._botAI) hitFighter._botAI.onHit();
+  
+              if (this.isTiebreaker) {
+                  const shooter = this.allFighters.find(f => f.id === arrow.ownerId);
+                  if (shooter) {
+                      if (shooter.team === "red" || (!shooter.team && shooter === this.player)) {
+                          this.tiebreakerRedDamage += arrowDmg;
+                      } else {
+                          this.tiebreakerBlueDamage += arrowDmg;
+                      }
+                  }
+              }
           });
   
           // Resolve mid-air slams and dash collisions between opposing teams (zero temporary array allocation)
@@ -4388,11 +4691,13 @@
                   const def = this.blueTeam[j];
                   if (def.hp <= 0) continue;
   
-                  this.combat.checkAirSlam(atk, def, damageTakenMult, stunMult, () => {
+                  this.combat.checkAirSlam(atk, def, damageTakenMult, stunMult, (dmg) => {
                       if (def._botAI) def._botAI.onHit();
+                      if (this.isTiebreaker) this.tiebreakerRedDamage += dmg;
                   });
-                  this.combat.checkDashHit(atk, def, damageTakenMult, stunMult, () => {
+                  this.combat.checkDashHit(atk, def, damageTakenMult, stunMult, (dmg) => {
                       if (def._botAI) def._botAI.onHit();
+                      if (this.isTiebreaker) this.tiebreakerRedDamage += dmg;
                   });
               }
           }
@@ -4404,11 +4709,13 @@
                   const def = this.redTeam[j];
                   if (def.hp <= 0) continue;
   
-                  this.combat.checkAirSlam(atk, def, damageDealtMult, 1.0, () => {
+                  this.combat.checkAirSlam(atk, def, damageDealtMult, 1.0, (dmg) => {
                       if (def._botAI) def._botAI.onHit();
+                      if (this.isTiebreaker) this.tiebreakerBlueDamage += dmg;
                   });
-                  this.combat.checkDashHit(atk, def, damageDealtMult, 1.0, () => {
+                  this.combat.checkDashHit(atk, def, damageDealtMult, 1.0, (dmg) => {
                       if (def._botAI) def._botAI.onHit();
+                      if (this.isTiebreaker) this.tiebreakerBlueDamage += dmg;
                   });
               }
           }
@@ -4416,44 +4723,128 @@
           // Particles & Camera Shake
           this.particles.update();
   
-          // Check match resolution
+          // 1. Process Fighter Eliminations & Score Updates
+          for (let i = 0; i < this.allFighters.length; i++) {
+              const f = this.allFighters[i];
+              if (f.hp <= 0 && !f.isDead) {
+                  f.isDead = true;
+                  sound.playDashHit();
+                  this.particles.addHitSparks(f.x + f.w / 2, f.y + f.h / 2, 22, "#e74c3c");
+                  this.particles.addDust(f.x + f.w / 2, f.y + f.h / 2, 16);
+  
+                  const isRedFighter = f.team === "red" || (!f.team && f === this.player);
+                  if (isRedFighter) {
+                      this.scoreBlue++;
+                      this.particles.addDamageText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, true);
+                      const killer = this.blueTeam.find(b => b.hp > 0) || this.blueTeam[0] || this.bot;
+                      if (killer) killer.stats.kills++;
+                  } else {
+                      this.scoreRed++;
+                      this.particles.addDamageText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, true);
+                      const killer = this.redTeam.find(r => r.hp > 0) || this.redTeam[0] || this.player;
+                      if (killer) killer.stats.kills++;
+                  }
+  
+                  // Check 10-10 Sudden Death Tiebreaker Trigger
+                  if (this.scoreRed === 10 && this.scoreBlue === 10 && !this.isTiebreaker) {
+                      this.isTiebreaker = true;
+                      this.tiebreakerTimer = 10 * 60; // 10.0 seconds (600 frames)
+                      this.tiebreakerRedDamage = 0;
+                      this.tiebreakerBlueDamage = 0;
+                      sound.playDoubleJump();
+                      this.particles.addShockwave(400, 200, 120, "#f1c40f", 5);
+                  }
+  
+                  // Check Win Conditions
+                  if (!this.isTiebreaker) {
+                      if (this.scoreRed >= 11 && this.scoreBlue < 10) {
+                          this.finishMatch(true);
+                          return;
+                      } else if (this.scoreBlue >= 11 && this.scoreRed < 10) {
+                          this.finishMatch(false);
+                          return;
+                      }
+                  } else {
+                      if (this.scoreRed >= 11) {
+                          this.finishMatch(true);
+                          return;
+                      } else if (this.scoreBlue >= 11) {
+                          this.finishMatch(false);
+                          return;
+                      }
+                  }
+  
+                  // Schedule fighter respawn
+                  const spawnX = isRedFighter ? (120 + Math.random() * 80) : (600 + Math.random() * 80);
+                  const spawnY = 160;
+                  this.respawnQueue.push({ fighter: f, timer: 60, spawnX, spawnY });
+              }
+          }
+  
+          // 2. Process Respawn Queue
+          for (let i = this.respawnQueue.length - 1; i >= 0; i--) {
+              const item = this.respawnQueue[i];
+              item.timer--;
+              if (item.timer <= 0) {
+                  item.fighter.respawn(item.spawnX, item.spawnY);
+                  this.particles.addDust(item.fighter.x + 12, item.fighter.y + 24, 15);
+                  this.particles.addDamageText(item.fighter.x + 12, item.fighter.y - 10, "RESPAWNED!", false);
+                  this.respawnQueue.splice(i, 1);
+              }
+          }
+  
+          // 3. Process Tiebreaker Timer (10 Seconds, Whoever Dealt Most Damage Wins)
+          if (this.isTiebreaker) {
+              this.tiebreakerTimer--;
+              if (this.tiebreakerTimer <= 0) {
+                  // 10 seconds expired! Compare damage dealt
+                  if (this.tiebreakerRedDamage > this.tiebreakerBlueDamage) {
+                      this.finishMatch(true);
+                  } else if (this.tiebreakerBlueDamage > this.tiebreakerRedDamage) {
+                      this.finishMatch(false);
+                  } else {
+                      this.finishMatch(this.scoreRed >= this.scoreBlue);
+                  }
+                  return;
+              }
+          }
+      }
+  
+      finishMatch(isRedWin) {
+          this.state = "gameover";
+          this.winnerTeam = isRedWin ? "red" : "blue";
+          if (isRedWin) sound.playWin(); else sound.playLoss();
+  
+          // Calculate missed mace slams, missed dashes, and missed arrows for all fighters
+          this.allFighters.forEach(f => {
+              f.stats.slamsMissed = Math.max(0, (f.stats.slamsAttempted || 0) - (f.stats.slamsLanded || 0));
+              f.stats.dashesMissed = Math.max(0, (f.stats.dashesAttempted || 0) - (f.stats.dashesLanded || 0));
+              f.stats.arrowsMissed = Math.max(0, (f.stats.arrowsAttempted || 0) - (f.stats.arrowsHit || 0));
+          });
+  
+          // Determine who jumped the highest (Altitude Champion 👑)
+          let highest = this.allFighters[0];
+          for (let i = 1; i < this.allFighters.length; i++) {
+              if ((this.allFighters[i].stats.maxHeight || 0) > (highest.stats.maxHeight || 0)) {
+                  highest = this.allFighters[i];
+              }
+          }
+          this.highestJumper = highest;
+  
+          // Scale reward economy
           if (this.isTeamMatch) {
-              let redAllDead = true;
-              for (let i = 0; i < this.redTeam.length; i++) {
-                  if (this.redTeam[i].hp > 0) { redAllDead = false; break; }
-              }
-              let blueAllDead = true;
-              for (let i = 0; i < this.blueTeam.length; i++) {
-                  if (this.blueTeam[i].hp > 0) { blueAllDead = false; break; }
-              }
-  
-              if (redAllDead || blueAllDead) {
-                  this.state = "gameover";
-                  const isWin = !redAllDead && blueAllDead;
-                  if (isWin) sound.playWin(); else sound.playLoss();
-  
-                  // Record ranked arena outcome
-                  this.lastRewardInfo = auth.recordArenaMatchResult(isWin, this.matchType);
-  
-                  if (this.uiCallbacks.onStateChanged) {
-                      this.uiCallbacks.onStateChanged(this.state);
-                  }
-              }
+              this.lastRewardInfo = auth.recordArenaMatchResult(isRedWin, this.matchType);
           } else {
-              // Standard Single-Player / PvP 1v1
-              if (this.player.hp <= 0 || this.bot.hp <= 0) {
-                  this.state = "gameover";
-                  const isWin = this.player.hp > 0;
-                  if (isWin) sound.playWin(); else sound.playLoss();
-  
-                  if (this.mode !== "pvp") {
-                      this.lastRewardInfo = auth.recordMatchResult(isWin, this.mode, this.player.stats);
-                  }
-  
-                  if (this.uiCallbacks.onStateChanged) {
-                      this.uiCallbacks.onStateChanged(this.state);
-                  }
+              if (this.mode !== "pvp") {
+                  this.lastRewardInfo = auth.recordMatchResult(isRedWin, this.mode, this.player.stats);
               }
+          }
+  
+          if (this.uiCallbacks.onStateChanged) {
+              this.uiCallbacks.onStateChanged(this.state);
+          }
+          if (this.uiCallbacks.onMatchFinished) {
+              this.uiCallbacks.onMatchFinished(this);
           }
       }
   
@@ -4486,13 +4877,23 @@
           // Particle FX & floating combat text
           this.particles.draw(ctx);
   
-          // HUD & Controls Hint
+          // HUD & Controls Hint with Score and Tiebreaker Status
           if (this.isTeamMatch) {
-              this.renderer.drawTeamArenaHUD(this.redTeam, this.blueTeam, this.matchType);
+              this.renderer.drawTeamArenaHUD(
+                  this.redTeam, this.blueTeam, this.matchType,
+                  this.scoreRed, this.scoreBlue,
+                  this.isTiebreaker, this.tiebreakerTimer,
+                  this.tiebreakerRedDamage, this.tiebreakerBlueDamage
+              );
           } else {
               const p1Label = this.mode === "pvp" ? "PLAYER 1" : (this.playerName || "YOU");
-              const p2Label = this.mode === "pvp" ? "PLAYER 2" : (this.mode === "god" ? "GOD BOT" : "BOT");
-              this.renderer.drawHUD(this.player, this.bot, botColor, botMeta.name, p1Label, p2Label);
+              const p2Label = this.mode === "pvp" ? "PLAYER 2" : (this.bot.name || "BOT");
+              this.renderer.drawHUD(
+                  this.player, this.bot, botColor, botMeta.name, p1Label, p2Label,
+                  this.scoreRed, this.scoreBlue,
+                  this.isTiebreaker, this.tiebreakerTimer,
+                  this.tiebreakerRedDamage, this.tiebreakerBlueDamage
+              );
           }
   
           this.renderer.drawControlsHint(this.mode === "pvp");
@@ -4501,16 +4902,17 @@
           if (this.state === "gameover") {
               let winner = "YOU";
               if (this.isTeamMatch) {
-                  let redAllDead = true;
-                  for (let i = 0; i < this.redTeam.length; i++) {
-                      if (this.redTeam[i].hp > 0) { redAllDead = false; break; }
-                  }
-                  winner = redAllDead ? "BLUE TEAM" : "RED TEAM";
+                  winner = this.winnerTeam === "red" ? "RED TEAM" : "BLUE TEAM";
               } else {
-                  winner = this.player.hp > 0 ? (this.mode === "pvp" ? "PLAYER 1" : (this.playerName || "YOU")) : (this.mode === "pvp" ? "PLAYER 2" : "BOT");
+                  winner = this.winnerTeam === "red" 
+                      ? (this.mode === "pvp" ? "PLAYER 1" : (this.playerName || "YOU")) 
+                      : (this.mode === "pvp" ? "PLAYER 2" : (this.bot.name || "BOT"));
               }
   
-              this.renderer.drawGameOver(winner, this.player.stats, this.bot.stats, this.lastRewardInfo);
+              this.renderer.drawGameOver(
+                  winner, this.player.stats, this.bot.stats, this.lastRewardInfo,
+                  this.scoreRed, this.scoreBlue, this.highestJumper, this.isTiebreaker
+              );
           }
   
           ctx.restore();
@@ -4572,6 +4974,9 @@
           this.arenaModal = document.getElementById("arena-modal");
           this.leaderboardModal = document.getElementById("leaderboard-modal");
           this.queueModal = document.getElementById("queue-modal");
+          this.socialModal = document.getElementById("social-modal");
+          this.resignModal = document.getElementById("resign-modal");
+          this.matchmakingModal = document.getElementById("matchmaking-modal");
   
           // Top Navigation & Action Buttons
           this.muteBtn = document.getElementById("btn-mute");
@@ -4585,6 +4990,7 @@
           this.skinsBtn = document.getElementById("btn-skins");
           this.arenaBtn = document.getElementById("btn-arena");
           this.leaderboardBtn = document.getElementById("btn-leaderboard");
+          this.socialBtn = document.getElementById("btn-social");
           this.goldDisplay = document.getElementById("gold-display");
           this.downloadBtn = document.getElementById("btn-download");
   
@@ -4598,6 +5004,7 @@
           this.selectedArenaWeapon = "mace";
           this.queueTimer = 0;
           this.queueInterval = null;
+          this.matchmakingInterval = null;
   
           this.init();
       }
@@ -4612,6 +5019,7 @@
           this.setupArmoryUI();
           this.setupSkinsUI();
           this.setupArenaUI();
+          this.setupSocialUI();
           this.setupTouchButtons();
           this.detectTouchDevice();
       }
@@ -4757,12 +5165,34 @@
           });
   
           // Navigation buttons
-          if (this.homeBtn) this.homeBtn.addEventListener("click", () => this.game.goHome());
-          if (this.restartBtn) this.restartBtn.addEventListener("click", () => this.game.restartMatch());
+          if (this.homeBtn) this.homeBtn.addEventListener("click", () => this.handleHomeClick());
+          if (this.restartBtn) this.restartBtn.addEventListener("click", () => this.triggerMatchmakingRestart());
           if (this.pauseBtn) this.pauseBtn.addEventListener("click", () => this.game.togglePause());
           if (this.userProfileBtn) this.userProfileBtn.addEventListener("click", () => this.openAuthModal());
+          if (this.socialBtn) this.socialBtn.addEventListener("click", () => this.openSocialModal());
           if (this.downloadBtn) this.downloadBtn.addEventListener("click", () => this.downloadGame());
           if (this.leaderboardBtn) this.leaderboardBtn.addEventListener("click", () => this.openLeaderboardModal());
+  
+          // Multiplayer resignation modal buttons
+          const cancelResignBtn = document.getElementById("btn-cancel-resign");
+          if (cancelResignBtn) cancelResignBtn.addEventListener("click", () => {
+              if (this.resignModal) this.resignModal.classList.add("hidden");
+          });
+          const confirmResignBtn = document.getElementById("btn-confirm-resign");
+          if (confirmResignBtn) confirmResignBtn.addEventListener("click", () => this.confirmResign());
+  
+          // Matchmaking queue modal buttons
+          const cancelMatchmakingBtn = document.getElementById("btn-cancel-matchmaking");
+          if (cancelMatchmakingBtn) cancelMatchmakingBtn.addEventListener("click", () => this.cancelMatchmaking());
+  
+          // Stats modal action buttons
+          const statsPlayAgainBtn = document.getElementById("btn-stats-play-again");
+          if (statsPlayAgainBtn) statsPlayAgainBtn.addEventListener("click", () => this.triggerMatchmakingRestart());
+          const statsHomeBtn = document.getElementById("btn-stats-home");
+          if (statsHomeBtn) statsHomeBtn.addEventListener("click", () => {
+              if (this.statsModal) this.statsModal.classList.add("hidden");
+              this.game.goHome();
+          });
   
           // Home screen arena banner
           const arenaBanner = document.getElementById("home-arena-banner");
@@ -4775,14 +5205,14 @@
           if (pauseRestartBtn) {
               pauseRestartBtn.addEventListener("click", () => {
                   this.pauseModal.classList.add("hidden");
-                  this.game.restartMatch();
+                  this.triggerMatchmakingRestart();
               });
           }
           const pauseHomeBtn = document.getElementById("btn-pause-home");
           if (pauseHomeBtn) {
               pauseHomeBtn.addEventListener("click", () => {
                   this.pauseModal.classList.add("hidden");
-                  this.game.goHome();
+                  this.handleHomeClick();
               });
           }
   
@@ -5728,35 +6158,375 @@
           }
       }
   
-      openStatsModal() {
-          if (!this.statsModal) return;
+      handleHomeClick() {
+          const inMatch = (this.game.state === "play" || this.game.state === "paused");
+          const isMultiplayer = this.game.isTeamMatch || this.game.mode === "pvp";
   
-          const p1 = this.game.player.stats;
-          const p2 = this.game.bot.stats;
+          if (inMatch && isMultiplayer) {
+              if (this.resignModal) {
+                  this.resignModal.classList.remove("hidden");
+                  sound.playClick();
+                  return;
+              }
+          }
   
-          const statsBody = document.getElementById("stats-body");
-          if (statsBody) {
-              statsBody.innerHTML = `
-                  <div class="stats-grid">
-                      <div class="stat-col">
-                          <h4>${this.game.playerName || 'PLAYER 1'} (MATCH)</h4>
-                          <p>Total Damage Dealt: <b>${p1.damageDealt.toFixed(0)}</b></p>
-                          <p>Mace Slams Landed: <b>${p1.slamsLanded}</b></p>
-                          <p>Weapon Dashes Landed: <b>${p1.dashesLanded}</b></p>
-                          <p>Hardest Mace Slam: <b>${p1.maxSlamDamage.toFixed(0)} DMG</b></p>
-                          <p>Peak Altitude: <b>${Math.round(p1.maxHeight)} px</b></p>
+          this.game.goHome();
+      }
+  
+      confirmResign() {
+          if (this.resignModal) this.resignModal.classList.add("hidden");
+          if (this.game.isTeamMatch) {
+              auth.recordArenaMatchResult(false, this.game.matchType);
+          }
+          sound.playLoss();
+          this.game.goHome();
+      }
+  
+      triggerMatchmakingRestart() {
+          sound.playClick();
+          if (this.statsModal) this.statsModal.classList.add("hidden");
+          if (this.pauseModal) this.pauseModal.classList.add("hidden");
+  
+          const modal = this.matchmakingModal || document.getElementById("matchmaking-modal");
+          const statusText = document.getElementById("matchmaking-status-text");
+          const countSpan = document.getElementById("matchmaking-countdown");
+  
+          if (modal) modal.classList.remove("hidden");
+          if (statusText) statusText.textContent = "Searching regional servers for opponent...";
+  
+          let timeLeft = 2.5;
+          if (countSpan) countSpan.textContent = `${timeLeft.toFixed(1)}s`;
+  
+          if (this.matchmakingInterval) clearInterval(this.matchmakingInterval);
+  
+          this.matchmakingInterval = setInterval(() => {
+              timeLeft -= 0.1;
+              if (timeLeft <= 0) {
+                  clearInterval(this.matchmakingInterval);
+                  this.matchmakingInterval = null;
+                  if (modal) modal.classList.add("hidden");
+                  sound.playDoubleJump();
+                  this.game.restartMatch();
+              } else {
+                  if (countSpan) countSpan.textContent = `${timeLeft.toFixed(1)}s`;
+                  if (statusText) {
+                      if (timeLeft < 0.7) {
+                          statusText.textContent = "Opponent matched! Loading arena...";
+                      } else if (timeLeft < 1.6) {
+                          statusText.textContent = "Syncing network & combat physics...";
+                      }
+                  }
+              }
+          }, 100);
+      }
+  
+      cancelMatchmaking() {
+          if (this.matchmakingInterval) {
+              clearInterval(this.matchmakingInterval);
+              this.matchmakingInterval = null;
+          }
+          if (this.matchmakingModal) this.matchmakingModal.classList.add("hidden");
+          this.game.goHome();
+      }
+  
+      // ==========================================
+      // FRIENDS, MAILBOX & CHILD/MINOR SAFETY UI
+      // ==========================================
+      setupSocialUI() {
+          const modal = this.socialModal;
+          if (!modal) return;
+  
+          // Tab switching
+          const tabBtns = modal.querySelectorAll(".social-tab-btn");
+          const tabPanes = modal.querySelectorAll(".tab-pane");
+          tabBtns.forEach(btn => {
+              btn.addEventListener("click", () => {
+                  sound.playClick();
+                  const target = btn.dataset.tab;
+                  tabBtns.forEach(b => b.classList.toggle("active", b === btn));
+                  tabPanes.forEach(p => p.classList.toggle("active", p.id === `tab-${target}`));
+              });
+          });
+  
+          // Add friend
+          const addBtn = document.getElementById("btn-add-friend");
+          const addInput = document.getElementById("input-add-friend");
+          const addMsg = document.getElementById("add-friend-msg");
+          if (addBtn && addInput) {
+              addBtn.addEventListener("click", () => {
+                  sound.playClick();
+                  const res = auth.addFriend(addInput.value);
+                  if (res.success) {
+                      addInput.value = "";
+                      if (addMsg) {
+                          addMsg.style.color = "#2ecc71";
+                          addMsg.textContent = `Added ${res.friend.name} to friends!`;
+                          setTimeout(() => { if (addMsg) addMsg.textContent = ""; }, 3000);
+                      }
+                      this.renderFriendsList();
+                  } else {
+                      if (addMsg) {
+                          addMsg.style.color = "#e74c3c";
+                          addMsg.textContent = res.error || "Could not add friend.";
+                      }
+                  }
+              });
+          }
+  
+          // Send mail & gifts
+          const sendBtn = document.getElementById("btn-send-mail");
+          const mailTo = document.getElementById("input-mail-to");
+          const mailGift = document.getElementById("input-mail-gift");
+          const mailText = document.getElementById("input-mail-text");
+          const sendMsg = document.getElementById("send-mail-msg");
+          if (sendBtn) {
+              sendBtn.addEventListener("click", () => {
+                  sound.playClick();
+                  const to = mailTo ? mailTo.value : "";
+                  const gift = mailGift ? parseInt(mailGift.value) || 0 : 0;
+                  const text = mailText ? mailText.value : "";
+  
+                  const res = auth.sendMail(to, "Letter from Arena", text, gift);
+                  if (res.success) {
+                      if (mailTo) mailTo.value = "";
+                      if (mailGift) mailGift.value = "";
+                      if (mailText) mailText.value = "";
+                      if (sendMsg) {
+                          sendMsg.style.color = "#2ecc71";
+                          sendMsg.textContent = "Mail sent successfully!";
+                          setTimeout(() => { if (sendMsg) sendMsg.textContent = ""; }, 3000);
+                      }
+                      this.renderMailbox();
+                  } else {
+                      if (sendMsg) {
+                          sendMsg.style.color = "#e74c3c";
+                          sendMsg.textContent = res.error || "Failed to send mail.";
+                      }
+                  }
+              });
+          }
+  
+          // Minor safety toggle
+          const minorToggle = document.getElementById("toggle-minor-mode");
+          if (minorToggle) {
+              minorToggle.checked = !!auth.getUser().isMinor;
+              minorToggle.addEventListener("change", () => {
+                  sound.playClick();
+                  auth.toggleMinorMode(minorToggle.checked);
+                  this.updateSafetyBadge();
+                  this.renderMailbox();
+              });
+          }
+  
+          this.renderFriendsList();
+          this.renderMailbox();
+          this.updateSafetyBadge();
+      }
+  
+      openSocialModal() {
+          if (!this.socialModal) return;
+          sound.playClick();
+          this.renderFriendsList();
+          this.renderMailbox();
+          this.updateSafetyBadge();
+          this.socialModal.classList.remove("hidden");
+      }
+  
+      renderFriendsList() {
+          const list = document.getElementById("friends-list");
+          const countSpan = document.getElementById("friends-count");
+          if (!list) return;
+  
+          const friends = auth.getFriends();
+          if (countSpan) countSpan.textContent = friends.length;
+  
+          if (friends.length === 0) {
+              list.innerHTML = `<p style="color:var(--text-muted); padding:10px;">No friends added yet. Add players by username above!</p>`;
+              return;
+          }
+  
+          list.innerHTML = friends.map(f => `
+              <div class="friend-item">
+                  <div class="friend-name-col">
+                      <span class="friend-status-dot status-${f.status || 'offline'}" title="${f.status}"></span>
+                      <strong style="color:#fff;">${f.name}</strong>
+                      <span style="font-size:14px; color:var(--text-muted);">(${f.status || 'offline'})</span>
+                  </div>
+                  <div class="friend-actions">
+                      <button class="btn-ctrl btn-sm-ctrl btn-mail-friend" data-name="${f.name}">Mail / Gift</button>
+                      <button class="btn-ctrl btn-sm-ctrl btn-remove-friend" data-id="${f.id}" style="color:#e74c3c;">✕</button>
+                  </div>
+              </div>
+          `).join("");
+  
+          list.querySelectorAll(".btn-mail-friend").forEach(b => {
+              b.addEventListener("click", () => {
+                  sound.playClick();
+                  const name = b.dataset.name;
+                  const mailTo = document.getElementById("input-mail-to");
+                  if (mailTo) mailTo.value = name;
+                  const mailboxTabBtn = this.socialModal?.querySelector(".social-tab-btn[data-tab='mailbox']");
+                  if (mailboxTabBtn) mailboxTabBtn.click();
+              });
+          });
+  
+          list.querySelectorAll(".btn-remove-friend").forEach(b => {
+              b.addEventListener("click", () => {
+                  sound.playClick();
+                  auth.removeFriend(b.dataset.id);
+                  this.renderFriendsList();
+              });
+          });
+      }
+  
+      renderMailbox() {
+          const list = document.getElementById("mail-list");
+          const countSpan = document.getElementById("mail-count");
+          if (!list) return;
+  
+          const mail = auth.getMail();
+          if (countSpan) countSpan.textContent = mail.length;
+  
+          if (mail.length === 0) {
+              list.innerHTML = `<p style="color:var(--text-muted); padding:10px;">Your mailbox is empty.</p>`;
+              return;
+          }
+  
+          list.innerHTML = mail.map(m => {
+              const hasGift = (m.giftGold || 0) > 0;
+              const giftHtml = hasGift 
+                  ? (m.claimed 
+                      ? `<span style="color:#2ecc71; font-weight:bold; font-size:15px;">Claimed ✓ (+${m.giftGold} G)</span>` 
+                      : `<button class="btn-ctrl btn-sm-ctrl btn-claim-gift" data-id="${m.id}" style="background:#f1c40f; color:#000; font-weight:bold;">Claim ${m.giftGold} Gold 🎁</button>`)
+                  : ``;
+  
+              return `
+                  <div class="mail-item ${hasGift && !m.claimed ? 'has-gift' : ''}">
+                      <div class="mail-top-line">
+                          <span class="mail-from">From: ${m.from}</span>
+                          <span class="mail-date">${m.date || 'Today'}</span>
                       </div>
-                      <div class="stat-col">
-                          <h4>${this.game.mode === 'pvp' ? 'PLAYER 2' : 'BOT'}</h4>
-                          <p>Total Damage Dealt: <b>${p2.damageDealt.toFixed(0)}</b></p>
-                          <p>Mace Slams Landed: <b>${p2.slamsLanded}</b></p>
-                          <p>Weapon Dashes Landed: <b>${p2.dashesLanded}</b></p>
-                          <p>Hardest Mace Slam: <b>${p2.maxSlamDamage.toFixed(0)} DMG</b></p>
-                          <p>Peak Altitude: <b>${Math.round(p2.maxHeight)} px</b></p>
+                      <div class="mail-text ${m.isRestricted ? 'restricted' : ''}">
+                          ${m.text}
+                      </div>
+                      <div class="mail-footer">
+                          <div>${giftHtml}</div>
+                          <button class="btn-ctrl btn-sm-ctrl btn-del-mail" data-id="${m.id}" style="color:#e74c3c;">Delete</button>
                       </div>
                   </div>
               `;
+          }).join("");
+  
+          list.querySelectorAll(".btn-claim-gift").forEach(b => {
+              b.addEventListener("click", () => {
+                  const res = auth.claimMailGift(b.dataset.id);
+                  if (res.success) {
+                      sound.playWin();
+                      this.renderMailbox();
+                  }
+              });
+          });
+  
+          list.querySelectorAll(".btn-del-mail").forEach(b => {
+              b.addEventListener("click", () => {
+                  sound.playClick();
+                  auth.deleteMail(b.dataset.id);
+                  this.renderMailbox();
+              });
+          });
+      }
+  
+      updateSafetyBadge() {
+          const badge = document.getElementById("safety-status-badge");
+          const toggle = document.getElementById("toggle-minor-mode");
+          const isMinor = auth.getUser().isMinor;
+  
+          if (toggle) toggle.checked = !!isMinor;
+          if (badge) {
+              if (isMinor) {
+                  badge.className = "safety-badge active-minor";
+                  badge.textContent = "Active: Minor Protection Active (Text Mail Hidden, Loot Only)";
+              } else {
+                  badge.className = "safety-badge";
+                  badge.textContent = "Active: Standard Account (All Mail & Messages Allowed)";
+              }
           }
+      }
+  
+      openStatsModal() {
+          if (!this.statsModal) return;
+  
+          const p1 = this.game.player;
+          const p2 = this.game.bot;
+          const statsBody = document.getElementById("stats-body");
+          if (!statsBody) return;
+  
+          const highest = this.game.highestJumper || p1;
+          const isTiebreaker = this.game.isTiebreaker;
+          const winner = this.game.winnerTeam === "red" 
+              ? (this.game.playerName || "Player 1") 
+              : (p2.name || "Opponent");
+  
+          let tableRows = "";
+          const fightersToDisplay = (this.game.allFighters && this.game.allFighters.length > 2)
+              ? this.game.allFighters
+              : [p1, p2];
+  
+          fightersToDisplay.forEach(f => {
+              const st = f.stats || {};
+              const slamsMissed = Math.max(0, (st.slamsAttempted || 0) - (st.slamsLanded || 0));
+              const dashesMissed = Math.max(0, (st.dashesAttempted || 0) - (st.dashesLanded || 0));
+              const arrowsMissed = Math.max(0, (st.arrowsAttempted || 0) - (st.arrowsHit || 0));
+              const teamBadge = f.team ? ` [${f.team.toUpperCase()}]` : "";
+  
+              tableRows += `
+                  <tr>
+                      <td><strong>${f.name}${teamBadge}</strong></td>
+                      <td style="color:#2ecc71; font-weight:bold;">${st.kills || 0}</td>
+                      <td>${st.slamsLanded || 0} <span style="color:#ff7675;">(${slamsMissed} miss)</span></td>
+                      <td>${st.dashesLanded || 0} <span style="color:#ff7675;">(${dashesMissed} miss)</span></td>
+                      <td>${st.arrowsHit || 0} <span style="color:#ff7675;">(${arrowsMissed} miss)</span></td>
+                      <td>${Math.round(st.damageDealt || 0)}</td>
+                      <td style="color:#00d2d3; font-weight:bold;">${Math.round(st.maxHeight || 0)} px</td>
+                  </tr>
+              `;
+          });
+  
+          statsBody.innerHTML = `
+              <div class="stats-winner-banner">
+                  <div class="stats-winner-title">👑 ${winner} VICTORY!</div>
+                  <div class="stats-score-line">
+                      ${isTiebreaker ? '⚔️ 10-10 Sudden Death Tiebreaker (Highest Damage Won)' : `Final Score: ${this.game.scoreRed} - ${this.game.scoreBlue} (First to 11 Kills)`}
+                  </div>
+              </div>
+  
+              <div class="altitude-champion-box">
+                  <div class="altitude-crown">👑</div>
+                  <div class="altitude-info">
+                      <h4>HIGHEST ALTITUDE CHAMPION</h4>
+                      <p><strong>${highest.name}</strong> jumped the highest into the sky at <strong>${Math.round(highest.stats?.maxHeight || 0)} px</strong> altitude!</p>
+                  </div>
+              </div>
+  
+              <div class="stats-table-container">
+                  <table class="stats-table">
+                      <thead>
+                          <tr>
+                              <th>Fighter</th>
+                              <th>Kills</th>
+                              <th>Mace Slams</th>
+                              <th>Dashes</th>
+                              <th>Arrows</th>
+                              <th>Damage</th>
+                              <th>Peak Jump</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          ${tableRows}
+                      </tbody>
+                  </table>
+              </div>
+          `;
   
           this.statsModal.classList.remove("hidden");
       }
@@ -5815,11 +6585,20 @@
           if (state === "menu") {
               if (this.menuOverlay) this.menuOverlay.classList.remove("hidden");
               if (this.pauseModal) this.pauseModal.classList.add("hidden");
+              if (this.statsModal) this.statsModal.classList.add("hidden");
           } else if (state === "play") {
               if (this.menuOverlay) this.menuOverlay.classList.add("hidden");
               if (this.pauseModal) this.pauseModal.classList.add("hidden");
+              if (this.statsModal) this.statsModal.classList.add("hidden");
           } else if (state === "paused") {
               if (this.pauseModal) this.pauseModal.classList.remove("hidden");
+          } else if (state === "gameover") {
+              // Automatically show detailed post-match stats after 800ms banner display
+              setTimeout(() => {
+                  if (this.game.state === "gameover") {
+                      this.openStatsModal();
+                  }
+              }, 800);
           }
       }
   
@@ -5877,6 +6656,12 @@
           },
           onMuteToggled: (isMuted) => {
               if (ui) ui.updateMuteButton(isMuted);
+          },
+          onRestartRequested: () => {
+              if (ui) ui.triggerMatchmakingRestart();
+          },
+          onHomeRequested: () => {
+              if (ui) ui.handleHomeClick();
           }
       });
   

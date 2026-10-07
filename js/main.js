@@ -24,6 +24,12 @@ window.addEventListener("DOMContentLoaded", () => {
         },
         onMuteToggled: (isMuted) => {
             if (ui) ui.updateMuteButton(isMuted);
+        },
+        onRestartRequested: () => {
+            if (ui) ui.triggerMatchmakingRestart();
+        },
+        onHomeRequested: () => {
+            if (ui) ui.handleHomeClick();
         }
     });
 
