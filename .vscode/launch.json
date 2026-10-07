@@ -1,0 +1,24 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch index.html (Chrome)",
+            "type": "chrome",
+            "request": "launch",
+            "file": "${workspaceFolder}/index.html"
+        },
+        {
+            "name": "Launch spear-mace-pvp.html (Standalone)",
+            "type": "chrome",
+            "request": "launch",
+            "file": "${workspaceFolder}/spear-mace-pvp.html"
+        },
+        {
+            "name": "Launch Local Server (Python)",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/server.py",
+            "console": "integratedTerminal"
+        }
+    ]
+}
