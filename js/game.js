@@ -603,20 +603,32 @@ export class Game {
                 this.particles.addHitSparks(f.x + f.w / 2, f.y + f.h / 2, 22, "#e74c3c");
                 this.particles.addDust(f.x + f.w / 2, f.y + f.h / 2, 16);
 
-                const isRedFighter = f.team === "red" || (!f.team && f === this.player);
+                const isRedFighter = f.team === "red" || (!f.team && f !== this.player);
                 if (isRedFighter) {
                     this.scoreBlue++;
                     this.particles.addDamageText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, true);
-                    const killer = this.blueTeam.find(b => b.hp > 0) || this.blueTeam[0] || this.bot;
-                    if (killer) killer.stats.kills++;
+                    const killer = this.blueTeam.find(b => b.hp > 0) || this.player;
+                    if (killer && killer.stats) killer.stats.kills++;
+
+                    // In single-player bot games & 1v1 duels, killing the bot immediately wins the match!
+                    if (!this.isTeamMatch) {
+                        this.finishMatch(true);
+                        return;
+                    }
                 } else {
                     this.scoreRed++;
                     this.particles.addDamageText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, true);
-                    const killer = this.redTeam.find(r => r.hp > 0) || this.redTeam[0] || this.player;
-                    if (killer) killer.stats.kills++;
+                    const killer = this.redTeam.find(r => r.hp > 0) || this.bot;
+                    if (killer && killer.stats) killer.stats.kills++;
+
+                    // In single-player bot games, player death immediately ends the match!
+                    if (!this.isTeamMatch) {
+                        this.finishMatch(false);
+                        return;
+                    }
                 }
 
-                // Check 10-10 Sudden Death Tiebreaker Trigger
+                // Check 10-10 Sudden Death Tiebreaker Trigger (Arena Team Matches)
                 if (this.scoreRed === 10 && this.scoreBlue === 10 && !this.isTiebreaker) {
                     this.isTiebreaker = true;
                     this.tiebreakerTimer = 10 * 60; // 10.0 seconds (600 frames)
@@ -626,7 +638,7 @@ export class Game {
                     this.particles.addShockwave(400, 200, 120, "#f1c40f", 5);
                 }
 
-                // Check Win Conditions
+                // Check Win Conditions (First to 11 Kills in Arena)
                 if (!this.isTiebreaker) {
                     if (this.scoreBlue >= 11 && this.scoreRed < 10) {
                         this.finishMatch(true); // Blue (Player) wins!
@@ -645,7 +657,7 @@ export class Game {
                     }
                 }
 
-                // Schedule fighter respawn
+                // Schedule fighter respawn for Arena Team Matches
                 const spawnX = isRedFighter ? (600 + Math.random() * 80) : (120 + Math.random() * 80);
                 const spawnY = 160;
                 this.respawnQueue.push({ fighter: f, timer: 60, spawnX, spawnY });
@@ -773,16 +785,16 @@ export class Game {
         if (this.state === "gameover") {
             let winner = "YOU";
             if (this.isTeamMatch) {
-                winner = this.winnerTeam === "red" ? "RED TEAM" : "BLUE TEAM";
+                winner = this.winnerTeam === "blue" ? "BLUE TEAM" : "RED TEAM";
             } else {
-                winner = this.winnerTeam === "red" 
-                    ? (this.mode === "pvp" ? "PLAYER 1" : (this.playerName || "YOU")) 
+                winner = this.winnerTeam === "blue" 
+                    ? (this.mode === "pvp" ? "PLAYER 1" : (this.player.name || "YOU")) 
                     : (this.mode === "pvp" ? "PLAYER 2" : (this.bot.name || "BOT"));
             }
 
             this.renderer.drawGameOver(
                 winner, this.player.stats, this.bot.stats, this.lastRewardInfo,
-                this.scoreRed, this.scoreBlue, this.highestJumper, this.isTiebreaker
+                this.scoreBlue, this.scoreRed, this.highestJumper, this.isTiebreaker
             );
         }
 

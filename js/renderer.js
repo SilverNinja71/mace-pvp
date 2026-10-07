@@ -1059,7 +1059,9 @@ export class Renderer {
         ctx.fillStyle = isTiebreaker ? "#f1c40f" : "#2ecc71";
         const scoreBanner = isTiebreaker 
             ? `⚔️ 10-10 TIEBREAKER VICTORY (MOST DAMAGE)` 
-            : `FINAL SCORE: ${scoreRed} - ${scoreBlue} (FIRST TO 11)`;
+            : ((scoreBlue + scoreRed > 1) 
+                ? `FINAL SCORE: ${scoreBlue} - ${scoreRed} (FIRST TO 11)`
+                : `1v1 DUEL COMPLETED`);
         ctx.fillText(scoreBanner, this.width / 2, this.height / 2 - 28);
 
         // Highest Jumper Highlight (Altitude Champion 👑)

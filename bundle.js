@@ -4374,7 +4374,9 @@
           ctx.fillStyle = isTiebreaker ? "#f1c40f" : "#2ecc71";
           const scoreBanner = isTiebreaker 
               ? `⚔️ 10-10 TIEBREAKER VICTORY (MOST DAMAGE)` 
-              : `FINAL SCORE: ${scoreRed} - ${scoreBlue} (FIRST TO 11)`;
+              : ((scoreBlue + scoreRed > 1) 
+                  ? `FINAL SCORE: ${scoreBlue} - ${scoreRed} (FIRST TO 11)`
+                  : `1v1 DUEL COMPLETED`);
           ctx.fillText(scoreBanner, this.width / 2, this.height / 2 - 28);
   
           // Highest Jumper Highlight (Altitude Champion 👑)
@@ -5005,20 +5007,32 @@
                   this.particles.addHitSparks(f.x + f.w / 2, f.y + f.h / 2, 22, "#e74c3c");
                   this.particles.addDust(f.x + f.w / 2, f.y + f.h / 2, 16);
   
-                  const isRedFighter = f.team === "red" || (!f.team && f === this.player);
+                  const isRedFighter = f.team === "red" || (!f.team && f !== this.player);
                   if (isRedFighter) {
                       this.scoreBlue++;
                       this.particles.addDamageText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, true);
-                      const killer = this.blueTeam.find(b => b.hp > 0) || this.blueTeam[0] || this.bot;
-                      if (killer) killer.stats.kills++;
+                      const killer = this.blueTeam.find(b => b.hp > 0) || this.player;
+                      if (killer && killer.stats) killer.stats.kills++;
+  
+                      // In single-player bot games & 1v1 duels, killing the bot immediately wins the match!
+                      if (!this.isTeamMatch) {
+                          this.finishMatch(true);
+                          return;
+                      }
                   } else {
                       this.scoreRed++;
                       this.particles.addDamageText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, true);
-                      const killer = this.redTeam.find(r => r.hp > 0) || this.redTeam[0] || this.player;
-                      if (killer) killer.stats.kills++;
+                      const killer = this.redTeam.find(r => r.hp > 0) || this.bot;
+                      if (killer && killer.stats) killer.stats.kills++;
+  
+                      // In single-player bot games, player death immediately ends the match!
+                      if (!this.isTeamMatch) {
+                          this.finishMatch(false);
+                          return;
+                      }
                   }
   
-                  // Check 10-10 Sudden Death Tiebreaker Trigger
+                  // Check 10-10 Sudden Death Tiebreaker Trigger (Arena Team Matches)
                   if (this.scoreRed === 10 && this.scoreBlue === 10 && !this.isTiebreaker) {
                       this.isTiebreaker = true;
                       this.tiebreakerTimer = 10 * 60; // 10.0 seconds (600 frames)
@@ -5028,7 +5042,7 @@
                       this.particles.addShockwave(400, 200, 120, "#f1c40f", 5);
                   }
   
-                  // Check Win Conditions
+                  // Check Win Conditions (First to 11 Kills in Arena)
                   if (!this.isTiebreaker) {
                       if (this.scoreBlue >= 11 && this.scoreRed < 10) {
                           this.finishMatch(true); // Blue (Player) wins!
@@ -5047,7 +5061,7 @@
                       }
                   }
   
-                  // Schedule fighter respawn
+                  // Schedule fighter respawn for Arena Team Matches
                   const spawnX = isRedFighter ? (600 + Math.random() * 80) : (120 + Math.random() * 80);
                   const spawnY = 160;
                   this.respawnQueue.push({ fighter: f, timer: 60, spawnX, spawnY });
@@ -5175,16 +5189,16 @@
           if (this.state === "gameover") {
               let winner = "YOU";
               if (this.isTeamMatch) {
-                  winner = this.winnerTeam === "red" ? "RED TEAM" : "BLUE TEAM";
+                  winner = this.winnerTeam === "blue" ? "BLUE TEAM" : "RED TEAM";
               } else {
-                  winner = this.winnerTeam === "red" 
-                      ? (this.mode === "pvp" ? "PLAYER 1" : (this.playerName || "YOU")) 
+                  winner = this.winnerTeam === "blue" 
+                      ? (this.mode === "pvp" ? "PLAYER 1" : (this.player.name || "YOU")) 
                       : (this.mode === "pvp" ? "PLAYER 2" : (this.bot.name || "BOT"));
               }
   
               this.renderer.drawGameOver(
                   winner, this.player.stats, this.bot.stats, this.lastRewardInfo,
-                  this.scoreRed, this.scoreBlue, this.highestJumper, this.isTiebreaker
+                  this.scoreBlue, this.scoreRed, this.highestJumper, this.isTiebreaker
               );
           }
   
@@ -6978,70 +6992,280 @@
   
           const highest = this.game.highestJumper || p1;
           const isTiebreaker = this.game.isTiebreaker;
-          const winner = this.game.winnerTeam === "red" 
-              ? (this.game.playerName || "Player 1") 
-              : (p2.name || "Opponent");
+          const isPlayerWin = this.game.winnerTeam === "blue";
+          const winner = isPlayerWin ? (p1.name || "Steve") : (p2.name || "Opponent");
+          const rewardInfo = this.game.lastRewardInfo;
   
-          let tableRows = "";
-          const fightersToDisplay = (this.game.allFighters && this.game.allFighters.length > 2)
-              ? this.game.allFighters
-              : [p1, p2];
+          // Calculate Combat Performance Rating (S+, S, A, B, C, D)
+          const calcGrade = (fighter, won) => {
+              let score = (won ? 50 : 20);
+              score += (fighter.stats.kills || 0) * 25;
+              score += Math.min(40, (fighter.stats.damageDealt || 0) / 3.5);
+              const slams = fighter.stats.slamsLanded || 0;
+              const slamAtt = slams + (fighter.stats.slamsMissed || 0);
+              if (slamAtt > 0) score += (slams / slamAtt) * 20;
+              const dashes = fighter.stats.dashesLanded || 0;
+              const dashAtt = dashes + (fighter.stats.dashesMissed || 0);
+              if (dashAtt > 0) score += (dashes / dashAtt) * 15;
+              if (score >= 95) return { grade: "S+", color: "#f1c40f" };
+              if (score >= 80) return { grade: "S", color: "#f39c12" };
+              if (score >= 65) return { grade: "A", color: "#00d2d3" };
+              if (score >= 50) return { grade: "B", color: "#2ecc71" };
+              if (score >= 35) return { grade: "C", color: "#e67e22" };
+              return { grade: "D", color: "#e74c3c" };
+          };
   
-          fightersToDisplay.forEach(f => {
-              const st = f.stats || {};
-              const slamsMissed = Math.max(0, (st.slamsAttempted || 0) - (st.slamsLanded || 0));
-              const dashesMissed = Math.max(0, (st.dashesAttempted || 0) - (st.dashesLanded || 0));
-              const arrowsMissed = Math.max(0, (st.arrowsAttempted || 0) - (st.arrowsHit || 0));
-              const teamBadge = f.team ? ` [${f.team.toUpperCase()}]` : "";
+          const p1Grade = calcGrade(p1, isPlayerWin);
+          const p2Grade = calcGrade(p2, !isPlayerWin);
   
-              tableRows += `
-                  <tr>
-                      <td><strong>${f.name}${teamBadge}</strong></td>
-                      <td style="color:#2ecc71; font-weight:bold;">${st.kills || 0}</td>
-                      <td>${st.slamsLanded || 0} <span style="color:#ff7675;">(${slamsMissed} miss)</span></td>
-                      <td>${st.dashesLanded || 0} <span style="color:#ff7675;">(${dashesMissed} miss)</span></td>
-                      <td>${st.arrowsHit || 0} <span style="color:#ff7675;">(${arrowsMissed} miss)</span></td>
-                      <td>${Math.round(st.damageDealt || 0)}</td>
-                      <td style="color:#00d2d3; font-weight:bold;">${Math.round(st.maxHeight || 0)} px</td>
-                  </tr>
+          const p1SlamsLanded = p1.stats.slamsLanded || 0;
+          const p1SlamsMissed = Math.max(0, (p1.stats.slamsAttempted || 0) - p1SlamsLanded);
+          const p1SlamAcc = (p1SlamsLanded + p1SlamsMissed > 0) 
+              ? Math.round((p1SlamsLanded / (p1SlamsLanded + p1SlamsMissed)) * 100) : 0;
+  
+          const p2SlamsLanded = p2.stats.slamsLanded || 0;
+          const p2SlamsMissed = Math.max(0, (p2.stats.slamsAttempted || 0) - p2SlamsLanded);
+          const p2SlamAcc = (p2SlamsLanded + p2SlamsMissed > 0) 
+              ? Math.round((p2SlamsLanded / (p2SlamsLanded + p2SlamsMissed)) * 100) : 0;
+  
+          const p1DashesLanded = p1.stats.dashesLanded || 0;
+          const p1DashesMissed = Math.max(0, (p1.stats.dashesAttempted || 0) - p1DashesLanded);
+          const p1DashAcc = (p1DashesLanded + p1DashesMissed > 0)
+              ? Math.round((p1DashesLanded / (p1DashesLanded + p1DashesMissed)) * 100) : 0;
+  
+          const p2DashesLanded = p2.stats.dashesLanded || 0;
+          const p2DashesMissed = Math.max(0, (p2.stats.dashesAttempted || 0) - p2DashesLanded);
+          const p2DashAcc = (p2DashesLanded + p2DashesMissed > 0)
+              ? Math.round((p2DashesLanded / (p2DashesLanded + p2DashesMissed)) * 100) : 0;
+  
+          const p1Dmg = Math.round(p1.stats.damageDealt || 0);
+          const p2Dmg = Math.round(p2.stats.damageDealt || 0);
+          const totalDmg = Math.max(1, p1Dmg + p2Dmg);
+          const p1DmgPct = Math.round((p1Dmg / totalDmg) * 100);
+  
+          const p1Alt = Math.round(p1.stats.maxHeight || 0);
+          const p2Alt = Math.round(p2.stats.maxHeight || 0);
+          const totalAlt = Math.max(1, p1Alt + p2Alt);
+          const p1AltPct = Math.round((p1Alt / totalAlt) * 100);
+  
+          const p1Wep = WEAPON_TYPES[p1.weaponId] || WEAPON_TYPES.mace;
+          const p2Wep = WEAPON_TYPES[p2.weaponId] || WEAPON_TYPES.mace;
+  
+          let rewardPills = "";
+          if (rewardInfo) {
+              rewardPills = `
+                  <div class="stats-rewards-bar">
+                      <span class="reward-pill">+${rewardInfo.goldEarned} Gold</span>
+                      <span class="reward-pill xp">+${rewardInfo.xpEarned} XP</span>
+                      ${rewardInfo.rpDelta ? `<span class="reward-pill rp">${rewardInfo.rpDelta > 0 ? '+' : ''}${rewardInfo.rpDelta} RP</span>` : ''}
+                  </div>
               `;
-          });
+          }
+  
+          // Subtitle text
+          let subTitle = "";
+          if (this.game.isTeamMatch) {
+              subTitle = isTiebreaker 
+                  ? '⚔️ 10-10 Sudden Death Tiebreaker (Highest Damage Won)' 
+                  : `Final Score: Blue ${this.game.scoreBlue} - Red ${this.game.scoreRed} (First to 11 Kills)`;
+          } else {
+              const modeMeta = MODE_METADATA[this.game.mode] || {};
+              const modeName = modeMeta.name || "Bot";
+              subTitle = isPlayerWin ? `1v1 Duel • [${modeName.toUpperCase()}] ELIMINATED!` : `1v1 Duel • DEFEATED BY [${modeName.toUpperCase()}]`;
+          }
+  
+          const hasBowInvolved = (p1.weaponId === "bow" || p2.weaponId === "bow" || (p1.stats.arrowsHit || 0) > 0 || (p2.stats.arrowsHit || 0) > 0);
   
           statsBody.innerHTML = `
-              <div class="stats-winner-banner">
-                  <div class="stats-winner-title">👑 ${winner} VICTORY!</div>
-                  <div class="stats-score-line">
-                      ${isTiebreaker ? '⚔️ 10-10 Sudden Death Tiebreaker (Highest Damage Won)' : `Final Score: ${this.game.scoreRed} - ${this.game.scoreBlue} (First to 11 Kills)`}
+              <div class="stats-winner-banner ${isPlayerWin ? 'victory' : 'defeat'}">
+                  <div class="stats-winner-title">👑 ${winner.toUpperCase()} ${isPlayerWin ? 'VICTORY!' : 'WINS!'}</div>
+                  <div class="stats-score-line">${subTitle}</div>
+                  ${rewardPills}
+              </div>
+  
+              <!-- Head-to-Head Combat Cards -->
+              <div class="h2h-duel-container">
+                  <!-- Blue Fighter (YOU) -->
+                  <div class="h2h-fighter-card h2h-card-blue">
+                      <div class="h2h-avatar-box">
+                          ${headImgHTML(p1.skinId || 'steve', 40)}
+                      </div>
+                      <div class="h2h-info-box">
+                          <div class="h2h-name-row">
+                              <span class="h2h-name">${p1.name || 'You'}</span>
+                              <span class="h2h-tag">YOU</span>
+                          </div>
+                          <div class="h2h-wep-row">
+                              ${weaponIconHTML(p1.weaponId || 'mace', 16)} ${p1Wep.name}
+                          </div>
+                      </div>
+                      <div class="h2h-grade-badge" style="border-color:${p1Grade.color}; color:${p1Grade.color};">
+                          ${p1Grade.grade}
+                      </div>
+                  </div>
+  
+                  <div class="h2h-vs-divider">VS</div>
+  
+                  <!-- Red Fighter (OPPONENT / BOT) -->
+                  <div class="h2h-fighter-card h2h-card-red">
+                      <div class="h2h-avatar-box">
+                          ${headImgHTML(p2.skinId || 'alex', 40)}
+                      </div>
+                      <div class="h2h-info-box">
+                          <div class="h2h-name-row">
+                              <span class="h2h-tag">FOE</span>
+                              <span class="h2h-name">${p2.name || 'Bot'}</span>
+                          </div>
+                          <div class="h2h-wep-row">
+                              ${weaponIconHTML(p2.weaponId || 'spear', 16)} ${p2Wep.name}
+                          </div>
+                      </div>
+                      <div class="h2h-grade-badge" style="border-color:${p2Grade.color}; color:${p2Grade.color};">
+                          ${p2Grade.grade}
+                      </div>
                   </div>
               </div>
   
+              <!-- Head-to-Head Comparative Metric Gauges -->
+              <div class="h2h-stats-list">
+                  <!-- Damage Dealt -->
+                  <div class="h2h-stat-line">
+                      <div class="h2h-stat-left ${p1Dmg >= p2Dmg ? 'winner-stat' : ''}">${p1Dmg} DMG</div>
+                      <div class="h2h-stat-center">
+                          <span class="h2h-stat-label">Damage Dealt</span>
+                          <div class="h2h-bar-track">
+                              <div class="h2h-bar-left" style="width: ${p1DmgPct}%;"></div>
+                              <div class="h2h-bar-right" style="width: ${100 - p1DmgPct}%;"></div>
+                          </div>
+                      </div>
+                      <div class="h2h-stat-right ${p2Dmg >= p1Dmg ? 'winner-stat' : ''}">${p2Dmg} DMG</div>
+                  </div>
+  
+                  <!-- Kills -->
+                  <div class="h2h-stat-line">
+                      <div class="h2h-stat-left ${p1.stats.kills >= p2.stats.kills ? 'winner-stat' : ''}">${p1.stats.kills || 0} Kills</div>
+                      <div class="h2h-stat-center">
+                          <span class="h2h-stat-label">Eliminations</span>
+                      </div>
+                      <div class="h2h-stat-right ${p2.stats.kills >= p1.stats.kills ? 'winner-stat' : ''}">${p2.stats.kills || 0} Kills</div>
+                  </div>
+  
+                  <!-- Mace Ground Slams -->
+                  <div class="h2h-stat-line">
+                      <div class="h2h-stat-left ${p1SlamsLanded >= p2SlamsLanded ? 'winner-stat' : ''}">
+                          ${p1SlamsLanded} <span style="font-size:12px; color:#ff7675;">(${p1SlamsMissed} miss)</span>
+                      </div>
+                      <div class="h2h-stat-center">
+                          <span class="h2h-stat-label">Mace Slams (${p1SlamAcc}% vs ${p2SlamAcc}%)</span>
+                      </div>
+                      <div class="h2h-stat-right ${p2SlamsLanded >= p1SlamsLanded ? 'winner-stat' : ''}">
+                          ${p2SlamsLanded} <span style="font-size:12px; color:#ff7675;">(${p2SlamsMissed} miss)</span>
+                      </div>
+                  </div>
+  
+                  <!-- Dashes & Attacks -->
+                  <div class="h2h-stat-line">
+                      <div class="h2h-stat-left ${p1DashesLanded >= p2DashesLanded ? 'winner-stat' : ''}">
+                          ${p1DashesLanded} <span style="font-size:12px; color:#ff7675;">(${p1DashesMissed} miss)</span>
+                      </div>
+                      <div class="h2h-stat-center">
+                          <span class="h2h-stat-label">Weapon Attacks (${p1DashAcc}% vs ${p2DashAcc}%)</span>
+                      </div>
+                      <div class="h2h-stat-right ${p2DashesLanded >= p1DashesLanded ? 'winner-stat' : ''}">
+                          ${p2DashesLanded} <span style="font-size:12px; color:#ff7675;">(${p2DashesMissed} miss)</span>
+                      </div>
+                  </div>
+  
+                  <!-- Bow Arrows (if used) -->
+                  ${hasBowInvolved ? `
+                  <div class="h2h-stat-line">
+                      <div class="h2h-stat-left ${ (p1.stats.arrowsHit || 0) >= (p2.stats.arrowsHit || 0) ? 'winner-stat' : ''}">
+                          ${p1.stats.arrowsHit || 0} Hits <span style="font-size:12px; color:#ff7675;">(${p1.stats.arrowsMissed || 0} miss)</span>
+                      </div>
+                      <div class="h2h-stat-center">
+                          <span class="h2h-stat-label">Bow Arrows</span>
+                      </div>
+                      <div class="h2h-stat-right ${ (p2.stats.arrowsHit || 0) >= (p1.stats.arrowsHit || 0) ? 'winner-stat' : ''}">
+                          ${p2.stats.arrowsHit || 0} Hits <span style="font-size:12px; color:#ff7675;">(${p2.stats.arrowsMissed || 0} miss)</span>
+                      </div>
+                  </div>
+                  ` : ''}
+  
+                  <!-- Max Single Slam Hit -->
+                  <div class="h2h-stat-line">
+                      <div class="h2h-stat-left ${ (p1.stats.maxSlamDamage || 0) >= (p2.stats.maxSlamDamage || 0) ? 'winner-stat' : ''}">
+                          ${Math.round(p1.stats.maxSlamDamage || 0)} DMG
+                      </div>
+                      <div class="h2h-stat-center">
+                          <span class="h2h-stat-label">Max Slam Impact</span>
+                      </div>
+                      <div class="h2h-stat-right ${ (p2.stats.maxSlamDamage || 0) >= (p1.stats.maxSlamDamage || 0) ? 'winner-stat' : ''}">
+                          ${Math.round(p2.stats.maxSlamDamage || 0)} DMG
+                      </div>
+                  </div>
+  
+                  <!-- Peak Jump Altitude -->
+                  <div class="h2h-stat-line">
+                      <div class="h2h-stat-left ${p1Alt >= p2Alt ? 'winner-stat' : ''}">${p1Alt} px</div>
+                      <div class="h2h-stat-center">
+                          <span class="h2h-stat-label">Peak Altitude</span>
+                          <div class="h2h-bar-track">
+                              <div class="h2h-bar-left" style="width: ${p1AltPct}%;"></div>
+                              <div class="h2h-bar-right" style="width: ${100 - p1AltPct}%;"></div>
+                          </div>
+                      </div>
+                      <div class="h2h-stat-right ${p2Alt >= p1Alt ? 'winner-stat' : ''}">${p2Alt} px</div>
+                  </div>
+              </div>
+  
+              <!-- Altitude Champion Crown -->
               <div class="altitude-champion-box">
                   <div class="altitude-crown">👑</div>
                   <div class="altitude-info">
-                      <h4>HIGHEST ALTITUDE CHAMPION</h4>
-                      <p><strong>${highest.name}</strong> jumped the highest into the sky at <strong>${Math.round(highest.stats?.maxHeight || 0)} px</strong> altitude!</p>
+                      <h4>ALTITUDE CHAMPION</h4>
+                      <p><strong>${highest.name}</strong> dominated the aerial heights at <strong>${Math.round(highest.stats?.maxHeight || 0)} px</strong> peak altitude!</p>
                   </div>
               </div>
-  
-              <div class="stats-table-container">
-                  <table class="stats-table">
-                      <thead>
-                          <tr>
-                              <th>Fighter</th>
-                              <th>Kills</th>
-                              <th>Mace Slams</th>
-                              <th>Dashes</th>
-                              <th>Arrows</th>
-                              <th>Damage</th>
-                              <th>Peak Jump</th>
-                          </tr>
-                      </thead>
-                      <tbody>
-                          ${tableRows}
-                      </tbody>
-                  </table>
-              </div>
           `;
+  
+          // If team arena match with 3+ players, also append full team roster table
+          if (this.game.allFighters && this.game.allFighters.length > 2) {
+              let tableRows = "";
+              this.game.allFighters.forEach(f => {
+                  const st = f.stats || {};
+                  const slamsMissed = Math.max(0, (st.slamsAttempted || 0) - (st.slamsLanded || 0));
+                  const dashesMissed = Math.max(0, (st.dashesAttempted || 0) - (st.dashesLanded || 0));
+                  const teamBadge = f.team ? ` [${f.team.toUpperCase()}]` : "";
+                  tableRows += `
+                      <tr>
+                          <td><strong>${f.name}${teamBadge}</strong></td>
+                          <td style="color:#2ecc71; font-weight:bold;">${st.kills || 0}</td>
+                          <td>${st.slamsLanded || 0} <span style="color:#ff7675;">(${slamsMissed}m)</span></td>
+                          <td>${st.dashesLanded || 0} <span style="color:#ff7675;">(${dashesMissed}m)</span></td>
+                          <td>${Math.round(st.damageDealt || 0)}</td>
+                          <td style="color:#00d2d3; font-weight:bold;">${Math.round(st.maxHeight || 0)} px</td>
+                      </tr>
+                  `;
+              });
+              const tableHtml = `
+                  <div class="stats-table-container">
+                      <table class="stats-table">
+                          <thead>
+                              <tr>
+                                  <th>Squad Member</th>
+                                  <th>Kills</th>
+                                  <th>Slams</th>
+                                  <th>Dashes</th>
+                                  <th>Damage</th>
+                                  <th>Peak</th>
+                              </tr>
+                          </thead>
+                          <tbody>${tableRows}</tbody>
+                      </table>
+                  </div>
+              `;
+              statsBody.insertAdjacentHTML("beforeend", tableHtml);
+          }
   
           this.statsModal.classList.remove("hidden");
       }
@@ -7108,12 +7332,12 @@
           } else if (state === "paused") {
               if (this.pauseModal) this.pauseModal.classList.remove("hidden");
           } else if (state === "gameover") {
-              // Automatically show detailed post-match stats after 800ms banner display
+              // Automatically show detailed post-match stats promptly (snappy response, no lag)
               setTimeout(() => {
                   if (this.game.state === "gameover") {
                       this.openStatsModal();
                   }
-              }, 800);
+              }, 220);
           }
       }
   
