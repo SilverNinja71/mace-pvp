@@ -11,7 +11,7 @@ export const ARENA_TIERS = {
         minRP: 0,
         maxRP: 499,
         color: "#cd7f32",
-        icon: "🥉",
+        icon: "",
         badge: "BRONZE"
     },
     silver: {
@@ -20,7 +20,7 @@ export const ARENA_TIERS = {
         minRP: 500,
         maxRP: 999,
         color: "#bdc3c7",
-        icon: "🥈",
+        icon: "",
         badge: "SILVER"
     },
     gold: {
@@ -29,7 +29,7 @@ export const ARENA_TIERS = {
         minRP: 1000,
         maxRP: 1499,
         color: "#f1c40f",
-        icon: "🥇",
+        icon: "",
         badge: "GOLD"
     },
     diamond: {
@@ -38,7 +38,7 @@ export const ARENA_TIERS = {
         minRP: 1500,
         maxRP: 1999,
         color: "#00d2d3",
-        icon: "💎",
+        icon: "",
         badge: "DIAMOND"
     },
     obsidian: {
@@ -47,22 +47,22 @@ export const ARENA_TIERS = {
         minRP: 2000,
         maxRP: Infinity,
         color: "#9b59b6",
-        icon: "👑",
+        icon: "",
         badge: "OBSIDIAN"
     }
 };
 
 export const NATIONAL_LEADERBOARD_SEED = [
-    { rank: 1, name: "xX_MaceGod_Xx", rp: 2840, tier: "obsidian", wins: 342, winRate: "89%", weapon: "mace", flag: "🇺🇸", skin: "steve" },
-    { rank: 2, name: "SkySniper_Pro", rp: 2715, tier: "obsidian", wins: 298, winRate: "84%", weapon: "bow", flag: "🇨🇦", skin: "alex" },
-    { rank: 3, name: "DiamondSlicer", rp: 2640, tier: "obsidian", wins: 285, winRate: "82%", weapon: "sword", flag: "🇬🇧", skin: "man_face" },
-    { rank: 4, name: "BreezeTitan", rp: 2580, tier: "obsidian", wins: 260, winRate: "80%", weapon: "spear", flag: "🇩🇪", skin: "steve" },
-    { rank: 5, name: "NoobDestroyer99", rp: 2490, tier: "obsidian", wins: 245, winRate: "79%", weapon: "fists", flag: "🇯🇵", skin: "noob" },
-    { rank: 6, name: "ApexSlammer", rp: 2410, tier: "obsidian", wins: 231, winRate: "77%", weapon: "mace", flag: "🇦🇺", skin: "creeper" },
-    { rank: 7, name: "EnderValkyrie", rp: 2350, tier: "obsidian", wins: 219, winRate: "76%", weapon: "spear", flag: "🇫🇷", skin: "enderman" },
-    { rank: 8, name: "NetherKnight", rp: 2280, tier: "obsidian", wins: 208, winRate: "75%", weapon: "sword", flag: "🇧🇷", skin: "steve" },
-    { rank: 9, name: "GravityGhost", rp: 2190, tier: "obsidian", wins: 195, winRate: "74%", weapon: "mace", flag: "🇰🇷", skin: "skeleton" },
-    { rank: 10, name: "BowLegend_Infinity", rp: 2120, tier: "obsidian", wins: 184, winRate: "73%", weapon: "bow", flag: "🇸🇪", skin: "alex" }
+    { rank: 1, name: "xX_MaceGod_Xx", rp: 2840, tier: "obsidian", wins: 342, winRate: "89%", weapon: "mace", flag: "", skin: "steve" },
+    { rank: 2, name: "SkySniper_Pro", rp: 2715, tier: "obsidian", wins: 298, winRate: "84%", weapon: "bow", flag: "", skin: "alex" },
+    { rank: 3, name: "DiamondSlicer", rp: 2640, tier: "obsidian", wins: 285, winRate: "82%", weapon: "sword", flag: "", skin: "man_face" },
+    { rank: 4, name: "BreezeTitan", rp: 2580, tier: "obsidian", wins: 260, winRate: "80%", weapon: "spear", flag: "", skin: "steve" },
+    { rank: 5, name: "NoobDestroyer99", rp: 2490, tier: "obsidian", wins: 245, winRate: "79%", weapon: "fists", flag: "", skin: "noob" },
+    { rank: 6, name: "ApexSlammer", rp: 2410, tier: "obsidian", wins: 231, winRate: "77%", weapon: "mace", flag: "", skin: "creeper" },
+    { rank: 7, name: "EnderValkyrie", rp: 2350, tier: "obsidian", wins: 219, winRate: "76%", weapon: "spear", flag: "", skin: "enderman" },
+    { rank: 8, name: "NetherKnight", rp: 2280, tier: "obsidian", wins: 208, winRate: "75%", weapon: "sword", flag: "", skin: "steve" },
+    { rank: 9, name: "GravityGhost", rp: 2190, tier: "obsidian", wins: 195, winRate: "74%", weapon: "mace", flag: "", skin: "skeleton" },
+    { rank: 10, name: "BowLegend_Infinity", rp: 2120, tier: "obsidian", wins: 184, winRate: "73%", weapon: "bow", flag: "", skin: "alex" }
 ];
 
 export class ArenaManager {
@@ -174,7 +174,7 @@ export class ArenaManager {
             wins: userWins,
             winRate: userWinRate,
             weapon: userProfile.equippedWeapon || "mace",
-            flag: "🎮",
+            flag: "",
             skin: userProfile.skinId || "steve",
             isUser: true
         };

@@ -10,6 +10,7 @@ import { sound } from './audio.js';
 import { auth, AVATAR_PRESETS, BLOCK_FACES } from './auth.js';
 import { WEAPON_TYPES } from './weapons.js';
 import { arena, ARENA_TIERS } from './arena.js';
+import { cubeHTML, headImgHTML, presetHeadId, tierPipHTML, weaponIconHTML } from './pixel.js';
 
 export class UIManager {
     constructor(game) {
@@ -43,6 +44,8 @@ export class UIManager {
         this.downloadBtn = document.getElementById("btn-download");
 
         this.modeCardsContainer = document.getElementById("mode-cards");
+        this.modeCardsVersus = document.getElementById("mode-cards-versus");
+        this.carSlide = 0;
         this.touchControls = document.getElementById("touch-controls");
 
         // Arena Matchmaking State
@@ -56,6 +59,7 @@ export class UIManager {
 
     init() {
         this.renderModeCards();
+        this.setupCarousel();
         this.setupEventListeners();
         this.setupCustomBotForm();
         this.setupAuthUI();
@@ -66,11 +70,63 @@ export class UIManager {
         this.detectTouchDevice();
     }
 
+    // Home screen carousel: Home -> Bot Battles -> Versus & Sandbox -> Arena
+    setupCarousel() {
+        this.carTrack = document.getElementById("car-track");
+        this.carSlides = this.carTrack ? this.carTrack.querySelectorAll(".car-slide") : [];
+        this.carTitle = document.getElementById("car-title");
+        this.carDots = document.getElementById("car-dots");
+        const prev = document.getElementById("car-prev");
+        const next = document.getElementById("car-next");
+        if (!this.carTrack) return;
+
+        if (this.carDots) {
+            this.carDots.innerHTML = "";
+            this.carSlides.forEach((_, i) => {
+                const d = document.createElement("span");
+                d.className = "car-dot";
+                d.addEventListener("click", () => this.goToSlide(i));
+                this.carDots.appendChild(d);
+            });
+        }
+
+        if (prev) prev.addEventListener("click", () => this.goToSlide(this.carSlide - 1));
+        if (next) next.addEventListener("click", () => this.goToSlide(this.carSlide + 1));
+
+        window.addEventListener("keydown", (e) => {
+            if (this.menuOverlay.classList.contains("hidden")) return;
+            if (document.querySelector(".modal-backdrop:not(.hidden)")) return;
+            if (e.key === "ArrowRight") this.goToSlide(this.carSlide + 1);
+            else if (e.key === "ArrowLeft") this.goToSlide(this.carSlide - 1);
+        });
+
+        this.goToSlide(0, true);
+    }
+
+    goToSlide(index, silent = false) {
+        if (!this.carTrack) return;
+        const max = this.carSlides.length - 1;
+        const i = Math.max(0, Math.min(max, index));
+        this.carSlide = i;
+        this.carTrack.style.transform = `translateX(${-i * 100}%)`;
+        if (this.carTitle) this.carTitle.textContent = this.carSlides[i].dataset.title || "";
+        if (this.carDots) {
+            [...this.carDots.children].forEach((d, k) => d.classList.toggle("active", k === i));
+        }
+        const prev = document.getElementById("car-prev");
+        const next = document.getElementById("car-next");
+        if (prev) prev.disabled = i === 0;
+        if (next) next.disabled = i === max;
+        if (!silent) sound.playClick();
+    }
+
     renderModeCards() {
         if (!this.modeCardsContainer) return;
         this.modeCardsContainer.innerHTML = "";
+        if (this.modeCardsVersus) this.modeCardsVersus.innerHTML = "";
 
         const modes = ["practice", "easy", "normal", "pro", "god", "pvp", "custom"];
+        const versusModes = ["pvp", "custom"];
 
         modes.forEach((modeKey) => {
             const meta = MODE_METADATA[modeKey];
@@ -97,11 +153,22 @@ export class UIManager {
                 }
             });
 
-            this.modeCardsContainer.appendChild(card);
+            const target = (versusModes.includes(modeKey) && this.modeCardsVersus) ? this.modeCardsVersus : this.modeCardsContainer;
+            target.appendChild(card);
         });
     }
 
     setupEventListeners() {
+        // Retro button press animation for every button
+        document.addEventListener("click", (e) => {
+            const b = e.target.closest("button, .btn-ctrl, .mode-card, .home-arena-banner, .home-profile-banner");
+            if (!b || b.disabled) return;
+            b.classList.remove("mc-press");
+            void b.offsetWidth;
+            b.classList.add("mc-press");
+            setTimeout(() => b.classList.remove("mc-press"), 220);
+        });
+
         // Sound mute toggle
         if (this.muteBtn) {
             this.muteBtn.addEventListener("click", () => {
@@ -117,7 +184,7 @@ export class UIManager {
                 const current = this.game.renderer.graphicStyle;
                 const next = current === "enhanced" ? "classic" : "enhanced";
                 this.game.renderer.setStyle(next);
-                this.styleBtn.textContent = next === "enhanced" ? "🎨 Style: Enhanced" : "🟩 Style: Classic";
+                this.styleBtn.textContent = next === "enhanced" ? "Style: Enhanced" : "Style: Classic";
                 sound.playClick();
             });
         }
@@ -171,7 +238,7 @@ export class UIManager {
 
     updateMuteButton(isMuted) {
         if (!this.muteBtn) return;
-        this.muteBtn.textContent = isMuted ? "🔇 Unmute" : "🔊 Sound On";
+        this.muteBtn.textContent = isMuted ? "Unmute" : "Sound On";
     }
 
     // ==========================================
@@ -182,8 +249,9 @@ export class UIManager {
         auth.onUserChanged((user) => {
             this.updateHeaderProfileBadge(user);
             if (this.goldDisplay) {
-                this.goldDisplay.textContent = `💰 ${user.gold || 0}`;
+                this.goldDisplay.textContent = `Gold: ${user.gold || 0}`;
             }
+            this.updateHomeProfile(user);
         });
 
         const profileBanner = document.getElementById("home-profile-banner");
@@ -192,26 +260,30 @@ export class UIManager {
         }
     }
 
+    // Cube avatar uses Steve's or Alex's head (other presets map to a matching block head)
+    avatarHeadId(user) {
+        if (user.avatarType === "preset" && user.avatarVal) return presetHeadId(user.avatarVal);
+        return user.skinId === "alex" ? "alex" : "steve";
+    }
+
+    updateHomeProfile(user) {
+        const cube = document.getElementById("home-cube");
+        if (cube) cube.innerHTML = cubeHTML(this.avatarHeadId(user), 56);
+        const name = document.getElementById("hp-name");
+        if (name) name.textContent = user.username || "Steve";
+    }
+
     updateHeaderProfileBadge(user) {
         if (!this.userProfileBtn) return;
 
-        let avatarHtml = "⚔️";
-        if (user.avatarType === "url" && user.avatarUrl) {
-            avatarHtml = `<img src="${user.avatarUrl}" alt="Avatar" class="header-avatar-img">`;
-        } else {
-            const preset = AVATAR_PRESETS.find(p => p.id === user.avatarVal) || AVATAR_PRESETS[0];
-            avatarHtml = `<span class="header-avatar-icon" style="background:${preset.bg}">${preset.icon}</span>`;
-        }
-
+        const avatarHtml = cubeHTML(this.avatarHeadId(user), 22);
         const isGoogle = user.authProvider === "google";
         const googleTag = isGoogle ? `<span class="google-pill-tag">G</span>` : "";
-        const tier = arena.getTier(user.arenaRP || 250);
 
         this.userProfileBtn.innerHTML = `
             ${avatarHtml}
             <span class="header-username">${user.username || "Steve"}</span>
             ${googleTag}
-            <span class="header-tier-tag" style="background:${tier.color}">${tier.icon} ${tier.name}</span>
             <span class="header-level-badge">Lv.${user.level}</span>
         `;
     }
@@ -235,7 +307,7 @@ export class UIManager {
                 googleSection.innerHTML = `
                     <div class="google-connected-box">
                         <div class="google-user-info">
-                            <span class="google-check-icon">✓</span>
+                            <span class="google-check-icon">OK</span>
                             <div>
                                 <div class="google-name">${user.email ? user.email : "Connected Google Account"}</div>
                                 <div class="google-status">Google Account Connected</div>
@@ -289,7 +361,7 @@ export class UIManager {
                 const result = auth.setUsername(usernameInput.value);
                 if (result.success) {
                     if (usernameFeedback) {
-                        usernameFeedback.textContent = "✓ Username saved successfully!";
+                        usernameFeedback.textContent = "Username saved successfully!";
                         usernameFeedback.className = "form-feedback success";
                     }
                     sound.playClick();
@@ -322,8 +394,7 @@ export class UIManager {
                 const isSelected = (user.avatarType === 'preset' && user.avatarVal === preset.id);
                 const el = document.createElement("div");
                 el.className = `avatar-choice ${isSelected ? 'selected' : ''}`;
-                el.style.backgroundColor = preset.bg;
-                el.innerHTML = `<span class="avatar-icon">${preset.icon}</span>`;
+                                el.innerHTML = headImgHTML(presetHeadId(preset.id), 40);
                 el.title = preset.name;
                 el.addEventListener("click", () => {
                     auth.setAvatar("preset", preset.id);
@@ -345,7 +416,7 @@ export class UIManager {
             statsContainer.innerHTML = `
                 <div class="career-header">
                     <div class="career-rank-badge">
-                        <span class="rank-name" style="color:${tier.color}">${tier.icon} ${tier.name} Tier</span>
+                        <span class="rank-name" style="color:${tier.color}">${tierPipHTML(tier)} ${tier.name} Tier</span>
                         <span class="level-pill">Level ${user.level}</span>
                     </div>
                     <div class="xp-bar-wrapper">
@@ -357,7 +428,7 @@ export class UIManager {
                 </div>
                 <div class="career-stats-grid">
                     <div class="career-stat-card">
-                        <span class="cs-val">💰 ${user.gold || 0}</span>
+                        <span class="cs-val">${user.gold || 0}</span>
                         <span class="cs-label">Gold</span>
                     </div>
                     <div class="career-stat-card">
@@ -507,7 +578,7 @@ export class UIManager {
                                         ${isMax ? 
                                             `<span class="badge-max">MAX</span>` : 
                                             `<button class="btn-ctrl btn-upgrade-weap" data-upg="${u.id}" data-cost="${cost}" ${(!isUnlocked || gold < cost) ? 'disabled' : ''}>
-                                                Upgrade (💰${cost})
+                                                Upgrade (${cost} G)
                                             </button>`
                                         }
                                     </div>
@@ -521,7 +592,7 @@ export class UIManager {
             card.innerHTML = `
                 <div class="weapon-shop-header">
                     <div class="ws-left">
-                        <span class="ws-icon">${w.icon}</span>
+                        <span class="ws-icon">${weaponIconHTML(w.id, 32)}</span>
                         <div>
                             <div class="ws-title">${w.name}</div>
                             <div class="ws-cat">${w.category}</div>
@@ -533,7 +604,7 @@ export class UIManager {
                             (isUnlocked ? 
                                 `<button class="btn-ctrl btn-equip-weap" data-id="${w.id}">Equip</button>` :
                                 `<button class="btn-ctrl btn-unlock-weap" data-id="${w.id}" data-cost="${w.baseCost}" ${gold < w.baseCost ? 'disabled' : ''}>
-                                    Unlock (💰${w.baseCost})
+                                    Unlock (${w.baseCost} G)
                                 </button>`
                             )
                         }
@@ -541,10 +612,10 @@ export class UIManager {
                 </div>
                 <div class="ws-desc">${w.desc}</div>
                 <div class="ws-stats-row">
-                    <span>⚔️ Base DMG: <b>${w.stats.dashDamage}</b></span>
-                    <span>💨 Speed: <b>${w.stats.dashSpeed}</b></span>
-                    <span>⏱️ Recovery: <b>${w.stats.attackCooldown}f</b></span>
-                    ${w.stats.arrowDamage ? `<span>🎯 Arrow DMG: <b>${w.stats.arrowDamage}</b></span>` : ''}
+                    <span>Base DMG: <b>${w.stats.dashDamage}</b></span>
+                    <span>Speed: <b>${w.stats.dashSpeed}</b></span>
+                    <span>Recovery: <b>${w.stats.attackCooldown}f</b></span>
+                    ${w.stats.arrowDamage ? `<span>Arrow DMG: <b>${w.stats.arrowDamage}</b></span>` : ''}
                 </div>
                 ${upgradesHtml}
             `;
@@ -616,7 +687,7 @@ export class UIManager {
             const card = document.createElement("div");
             card.className = `skin-card ${isEquipped ? 'equipped' : ''}`;
             card.innerHTML = `
-                <div class="skin-avatar-preview">${face.icon}</div>
+                <div class="skin-avatar-preview">${cubeHTML(face.id, 48)}</div>
                 <div class="skin-info">
                     <div class="skin-name">${face.name}</div>
                     <div class="skin-desc">${face.desc}</div>
@@ -627,7 +698,7 @@ export class UIManager {
                         (isUnlocked ?
                             `<button class="btn-ctrl btn-equip-skin" data-id="${face.id}">Equip</button>` :
                             `<button class="btn-ctrl btn-unlock-skin" data-id="${face.id}" data-cost="${face.cost}" ${gold < face.cost ? 'disabled' : ''}>
-                                💰 ${face.cost} Gold
+                                ${face.cost} Gold
                             </button>`
                         )
                     }
@@ -747,7 +818,7 @@ export class UIManager {
 
             banner.innerHTML = `
                 <div class="arb-left">
-                    <span class="arb-icon" style="color:${tier.color}">${tier.icon}</span>
+                    <span class="arb-icon" style="color:${tier.color}">${tierPipHTML(tier)}</span>
                     <div>
                         <div class="arb-tier" style="color:${tier.color}">${tier.name} Division</div>
                         <div class="arb-rp">${currentRP} Rating Points (RP)</div>
@@ -847,21 +918,21 @@ export class UIManager {
             row.className = `leaderboard-row ${isUser ? 'user-highlight' : ''} ${entry.rank <= 3 ? 'top-three' : ''}`;
 
             let rankBadge = `#${entry.rank}`;
-            if (entry.rank === 1) rankBadge = "👑 #1";
-            else if (entry.rank === 2) rankBadge = "🥈 #2";
-            else if (entry.rank === 3) rankBadge = "🥉 #3";
+            if (entry.rank === 1) rankBadge = "#1";
+            else if (entry.rank === 2) rankBadge = "#2";
+            else if (entry.rank === 3) rankBadge = "#3";
 
             row.innerHTML = `
                 <div class="lb-rank">${rankBadge}</div>
                 <div class="lb-player">
-                    <span class="lb-flag">${entry.flag}</span>
+                    <span class="lb-flag">${headImgHTML(entry.skin || "steve", 22)}</span>
                     <span class="lb-name">${entry.name}</span>
                 </div>
                 <div class="lb-tier" style="color:${tierObj.color}">
-                    <span>${tierObj.icon} ${tierObj.name}</span>
+                    <span>${tierPipHTML(tierObj)} ${tierObj.name}</span>
                 </div>
                 <div class="lb-rp"><b>${entry.rp}</b> RP</div>
-                <div class="lb-weapon">${WEAPON_TYPES[entry.weapon]?.icon || '⚔️'} ${WEAPON_TYPES[entry.weapon]?.name || entry.weapon}</div>
+                <div class="lb-weapon">${WEAPON_TYPES[entry.weapon]?.name || entry.weapon}</div>
                 <div class="lb-winrate">${entry.winRate} Win</div>
             `;
             container.appendChild(row);
@@ -917,15 +988,15 @@ export class UIManager {
             extrasGroup.innerHTML = `
                 <label class="toggle-label">
                     <input type="checkbox" id="custom-air-dash" data-key="airDashRecharge">
-                    <span>⚡ Instant Air Dash Recharge</span>
+                    <span>Instant Air Dash Recharge</span>
                 </label>
                 <label class="toggle-label">
                     <input type="checkbox" id="custom-climb-height" data-key="climbHeight" checked>
-                    <span>🦅 Double Jump Climb Height (Higher Slams)</span>
+                    <span>Double Jump Climb Height (Higher Slams)</span>
                 </label>
                 <label class="toggle-label">
                     <input type="checkbox" id="custom-invisible" data-key="invisible">
-                    <span>👻 Stealth Camouflage (Periodic Invisibility)</span>
+                    <span>Stealth Camouflage (Periodic Invisibility)</span>
                 </label>
             `;
             container.appendChild(extrasGroup);

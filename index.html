@@ -4,8 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Spear-Mace PVP | Tactical Aerial Combat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚔️</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 8 8%22 shape-rendering=%22crispEdges%22><rect width=%228%22 height=%228%22 fill=%22%235b4129%22/><rect y=%220%22 width=%228%22 height=%222%22 fill=%22%234fae3c%22/></svg>">
     <!-- Google Identity Services (GIS) Client Library -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -13,40 +16,28 @@
 
     <!-- Header Navigation -->
     <header class="game-header">
-        <div class="logo-group">
-            <span class="logo-icon">⚔️</span>
-            <div>
-                <h1 class="game-title">SPEAR-MACE PVP</h1>
+        <div class="header-top">
+            <h1 class="game-title">SPEAR-MACE PVP</h1>
+            <div class="header-top-right">
+                <!-- Gold Currency Balance -->
+                <div id="gold-display" class="gold-pill" title="Your Gold Balance">Gold: 500</div>
+                <!-- User Profile & Sign-In Badge -->
+                <button id="btn-user-profile" class="btn-ctrl btn-profile" title="Player Profile & Google Sign-In">
+                    <span class="header-username">Steve</span>
+                    <span class="header-level-badge">Lv.1</span>
+                </button>
             </div>
         </div>
         <div class="top-bar-controls">
-            <!-- Gold Currency Balance -->
-            <div id="gold-display" class="gold-pill" title="Your Gold Balance">💰 500</div>
-
-            <!-- Armory & Skins -->
-            <button id="btn-armory" class="btn-ctrl btn-gold" title="Equip & Upgrade Minecraft Weapons">⚔️ Armory</button>
-            <button id="btn-skins" class="btn-ctrl" title="Minecraft & Roblox Block Face Skins">🎭 Skins</button>
-
-            <!-- Multiplayer Arena & Leaderboard -->
-            <button id="btn-arena" class="btn-ctrl btn-cyan" title="1v1, 2v2, 5v5 Arena Matchmaking">🏟️ Arena Hub</button>
-            <button id="btn-leaderboard" class="btn-ctrl" title="National Obsidian Leaderboard">🏆 Ranked</button>
-
-            <!-- User Profile & Sign-In Badge -->
-            <button id="btn-user-profile" class="btn-ctrl btn-profile" title="Player Profile & Google Sign-In">
-                <span class="header-avatar-icon">⚔️</span>
-                <span class="header-username">Steve</span>
-                <span class="header-level-badge">Lv.1</span>
-            </button>
-
-            <!-- Download Standalone HTML Button -->
-            <button id="btn-download" class="btn-ctrl btn-download" title="Download Game as a Single-File Standalone HTML Document">📥 Download .html</button>
-
-            <!-- Utility Controls -->
-            <button id="btn-style" class="btn-ctrl" title="Toggle Graphics Style">🎨 Style: Enhanced</button>
-            <button id="btn-mute" class="btn-ctrl" title="Toggle Audio">🔊 Sound On</button>
-            <button id="btn-stats" class="btn-ctrl" title="View Match Statistics">📊 Stats</button>
-            <button id="btn-restart" class="btn-ctrl" title="Restart Match (R)">🔄 Restart</button>
-            <button id="btn-home" class="btn-ctrl" title="Home Menu (H)">🏠 Home</button>
+            <button id="btn-armory" class="btn-ctrl" title="Equip & Upgrade Minecraft Weapons">Armory</button>
+            <button id="btn-skins" class="btn-ctrl" title="Minecraft & Roblox Block Face Skins">Skins</button>
+            <button id="btn-leaderboard" class="btn-ctrl" title="National Obsidian Leaderboard">Ranked</button>
+            <button id="btn-stats" class="btn-ctrl" title="View Match Statistics">Stats</button>
+            <button id="btn-style" class="btn-ctrl" title="Toggle Graphics Style">Style: Enhanced</button>
+            <button id="btn-mute" class="btn-ctrl" title="Toggle Audio">Sound On</button>
+            <button id="btn-restart" class="btn-ctrl" title="Restart Match (R)">Restart</button>
+            <button id="btn-home" class="btn-ctrl" title="Home Menu (H)">Home</button>
+            <button id="btn-download" class="btn-ctrl" title="Download Game as a Single-File Standalone HTML Document">Download</button>
         </div>
     </header>
 
@@ -58,54 +49,86 @@
         <div id="menu-overlay" class="overlay">
             <div class="menu-title-banner">
                 <h1>Spear-Mace PVP</h1>
-                <p>Inspired by Minecraft Spear & Mace Aerial Combat • Khan Academy Remaster</p>
+                <p>Minecraft Spear &amp; Mace Aerial Combat</p>
             </div>
 
-            <!-- Banners: Arena Hub & Gamer Profile -->
-            <div class="home-banners-row">
-                <div id="home-arena-banner" class="home-arena-banner" title="Enter Arena Matches (1v1, 2v2, 5v5)">
-                    <div class="ha-left">
-                        <span class="ha-icon">🏟️</span>
-                        <div>
-                            <div class="ha-title">Multiplayer Arena Hub</div>
-                            <div class="ha-desc">Queuing & Lobby for 1v1, 2v2, 5v5 • Climb from Bronze to Obsidian Tier</div>
-                        </div>
+            <!-- Carousel: use the side arrows to browse every match type -->
+            <div class="carousel">
+                <button id="car-prev" class="car-arrow" aria-label="Previous page">
+                    <svg viewBox="0 0 8 8" shape-rendering="crispEdges" width="22" height="22" fill="currentColor"><rect x="5" y="0" width="2" height="1"/><rect x="4" y="1" width="2" height="1"/><rect x="3" y="2" width="2" height="1"/><rect x="2" y="3" width="2" height="1"/><rect x="2" y="4" width="2" height="1"/><rect x="3" y="5" width="2" height="1"/><rect x="4" y="6" width="2" height="1"/><rect x="5" y="7" width="2" height="1"/></svg>
+                </button>
+
+                <div class="car-viewport">
+                    <div id="car-track" class="car-track">
+
+                        <!-- Page 1: Home / Profile -->
+                        <section class="car-slide" data-title="Home">
+                            <div id="home-profile-banner" class="home-profile-banner" title="Click to edit Gamer Tag or Sign In with Google">
+                                <div class="hp-left">
+                                    <div id="home-cube" class="home-cube"></div>
+                                    <div>
+                                        <div id="hp-name" class="hp-title">Steve</div>
+                                        <div class="hp-desc">Sign in, set your Gamer Tag and track career stats</div>
+                                    </div>
+                                </div>
+                                <button class="hp-btn">Profile</button>
+                            </div>
+                            <p class="car-hint">Use the side arrows to find Bot Battles, Versus matches and the Arena.</p>
+                            <div class="menu-key-guide">
+                                <div><span class="key-pill">WASD</span> or <span class="key-pill">ARROWS</span> Move</div>
+                                <div><span class="key-pill">UP</span> Jump / Double Jump</div>
+                                <div><span class="key-pill">SPACE</span> Attack / Dash / Shoot</div>
+                                <div><span class="key-pill">DOWN</span> / <span class="key-pill">S</span> Mace Slam</div>
+                                <div><span class="key-pill">ESC</span> Pause</div>
+                            </div>
+                        </section>
+
+                        <!-- Page 2: Bot Battles -->
+                        <section class="car-slide" data-title="Bot Battles">
+                            <div id="mode-cards" class="mode-cards-grid">
+                                <!-- Dynamically populated by ui.js -->
+                            </div>
+                        </section>
+
+                        <!-- Page 3: Versus & Sandbox -->
+                        <section class="car-slide" data-title="Versus &amp; Sandbox">
+                            <div id="mode-cards-versus" class="mode-cards-grid">
+                                <!-- Dynamically populated by ui.js -->
+                            </div>
+                        </section>
+
+                        <!-- Page 4: Arena -->
+                        <section class="car-slide" data-title="Arena Matches">
+                            <div id="home-arena-banner" class="home-arena-banner" title="Enter Arena Matches (1v1, 2v2, 5v5)">
+                                <div class="ha-left">
+                                    <div>
+                                        <div class="ha-title">Multiplayer Arena Hub</div>
+                                        <div class="ha-desc">Queue for 1v1, 2v2 and 5v5 matches. Climb from Bronze to Obsidian.</div>
+                                    </div>
+                                </div>
+                                <button class="ha-btn">Enter Arena</button>
+                            </div>
+                        </section>
                     </div>
-                    <button class="ha-btn">Enter Arena →</button>
                 </div>
 
-                <div id="home-profile-banner" class="home-profile-banner" title="Click to edit Gamer Tag or Sign In with Google">
-                    <div class="hp-left">
-                        <span class="hp-icon">🎮</span>
-                        <div>
-                            <div class="hp-title">Player Profile & Auth</div>
-                            <div class="hp-desc">Sign in with Google, customize your Gamer Tag & track career stats</div>
-                        </div>
-                    </div>
-                    <button class="hp-btn">Profile →</button>
-                </div>
+                <button id="car-next" class="car-arrow" aria-label="Next page">
+                    <svg viewBox="0 0 8 8" shape-rendering="crispEdges" width="22" height="22" fill="currentColor"><rect x="1" y="0" width="2" height="1"/><rect x="2" y="1" width="2" height="1"/><rect x="3" y="2" width="2" height="1"/><rect x="4" y="3" width="2" height="1"/><rect x="4" y="4" width="2" height="1"/><rect x="3" y="5" width="2" height="1"/><rect x="2" y="6" width="2" height="1"/><rect x="1" y="7" width="2" height="1"/></svg>
+                </button>
             </div>
 
-            <!-- Single Player & Bot Modes Grid -->
-            <div id="mode-cards" class="mode-cards-grid">
-                <!-- Dynamically populated by ui.js -->
-            </div>
-
-            <!-- Keyboard Guide Footer -->
-            <div class="menu-key-guide">
-                <div><span class="key-pill">WASD</span> or <span class="key-pill">ARROWS</span> Move</div>
-                <div><span class="key-pill">UP</span> Jump / Double Jump</div>
-                <div><span class="key-pill">SPACE</span> Attack / Spear Dash / Shoot Bow</div>
-                <div><span class="key-pill">DOWN</span> / <span class="key-pill">S</span> Mace Slam</div>
-                <div><span class="key-pill">ESC</span> Pause</div>
+            <div class="car-footer">
+                <div id="car-title" class="car-title">Home</div>
+                <div id="car-dots" class="car-dots"></div>
             </div>
         </div>
+
 
         <!-- Armory & Weapons Shop Modal -->
         <div id="weapons-modal" class="modal-backdrop hidden">
             <div class="modal-card modal-weapons-card">
                 <div class="modal-header">
-                    <h2>⚔️ Minecraft Weapons Armory & Enchantments</h2>
+                    <h2>Weapons Armory & Enchantments</h2>
                     <button class="btn-close-modal">&times;</button>
                 </div>
                 <p class="modal-subtitle">Equip your preferred weapon. Spend Gold earned from defeating bots and arena matches to unlock new weapons and upgrade Minecraft enchantments!</p>
@@ -119,7 +142,7 @@
         <div id="skins-modal" class="modal-backdrop hidden">
             <div class="modal-card modal-skins-card">
                 <div class="modal-header">
-                    <h2>🎭 Block Face Skins Shop</h2>
+                    <h2>Block Face Skins Shop</h2>
                     <button class="btn-close-modal">&times;</button>
                 </div>
                 <p class="modal-subtitle">Switch between Steve, Alex, iconic Roblox block faces, Creepers, Endermen, and more!</p>
@@ -133,7 +156,7 @@
         <div id="arena-modal" class="modal-backdrop hidden">
             <div class="modal-card modal-arena-card">
                 <div class="modal-header">
-                    <h2>🏟️ Aerial Combat Arena Hub</h2>
+                    <h2>Aerial Combat Arena Hub</h2>
                     <button class="btn-close-modal">&times;</button>
                 </div>
 
@@ -147,17 +170,17 @@
                     <h3 class="auth-sec-title">1. Select Battle Size</h3>
                     <div class="arena-modes-row">
                         <button class="arena-mode-pill" data-mode="1v1">
-                            <span class="amp-icon">⚔️</span>
+                            
                             <span class="amp-title">1 v 1 Duel</span>
                             <span class="amp-sub">Pure Solo Aerial Combat</span>
                         </button>
                         <button class="arena-mode-pill active" data-mode="2v2">
-                            <span class="amp-icon">👥</span>
+                            
                             <span class="amp-title">2 v 2 Tag Team</span>
                             <span class="amp-sub">Co-op Team Strategy</span>
                         </button>
                         <button class="arena-mode-pill" data-mode="5v5">
-                            <span class="amp-icon">🔥</span>
+                            
                             <span class="amp-title">5 v 5 Epic Brawl</span>
                             <span class="amp-sub">Full 10-Player Chaos</span>
                         </button>
@@ -169,23 +192,23 @@
                     <h3 class="auth-sec-title">2. Choose Your Weapon Loadout</h3>
                     <div class="arena-wep-grid">
                         <div class="arena-wep-card selected" data-wep="mace">
-                            <span class="awc-icon">🔨</span>
+                            
                             <span class="awc-name">Mace</span>
                         </div>
                         <div class="arena-wep-card" data-wep="spear">
-                            <span class="awc-icon">🗡️</span>
+                            
                             <span class="awc-name">Spear</span>
                         </div>
                         <div class="arena-wep-card" data-wep="sword">
-                            <span class="awc-icon">⚔️</span>
+                            
                             <span class="awc-name">Sword</span>
                         </div>
                         <div class="arena-wep-card" data-wep="fists">
-                            <span class="awc-icon">👊</span>
+                            
                             <span class="awc-name">Fists</span>
                         </div>
                         <div class="arena-wep-card" data-wep="bow">
-                            <span class="awc-icon">🏹</span>
+                            
                             <span class="awc-name">Bow</span>
                         </div>
                     </div>
@@ -198,7 +221,7 @@
                         <div class="action-box">
                             <h4>Public Matchmaking</h4>
                             <p>Queue up and enter live arena matches against ranked fighters.</p>
-                            <button id="btn-arena-find-match" class="btn-submit-arena">⚡ Find Match / Queue</button>
+                            <button id="btn-arena-find-match" class="btn-submit-arena">Find Match / Queue</button>
                         </div>
                         <div class="action-box">
                             <h4>Private Room</h4>
@@ -208,7 +231,7 @@
                             </div>
                             <div id="private-room-panel" class="private-room-panel hidden">
                                 <div>Room Code: <b id="private-room-code-display" class="room-code-val">----</b></div>
-                                <button id="btn-launch-private" class="btn-submit-arena" style="margin-top:8px;">Start Private Match</button>
+                                <button id="btn-launch-private" class="btn-submit-arena">Start Private Match</button>
                             </div>
                             <div class="join-private-row">
                                 <input type="text" id="input-join-code" class="auth-input" placeholder="Enter Room Code">
@@ -226,12 +249,12 @@
                 <div class="queue-radar">
                     <div class="radar-circle"></div>
                     <div class="radar-sweep"></div>
-                    <span class="radar-icon">⚔️</span>
+                    
                 </div>
                 <h3 id="queue-status-text">Searching for opponents...</h3>
                 <div id="queue-count-text" class="queue-count">1 / 4 Players</div>
                 <div id="queue-timer-text" class="queue-timer">0:00</div>
-                <button id="btn-cancel-queue" class="btn-ctrl" style="margin-top:16px;">Cancel Matchmaking</button>
+                <button id="btn-cancel-queue" class="btn-ctrl">Cancel Matchmaking</button>
             </div>
         </div>
 
@@ -239,15 +262,15 @@
         <div id="leaderboard-modal" class="modal-backdrop hidden">
             <div class="modal-card modal-leaderboard-card">
                 <div class="modal-header">
-                    <h2>👑 National Obsidian Leaderboard</h2>
+                    <h2>National Obsidian Leaderboard</h2>
                     <button class="btn-close-modal">&times;</button>
                 </div>
                 <div class="leaderboard-tier-explainer">
-                    <span class="lte-badge" style="background:#cd7f32">🥉 Bronze</span>
-                    <span class="lte-badge" style="background:#bdc3c7; color:#000;">🥈 Silver</span>
-                    <span class="lte-badge" style="background:#f1c40f; color:#000;">🥇 Gold</span>
-                    <span class="lte-badge" style="background:#00d2d3; color:#000;">💎 Diamond</span>
-                    <span class="lte-badge" style="background:#9b59b6">👑 Obsidian (Top Tier)</span>
+                    <span class="lte-badge" style="background:#cd7f32">Bronze</span>
+                    <span class="lte-badge" style="background:#bdc3c7; color:#000;">Silver</span>
+                    <span class="lte-badge" style="background:#f1c40f; color:#000;">Gold</span>
+                    <span class="lte-badge" style="background:#00d2d3; color:#000;">Diamond</span>
+                    <span class="lte-badge" style="background:#9b59b6">Obsidian (Top Tier)</span>
                 </div>
                 <div id="leaderboard-list-container" class="leaderboard-list-container">
                     <!-- Populated by ui.js -->
@@ -259,7 +282,7 @@
         <div id="auth-modal" class="modal-backdrop hidden">
             <div class="modal-card modal-auth-card">
                 <div class="modal-header">
-                    <h2>👤 Player Profile & Google Sign-In</h2>
+                    <h2>Player Profile & Google Sign-In</h2>
                     <button class="btn-close-modal">&times;</button>
                 </div>
 
@@ -277,7 +300,7 @@
                     <p class="auth-sec-desc">This name appears in matches, on the health bar, and on the victory screen.</p>
                     <div class="username-input-row">
                         <input type="text" id="input-username" class="auth-input" placeholder="Enter username" maxlength="16" autocomplete="off">
-                        <button id="btn-random-username" class="btn-ctrl" type="button" title="Generate random Gamer Tag">🎲 Random</button>
+                        <button id="btn-random-username" class="btn-ctrl" type="button" title="Generate random Gamer Tag">Random</button>
                         <button id="btn-save-username" class="btn-ctrl btn-save-name" type="button">Save</button>
                     </div>
                     <div id="username-feedback" class="form-feedback"></div>
@@ -340,9 +363,9 @@
                 </div>
                 <p style="color: var(--text-muted); margin-bottom: 20px;">Take a breather or review your match strategy.</p>
                 <div class="modal-actions">
-                    <button id="btn-resume" class="btn-ctrl" style="background:#00d2d3; color:#000; font-weight:bold;">▶ Resume Match</button>
-                    <button id="btn-pause-restart" class="btn-ctrl">🔄 Restart</button>
-                    <button id="btn-pause-home" class="btn-ctrl">🏠 Home Menu</button>
+                    <button id="btn-resume" class="btn-ctrl">Resume</button>
+                    <button id="btn-pause-restart" class="btn-ctrl">Restart</button>
+                    <button id="btn-pause-home" class="btn-ctrl">Home Menu</button>
                 </div>
             </div>
         </div>
@@ -351,14 +374,14 @@
         <div id="custom-bot-modal" class="modal-backdrop hidden">
             <div class="modal-card">
                 <div class="modal-header">
-                    <h2>🛠️ Custom Bot Sandbox</h2>
+                    <h2>Custom Bot Sandbox</h2>
                     <button class="btn-close-modal">&times;</button>
                 </div>
                 <form id="custom-bot-form">
                     <div id="custom-bot-fields" class="custom-bot-fields">
                         <!-- Populated by ui.js -->
                     </div>
-                    <button type="submit" class="btn-submit-custom">⚔️ Deploy Custom Bot Match</button>
+                    <button type="submit" class="btn-submit-custom">Deploy Custom Bot Match</button>
                 </form>
             </div>
         </div>
@@ -367,7 +390,7 @@
         <div id="stats-modal" class="modal-backdrop hidden">
             <div class="modal-card">
                 <div class="modal-header">
-                    <h2>📊 Match Statistics</h2>
+                    <h2>Match Statistics</h2>
                     <button class="btn-close-modal">&times;</button>
                 </div>
                 <div id="stats-body">
@@ -380,13 +403,13 @@
     <!-- Mobile Touch Controls -->
     <div id="touch-controls" class="touch-controls hidden">
         <div class="touch-cluster">
-            <button id="touch-left" class="touch-btn" aria-label="Left">◀</button>
-            <button id="touch-right" class="touch-btn" aria-label="Right">▶</button>
+            <button id="touch-left" class="touch-btn" aria-label="Left">&lt;</button>
+            <button id="touch-right" class="touch-btn" aria-label="Right">&gt;</button>
         </div>
         <div class="touch-cluster">
-            <button id="touch-jump" class="touch-btn touch-btn-action" aria-label="Jump">▲</button>
-            <button id="touch-dash" class="touch-btn touch-btn-dash" aria-label="Attack / Dash">💨</button>
-            <button id="touch-slam" class="touch-btn touch-btn-slam" aria-label="Slam">🔨</button>
+            <button id="touch-jump" class="touch-btn touch-btn-action" aria-label="Jump">JUMP</button>
+            <button id="touch-dash" class="touch-btn touch-btn-dash" aria-label="Attack / Dash">DASH</button>
+            <button id="touch-slam" class="touch-btn touch-btn-slam" aria-label="Slam">SLAM</button>
         </div>
     </div>
 

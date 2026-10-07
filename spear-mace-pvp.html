@@ -4,124 +4,337 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Spear-Mace PVP | Tactical Aerial Combat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
     <style>
 /* ==========================================
    SPEAR-MACE PVP - Stylesheet
-   Modern Arcade & Minecraft-inspired theme
+   Minecraft-style retro / pixel theme
+   (flat colors only: no gradients, no rounded corners)
    ========================================== */
 
 :root {
-    --bg-dark: #0f141c;
-    --card-bg: rgba(22, 29, 41, 0.94);
-    --card-border: #2c384e;
-    --accent-gold: #f39c12;
-    --accent-cyan: #00d2d3;
-    --accent-green: #2ecc71;
-    --accent-red: #ff4757;
-    --accent-purple: #9b59b6;
-    --text-primary: #f1f2f6;
-    --text-muted: #a4b0be;
-    --font-stack: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+    --stone: #8b8b8b;
+    --stone-light: #c6c6c6;
+    --stone-dark: #373737;
+    --stone-mid: #6b6b6b;
+    --panel: #2e2e2e;
+    --panel-light: #4a4a4a;
+    --black: #000;
+    --grass: #5da83e;
+    --gold: #fcdb05;
+    --text-primary: #ffffff;
+    --text-muted: #b8b8b8;
+    --text-shadow: #3f3f3f;
+    --font-pixel: 'Press Start 2P', 'VT323', monospace;
+    --font-body: 'VT323', 'Courier New', monospace;
+    --dirt: none;
 }
 
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+    border-radius: 0 !important;
     user-select: none;
     -webkit-user-select: none;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
 }
 
+img, canvas, .px-head, .px-icon, .cube-face {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
 body {
-    background-color: var(--bg-dark);
+    background-color: #4a3322;
+    background-image: var(--dirt);
+    background-size: 64px 64px;
+    image-rendering: pixelated;
     color: var(--text-primary);
-    font-family: var(--font-stack);
+    font-family: var(--font-body);
+    font-size: 20px;
+    line-height: 1.15;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
     overflow-x: hidden;
-    background-image: 
-        radial-gradient(circle at 50% 20%, rgba(24, 44, 76, 0.45) 0%, transparent 70%),
-        linear-gradient(180deg, #090d13 0%, #111722 100%);
 }
 
-/* Header & Top Bar */
+/* ==========================================
+   BLOCKY RETRO BUTTONS (shared by every button)
+   ========================================== */
+.btn-ctrl,
+.btn-play-mode,
+.ha-btn,
+.hp-btn,
+.btn-submit-arena,
+.btn-submit-custom,
+.btn-google-signin,
+.car-arrow,
+.touch-btn,
+.btn-close-modal,
+.arena-mode-pill,
+.arena-wep-card {
+    font-family: var(--font-body);
+    font-size: 20px;
+    color: #fff;
+    text-shadow: 2px 2px 0 var(--text-shadow);
+    background: var(--stone);
+    border: 3px solid var(--black);
+    box-shadow:
+        inset 3px 3px 0 #c9c9c9,
+        inset -3px -3px 0 #555,
+        0 4px 0 #1a1a1a;
+    cursor: pointer;
+    min-height: 40px;
+    padding: 6px 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    text-align: center;
+    white-space: normal;
+    word-break: break-word;
+    overflow: hidden;
+    line-height: 1.1;
+    position: relative;
+    top: 0;
+    transition: background-color 0.05s steps(2);
+}
+
+.btn-ctrl:hover,
+.btn-play-mode:hover,
+.ha-btn:hover,
+.hp-btn:hover,
+.btn-submit-arena:hover,
+.btn-submit-custom:hover,
+.btn-google-signin:hover,
+.car-arrow:hover:not(:disabled),
+.touch-btn:hover,
+.btn-close-modal:hover,
+.arena-mode-pill:hover,
+.arena-wep-card:hover,
+.mode-card:hover .btn-play-mode {
+    background: #7c8bd6;
+    color: #ffffa0;
+}
+
+/* Click / press animation: the block sinks down */
+.btn-ctrl:active,
+.btn-play-mode:active,
+.ha-btn:active,
+.hp-btn:active,
+.btn-submit-arena:active,
+.btn-submit-custom:active,
+.btn-google-signin:active,
+.car-arrow:active:not(:disabled),
+.touch-btn:active,
+.btn-close-modal:active,
+.arena-mode-pill:active,
+.arena-wep-card:active,
+.mc-press {
+    top: 4px;
+    box-shadow:
+        inset 3px 3px 0 #555,
+        inset -3px -3px 0 #c9c9c9,
+        0 0 0 #1a1a1a;
+    background: #6e6e6e;
+}
+
+.mc-press {
+    animation: mcPress 0.22s steps(3);
+}
+
+@keyframes mcPress {
+    0%   { transform: translateY(0); }
+    40%  { transform: translateY(4px); }
+    100% { transform: translateY(0); }
+}
+
+button:disabled,
+.btn-ctrl:disabled {
+    background: #5a5a5a;
+    color: #9a9a9a;
+    text-shadow: none;
+    cursor: not-allowed;
+}
+
+button:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 2px;
+}
+
+/* Selected state for toggle-like buttons */
+.arena-mode-pill.active,
+.arena-wep-card.selected {
+    background: #5da83e;
+    color: #fff;
+}
+
+/* ==========================================
+   HEADER (uniform button grid)
+   ========================================== */
 .game-header {
     width: 100%;
     max-width: 960px;
-    padding: 12px 16px;
+    padding: 12px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.header-top {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
-.logo-group {
+.header-top-right {
     display: flex;
     align-items: center;
     gap: 12px;
 }
 
-.logo-icon {
-    font-size: 26px;
-    filter: drop-shadow(0 0 8px rgba(0, 210, 211, 0.6));
-}
-
 .game-title {
-    font-size: 20px;
-    font-weight: 800;
+    font-family: var(--font-pixel);
+    font-size: 18px;
+    font-weight: normal;
     letter-spacing: 1px;
-    background: linear-gradient(135deg, #00d2d3, #f1c40f);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: #fff;
+    text-shadow: 3px 3px 0 #3f3f3f;
 }
 
 .top-bar-controls {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
     gap: 8px;
-    align-items: center;
 }
 
-.btn-ctrl {
-    background: #1e2736;
-    border: 1px solid #33435c;
-    color: var(--text-primary);
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s ease;
+.top-bar-controls .btn-ctrl {
+    width: 100%;
+    font-size: 19px;
+    padding: 6px 4px;
+}
+
+.gold-pill {
+    background: var(--panel);
+    border: 3px solid var(--black);
+    box-shadow: inset 3px 3px 0 #555, inset -3px -3px 0 #1a1a1a;
+    color: var(--gold);
+    font-size: 22px;
+    padding: 4px 12px;
+    min-height: 40px;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    text-shadow: 2px 2px 0 #3f3a00;
 }
 
-.btn-ctrl:hover {
-    background: #2a384c;
-    border-color: #485c7c;
-    transform: translateY(-1px);
+.btn-profile {
+    min-width: 170px;
+    gap: 8px;
 }
 
-.btn-ctrl:active {
-    transform: translateY(1px);
+.header-username {
+    color: #fff;
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-/* Main Container & Canvas Wrapper */
+.header-level-badge {
+    background: var(--gold);
+    color: #000;
+    text-shadow: none;
+    font-size: 16px;
+    padding: 0 5px;
+    border: 2px solid #000;
+}
+
+.google-pill-tag {
+    background: #4285F4;
+    color: #fff;
+    font-size: 14px;
+    padding: 0 4px;
+    border: 2px solid #000;
+}
+
+.tier-pip {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #000;
+    vertical-align: middle;
+}
+
+/* ==========================================
+   3D CUBE AVATAR (head textures as cube faces)
+   ========================================== */
+.cube-wrap {
+    display: inline-block;
+    width: var(--s);
+    height: var(--s);
+    perspective: calc(var(--s) * 6);
+    flex: none;
+}
+
+.cube {
+    display: block;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    animation: cubeSpin 7s linear infinite;
+}
+
+.cube-face {
+    position: absolute;
+    inset: 0;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    border: 1px solid rgba(0, 0, 0, 0.45);
+    backface-visibility: hidden;
+}
+
+.cube-front  { transform: translateZ(calc(var(--s) / 2)); }
+.cube-back   { transform: rotateY(180deg) translateZ(calc(var(--s) / 2)); }
+.cube-right  { transform: rotateY(90deg) translateZ(calc(var(--s) / 2)); }
+.cube-left   { transform: rotateY(-90deg) translateZ(calc(var(--s) / 2)); }
+.cube-top    { transform: rotateX(90deg) translateZ(calc(var(--s) / 2)); }
+.cube-bottom { transform: rotateX(-90deg) translateZ(calc(var(--s) / 2)); }
+
+@keyframes cubeSpin {
+    from { transform: rotateX(-20deg) rotateY(-35deg); }
+    to   { transform: rotateX(-20deg) rotateY(325deg); }
+}
+
+.px-head {
+    display: block;
+    border: 2px solid #000;
+}
+
+.px-icon {
+    display: block;
+}
+
+/* ==========================================
+   MAIN CONTAINER & CANVAS
+   ========================================== */
 .arena-container {
     position: relative;
     width: 800px;
     max-width: 96vw;
-    margin: 16px auto;
-    border-radius: 12px;
+    margin: 8px auto 16px;
     overflow: hidden;
-    box-shadow: 
-        0 14px 40px rgba(0, 0, 0, 0.6),
-        0 0 0 3px #1f2a3a;
+    border: 6px solid #000;
+    box-shadow: 0 0 0 4px var(--stone-mid), 0 8px 0 4px #1a1a1a;
     background: #000;
 }
 
@@ -130,8 +343,6 @@ body {
     width: 100%;
     height: auto;
     aspect-ratio: 800 / 400;
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
     touch-action: none;
     transform: translateZ(0);
     will-change: transform;
@@ -139,72 +350,157 @@ body {
     backface-visibility: hidden;
 }
 
-/* Home Menu Overlay */
+/* ==========================================
+   HOME MENU OVERLAY (Minecraft dirt background)
+   ========================================== */
 .overlay {
     position: absolute;
     inset: 0;
-    background: rgba(10, 14, 22, 0.94);
-    backdrop-filter: blur(8px);
+    background-color: #4a3322;
+    background-image: var(--dirt);
+    background-size: 64px 64px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-start;
-    padding: 24px 20px;
-    overflow-y: auto;
+    padding: 12px 10px 8px;
     z-index: 100;
-    transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
 .overlay.hidden {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
+    display: none;
 }
 
 .menu-title-banner {
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 8px;
 }
 
 .menu-title-banner h1 {
-    font-size: 38px;
-    font-weight: 900;
+    font-family: var(--font-pixel);
+    font-weight: normal;
+    font-size: 26px;
     letter-spacing: 2px;
     text-transform: uppercase;
-    text-shadow: 0 4px 16px rgba(0, 210, 211, 0.4);
-    background: linear-gradient(180deg, #ffffff 20%, #81ecec 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: #fff;
+    text-shadow: 4px 4px 0 #3f3f3f;
 }
 
 .menu-title-banner p {
-    color: var(--text-muted);
-    font-size: 14px;
+    color: #ffff55;
+    font-size: 20px;
     margin-top: 4px;
+    text-shadow: 2px 2px 0 #3f3f00;
 }
 
-/* Mode Cards Grid */
+/* Carousel */
+.carousel {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.car-arrow {
+    flex: none;
+    align-self: center;
+    width: 52px;
+    height: 90px;
+    padding: 0;
+}
+
+.car-arrow svg {
+    filter: drop-shadow(2px 2px 0 #3f3f3f);
+}
+
+.car-viewport {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    border: 3px solid #000;
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.car-track {
+    display: flex;
+    height: 100%;
+    transition: transform 0.3s steps(6);
+}
+
+.car-slide {
+    flex: 0 0 100%;
+    min-width: 0;
+    height: 100%;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+}
+
+.car-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding-top: 8px;
+}
+
+.car-title {
+    font-family: var(--font-pixel);
+    font-size: 11px;
+    color: #fff;
+    text-shadow: 2px 2px 0 #3f3f3f;
+    text-transform: uppercase;
+}
+
+.car-dots {
+    display: flex;
+    gap: 8px;
+}
+
+.car-dot {
+    width: 14px;
+    height: 14px;
+    background: var(--stone-mid);
+    border: 2px solid #000;
+    cursor: pointer;
+}
+
+.car-dot.active {
+    background: var(--grass);
+}
+
+.car-hint {
+    color: #ffff55;
+    text-align: center;
+    text-shadow: 2px 2px 0 #3f3f00;
+}
+
+/* Mode Cards */
 .mode-cards-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
     gap: 12px;
     width: 100%;
-    max-width: 760px;
-    margin-bottom: 20px;
+    max-width: 700px;
+    align-content: start;
 }
 
 .mode-card {
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: 10px;
-    padding: 14px;
+    background: var(--panel);
+    border: 3px solid #000;
+    box-shadow: inset 3px 3px 0 var(--panel-light), inset -3px -3px 0 #1a1a1a, 0 4px 0 #1a1a1a;
+    padding: 10px;
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     position: relative;
-    overflow: hidden;
+    top: 0;
 }
 
 .mode-card::before {
@@ -212,7 +508,7 @@ body {
     position: absolute;
     top: 0;
     left: 0;
-    width: 4px;
+    width: 6px;
     height: 100%;
     background: #576574;
 }
@@ -221,111 +517,96 @@ body {
 .mode-card.mode-easy::before { background: rgb(150, 0, 0); }
 .mode-card.mode-normal::before { background: rgb(120, 40, 190); }
 .mode-card.mode-pro::before { background: rgb(230, 180, 20); }
-.mode-card.mode-god::before { background: #353535; border-color: #e74c3c; }
+.mode-card.mode-god::before { background: #8a1f1f; }
 .mode-card.mode-pvp::before { background: #ff5722; }
 .mode-card.mode-custom::before { background: #00b4d8; }
 
 .mode-card:hover {
-    transform: translateY(-3px);
-    border-color: #4a5d7c;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    background: #3a3a3a;
+}
+
+.mode-card:active {
+    top: 4px;
+    box-shadow: inset 3px 3px 0 #1a1a1a, inset -3px -3px 0 var(--panel-light), 0 0 0 #1a1a1a;
 }
 
 .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
+    margin: 0 0 6px 6px;
 }
 
 .card-badge {
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.8px;
-    padding: 3px 6px;
-    border-radius: 4px;
+    font-size: 16px;
+    padding: 0 6px;
     color: #fff;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.6);
+    border: 2px solid #000;
 }
 
 .card-hotkey {
-    font-size: 11px;
-    font-weight: 700;
+    font-size: 16px;
     color: var(--text-muted);
-    font-family: monospace;
 }
 
 .card-title {
-    font-size: 16px;
-    font-weight: 700;
+    font-family: var(--font-pixel);
+    font-weight: normal;
+    font-size: 11px;
     color: #fff;
-    margin-bottom: 4px;
+    margin: 0 0 6px 6px;
 }
 
 .card-sub {
-    font-size: 12px;
-    color: #ffeaa7;
-    margin-bottom: 8px;
+    font-size: 18px;
+    color: #ffff55;
+    margin: 0 0 4px 6px;
 }
 
 .card-desc {
-    font-size: 11px;
+    font-size: 17px;
     color: var(--text-muted);
-    line-height: 1.4;
-    margin-bottom: 12px;
+    margin: 0 0 10px 6px;
     flex-grow: 1;
 }
 
 .btn-play-mode {
     width: 100%;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    color: #fff;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 7px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background 0.15s;
-    letter-spacing: 0.5px;
 }
 
-.mode-card:hover .btn-play-mode {
-    background: rgba(255, 255, 255, 0.18);
-}
-
-/* Key Guide at Bottom of Menu */
+/* Key guide */
 .menu-key-guide {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 16px;
-    font-size: 12px;
-    color: var(--text-muted);
-    padding: 12px 18px;
-    background: rgba(0, 0, 0, 0.35);
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    gap: 8px 16px;
+    font-size: 19px;
+    color: #fff;
+    padding: 10px 14px;
+    background: var(--panel);
+    border: 3px solid #000;
+    box-shadow: inset 3px 3px 0 var(--panel-light), inset -3px -3px 0 #1a1a1a;
 }
 
 .key-pill {
     display: inline-block;
-    padding: 2px 6px;
-    background: #222f3e;
-    border: 1px solid #34495e;
-    border-radius: 4px;
+    padding: 0 6px;
+    background: var(--stone);
+    border: 2px solid #000;
+    box-shadow: inset 2px 2px 0 #c9c9c9, inset -2px -2px 0 #555;
     color: #fff;
-    font-family: monospace;
-    font-weight: bold;
+    text-shadow: 2px 2px 0 var(--text-shadow);
     margin-right: 4px;
 }
 
-/* Modals */
+/* ==========================================
+   MODALS (Minecraft inventory panel look)
+   ========================================== */
 .modal-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.75);
-    backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.7);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -337,81 +618,93 @@ body {
 }
 
 .modal-card {
-    background: #161f2e;
-    border: 1px solid #2e3e57;
-    border-radius: 12px;
-    padding: 24px;
+    background: var(--panel);
+    border: 4px solid #000;
+    box-shadow: inset 4px 4px 0 var(--panel-light), inset -4px -4px 0 #1a1a1a;
+    padding: 20px;
     width: 90%;
     max-width: 500px;
-    max-height: 85vh;
+    max-height: 92%;
     overflow-y: auto;
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
 }
 
 .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 14px;
+    border-bottom: 4px solid #000;
     padding-bottom: 10px;
+    gap: 10px;
 }
 
 .modal-header h2 {
-    font-size: 20px;
+    font-family: var(--font-pixel);
+    font-weight: normal;
+    font-size: 13px;
+    line-height: 1.4;
     color: #fff;
+    text-shadow: 2px 2px 0 #3f3f3f;
 }
 
 .btn-close-modal {
-    background: none;
-    border: none;
+    min-height: 36px;
+    width: 40px;
+    padding: 0;
+    font-size: 26px;
+    flex: none;
+}
+
+.modal-subtitle {
+    font-size: 18px;
     color: var(--text-muted);
-    font-size: 20px;
-    cursor: pointer;
+    margin-bottom: 14px;
 }
 
-.btn-close-modal:hover {
-    color: #fff;
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
 }
 
-/* Custom Bot Form Controls */
+.modal-actions .btn-ctrl {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Custom Bot Form */
 .custom-bot-fields {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: 10px;
     margin-bottom: 16px;
 }
 
 @media (max-width: 600px) {
-    .custom-bot-fields {
-        grid-template-columns: 1fr;
-    }
+    .custom-bot-fields { grid-template-columns: 1fr; }
 }
 
 .control-group {
-    background: rgba(0, 0, 0, 0.25);
+    background: rgba(0, 0, 0, 0.35);
     padding: 8px 10px;
-    border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 2px solid #000;
 }
 
 .control-label {
     display: flex;
     justify-content: space-between;
-    font-size: 11px;
+    font-size: 17px;
     color: var(--text-muted);
     margin-bottom: 4px;
 }
 
 .control-value {
-    color: #00d2d3;
-    font-weight: bold;
-    font-family: monospace;
+    color: #55ff55;
 }
 
 .slider {
     width: 100%;
-    accent-color: #00d2d3;
+    accent-color: var(--grass);
     cursor: pointer;
 }
 
@@ -421,63 +714,53 @@ body {
     flex-direction: column;
     gap: 8px;
     padding: 10px;
-    background: rgba(0, 210, 211, 0.06);
-    border: 1px solid rgba(0, 210, 211, 0.2);
-    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 2px solid #000;
 }
 
 .toggle-label {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
+    font-size: 19px;
     cursor: pointer;
     color: #fff;
 }
 
 .toggle-label input {
-    accent-color: #00d2d3;
-    width: 16px;
-    height: 16px;
+    accent-color: var(--grass);
+    width: 18px;
+    height: 18px;
 }
 
 .btn-submit-custom {
     width: 100%;
-    padding: 10px;
-    background: #00b4d8;
-    border: none;
-    color: #fff;
-    border-radius: 6px;
-    font-weight: bold;
-    font-size: 14px;
-    cursor: pointer;
-    transition: background 0.15s;
 }
 
-.btn-submit-custom:hover {
-    background: #0096c7;
-}
-
-/* Stats Modal Grid */
+/* Stats */
 .stats-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 16px;
+    gap: 14px;
+    margin-bottom: 14px;
 }
 
 .stat-col {
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(0, 0, 0, 0.35);
+    border: 2px solid #000;
     padding: 12px;
-    border-radius: 8px;
-    font-size: 13px;
+    font-size: 19px;
 }
 
 .stat-col h4 {
-    color: #f1c40f;
+    font-family: var(--font-pixel);
+    font-weight: normal;
+    font-size: 10px;
+    line-height: 1.4;
+    color: var(--gold);
     margin-bottom: 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    padding-bottom: 4px;
+    border-bottom: 2px solid #000;
+    padding-bottom: 6px;
 }
 
 .stat-col p {
@@ -489,20 +772,9 @@ body {
     color: #fff;
 }
 
-/* Modal Action Buttons */
-.modal-actions {
-    display: flex;
-    gap: 10px;
-    margin-top: 16px;
-}
-
-.modal-actions .btn-ctrl {
-    flex: 1;
-    justify-content: center;
-    padding: 10px;
-}
-
-/* Touch Controls */
+/* ==========================================
+   TOUCH CONTROLS
+   ========================================== */
 .touch-controls {
     display: flex;
     justify-content: space-between;
@@ -512,9 +784,7 @@ body {
     padding: 0 10px;
 }
 
-.touch-controls.hidden {
-    display: none;
-}
+.touch-controls.hidden { display: none; }
 
 .touch-cluster {
     display: flex;
@@ -522,238 +792,130 @@ body {
 }
 
 .touch-btn {
-    width: 58px;
-    height: 58px;
-    border-radius: 50%;
-    background: rgba(30, 41, 59, 0.8);
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    color: #fff;
-    font-size: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    touch-action: manipulation;
-    transition: transform 0.1s;
-}
-
-.touch-btn:active {
-    transform: scale(0.92);
-    background: rgba(51, 65, 85, 0.95);
-    border-color: #00d2d3;
-}
-
-.touch-btn-action {
-    background: rgba(46, 204, 113, 0.25);
-    border-color: rgba(46, 204, 113, 0.6);
-}
-
-.touch-btn-dash {
-    background: rgba(0, 210, 211, 0.25);
-    border-color: rgba(0, 210, 211, 0.6);
-}
-
-.touch-btn-slam {
-    background: rgba(243, 156, 18, 0.25);
-    border-color: rgba(243, 156, 18, 0.6);
-}
-
-/* Footer */
-.game-footer {
-    margin-top: auto;
-    padding: 14px;
-    font-size: 12px;
-    color: var(--text-muted);
-    text-align: center;
-}
-
-.game-footer a {
-    color: #00d2d3;
-    text-decoration: none;
+    width: 64px;
+    height: 56px;
+    padding: 0;
+    font-size: 18px;
 }
 
 /* ==========================================
-   USER PROFILE & GOOGLE AUTHENTICATION STYLES
+   FOOTER
    ========================================== */
-
-/* Header Profile Pill */
-.btn-profile {
-    background: #172334;
-    border: 1px solid #00d2d3;
-    padding: 4px 10px;
-    gap: 8px;
-}
-
-.btn-profile:hover {
-    background: #1e314a;
-    border-color: #38ef7d;
-}
-
-.header-avatar-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    font-size: 13px;
-    line-height: 1;
-}
-
-.header-avatar-img {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 1px solid #00d2d3;
-}
-
-.header-username {
-    font-weight: 700;
+.game-footer {
+    margin-top: auto;
+    padding: 14px;
+    font-size: 18px;
     color: #fff;
-    max-width: 110px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    text-align: center;
+    text-shadow: 2px 2px 0 #3f3f3f;
 }
 
-.header-level-badge {
-    background: #f39c12;
-    color: #000;
-    font-size: 10px;
-    font-weight: 800;
-    padding: 2px 5px;
-    border-radius: 4px;
-}
-
-.google-pill-tag {
-    background: #4285F4;
-    color: #fff;
-    font-weight: 900;
-    font-size: 9px;
-    padding: 1px 4px;
-    border-radius: 3px;
-    margin-right: -2px;
-}
-
-/* Home Screen Profile Banner */
-.home-profile-banner {
+/* ==========================================
+   PROFILE / AUTH
+   ========================================== */
+.home-profile-banner,
+.home-arena-banner {
     width: 100%;
-    max-width: 760px;
-    background: linear-gradient(90deg, rgba(0, 210, 211, 0.12) 0%, rgba(243, 156, 18, 0.12) 100%);
-    border: 1px solid rgba(0, 210, 211, 0.35);
-    border-radius: 10px;
-    padding: 12px 18px;
+    max-width: 640px;
+    background: var(--panel);
+    border: 3px solid #000;
+    box-shadow: inset 3px 3px 0 var(--panel-light), inset -3px -3px 0 #1a1a1a, 0 4px 0 #1a1a1a;
+    padding: 12px 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 18px;
+    gap: 12px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    position: relative;
+    top: 0;
 }
 
-.home-profile-banner:hover {
-    background: linear-gradient(90deg, rgba(0, 210, 211, 0.22) 0%, rgba(243, 156, 18, 0.22) 100%);
-    border-color: #00d2d3;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0, 210, 211, 0.2);
+.home-profile-banner:hover,
+.home-arena-banner:hover {
+    background: #3a3a3a;
 }
 
-.hp-left {
+.home-profile-banner:active,
+.home-arena-banner:active {
+    top: 4px;
+    box-shadow: inset 3px 3px 0 #1a1a1a, inset -3px -3px 0 var(--panel-light), 0 0 0 #1a1a1a;
+}
+
+.hp-left,
+.ha-left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 16px;
 }
 
-.hp-icon {
-    font-size: 26px;
+.home-cube {
+    width: 72px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
 }
 
-.hp-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: #fff;
-}
-
-.hp-desc {
+.hp-title,
+.ha-title {
+    font-family: var(--font-pixel);
     font-size: 12px;
+    color: #fff;
+    margin-bottom: 6px;
+    text-shadow: 2px 2px 0 #3f3f3f;
+}
+
+.hp-desc,
+.ha-desc {
+    font-size: 18px;
     color: var(--text-muted);
 }
 
-.hp-btn {
-    background: #00d2d3;
-    color: #090d13;
-    border: none;
-    padding: 7px 14px;
-    border-radius: 6px;
-    font-weight: 700;
-    font-size: 12px;
-    cursor: pointer;
-    transition: background 0.15s;
-    white-space: nowrap;
+.hp-btn,
+.ha-btn {
+    min-width: 120px;
 }
 
-.hp-btn:hover {
-    background: #48dbfb;
-}
-
-/* Auth Modal Card */
-.modal-auth-card {
-    max-width: 560px;
-    width: 95%;
-}
+.modal-auth-card { max-width: 560px; width: 95%; }
 
 .auth-section {
-    background: rgba(0, 0, 0, 0.25);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 8px;
-    padding: 14px;
-    margin-bottom: 14px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 2px solid #000;
+    padding: 12px;
+    margin-bottom: 12px;
 }
 
 .auth-sec-title {
-    font-size: 14px;
-    color: #00d2d3;
-    font-weight: 700;
-    margin-bottom: 4px;
+    font-family: var(--font-pixel);
+    font-weight: normal;
+    font-size: 10px;
+    line-height: 1.4;
+    color: #55ff55;
+    margin-bottom: 8px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
 }
 
 .auth-sec-desc {
-    font-size: 11px;
+    font-size: 17px;
     color: var(--text-muted);
     margin-bottom: 10px;
 }
 
-/* Google Sign-In Button */
 .btn-google-signin {
     width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    background: #ffffff;
-    color: #3c4043;
-    border: 1px solid #dadce0;
-    border-radius: 6px;
-    padding: 10px 16px;
-    font-size: 14px;
-    font-weight: 600;
-    font-family: 'Roboto', system-ui, sans-serif;
-    cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-    transition: all 0.15s ease;
+    background: #fff;
+    color: #202124;
+    text-shadow: none;
 }
 
 .btn-google-signin:hover {
-    background: #f8f9fa;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-    border-color: #c6c6c6;
+    background: #e8e8e8;
+    color: #202124;
 }
 
 .google-disclaimer {
-    font-size: 11px;
+    font-size: 17px;
     color: var(--text-muted);
     margin-top: 8px;
     text-align: center;
@@ -763,10 +925,10 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(46, 204, 113, 0.1);
-    border: 1px solid rgba(46, 204, 113, 0.3);
-    border-radius: 6px;
-    padding: 10px 14px;
+    gap: 10px;
+    background: rgba(93, 168, 62, 0.25);
+    border: 2px solid #000;
+    padding: 10px 12px;
 }
 
 .google-user-info {
@@ -776,43 +938,16 @@ body {
 }
 
 .google-check-icon {
-    background: #2ecc71;
+    background: var(--grass);
     color: #fff;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    font-weight: 900;
+    border: 2px solid #000;
+    padding: 0 4px;
+    font-size: 16px;
 }
 
-.google-name {
-    font-size: 13px;
-    font-weight: 700;
-    color: #fff;
-}
+.google-name { color: #fff; }
+.google-status { font-size: 17px; color: #55ff55; }
 
-.google-status {
-    font-size: 11px;
-    color: #2ecc71;
-}
-
-.btn-signout {
-    background: rgba(231, 76, 60, 0.2);
-    border-color: rgba(231, 76, 60, 0.5);
-    color: #ff6b6b;
-    font-size: 11px;
-    padding: 5px 10px;
-}
-
-.btn-signout:hover {
-    background: rgba(231, 76, 60, 0.4);
-    border-color: #e74c3c;
-}
-
-/* Username Input Row */
 .username-input-row {
     display: flex;
     gap: 8px;
@@ -820,94 +955,69 @@ body {
 
 .auth-input {
     flex-grow: 1;
-    background: #111927;
-    border: 1px solid #2e3e57;
-    border-radius: 6px;
-    padding: 8px 12px;
+    min-width: 0;
+    background: #000;
+    border: 3px solid var(--stone-mid);
+    padding: 6px 10px;
     color: #fff;
-    font-size: 14px;
-    font-family: inherit;
+    font-size: 22px;
+    font-family: var(--font-body);
     outline: none;
-    transition: border 0.15s;
 }
 
 .auth-input:focus {
-    border-color: #00d2d3;
-    box-shadow: 0 0 0 2px rgba(0, 210, 211, 0.2);
-}
-
-.btn-save-name {
-    background: #00d2d3;
-    color: #000;
-    border-color: #00d2d3;
-    font-weight: 700;
-}
-
-.btn-save-name:hover {
-    background: #48dbfb;
-    border-color: #48dbfb;
+    border-color: #fff;
 }
 
 .form-feedback {
-    font-size: 11px;
+    font-size: 17px;
     margin-top: 6px;
-    min-height: 16px;
+    min-height: 18px;
 }
 
-.form-feedback.success {
-    color: #2ecc71;
-}
+.form-feedback.success { color: #55ff55; }
+.form-feedback.error { color: #ff5555; }
 
-.form-feedback.error {
-    color: #e74c3c;
-}
-
-/* Avatar Picker Grid */
 .avatar-picker-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(46px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
     gap: 10px;
 }
 
 .avatar-choice {
-    width: 46px;
-    height: 46px;
-    border-radius: 50%;
+    width: 52px;
+    height: 52px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    border: 2px solid transparent;
-    transition: transform 0.15s, border 0.15s;
-    overflow: hidden;
+    border: 3px solid #000;
+    background: var(--stone-mid);
+    position: relative;
+    top: 0;
 }
 
-.avatar-choice:hover {
-    transform: scale(1.1);
-}
+.avatar-choice:hover { background: #7c8bd6; }
+.avatar-choice:active { top: 3px; }
 
 .avatar-choice.selected {
-    border-color: #00d2d3;
-    box-shadow: 0 0 10px rgba(0, 210, 211, 0.6);
-    transform: scale(1.12);
+    border-color: #fff;
+    background: var(--grass);
 }
 
 .avatar-choice img {
-    width: 100%;
-    height: 100%;
+    width: 40px;
+    height: 40px;
     object-fit: cover;
 }
 
-.avatar-icon {
-    font-size: 22px;
-}
-
-/* Career Stats in Auth Modal */
 .career-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 10px;
     margin-bottom: 12px;
+    flex-wrap: wrap;
 }
 
 .career-rank-badge {
@@ -916,27 +1026,20 @@ body {
     gap: 8px;
 }
 
-.rank-name {
-    font-size: 14px;
-    font-weight: 800;
-    color: #f1c40f;
-}
+.rank-name { color: var(--gold); }
 
 .level-pill {
-    background: #34495e;
+    background: var(--stone-mid);
+    border: 2px solid #000;
     color: #fff;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 10px;
+    font-size: 16px;
+    padding: 0 6px;
 }
 
-.xp-bar-wrapper {
-    width: 150px;
-}
+.xp-bar-wrapper { width: 150px; }
 
 .xp-label {
-    font-size: 10px;
+    font-size: 16px;
     color: var(--text-muted);
     text-align: right;
     margin-bottom: 2px;
@@ -944,16 +1047,16 @@ body {
 
 .xp-track {
     width: 100%;
-    height: 6px;
-    background: #1e2736;
-    border-radius: 3px;
-    overflow: hidden;
+    height: 12px;
+    background: #000;
+    border: 2px solid #000;
+    outline: 2px solid var(--stone-mid);
 }
 
 .xp-fill {
     height: 100%;
-    background: linear-gradient(90deg, #00d2d3, #2ecc71);
-    transition: width 0.3s ease;
+    background: #7fe036;
+    transition: width 0.3s steps(8);
 }
 
 .career-stats-grid {
@@ -963,105 +1066,91 @@ body {
 }
 
 .career-stat-card {
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 2px solid #000;
     padding: 8px;
     text-align: center;
 }
 
 .cs-val {
     display: block;
-    font-size: 16px;
-    font-weight: 800;
+    font-size: 24px;
     color: #fff;
 }
 
 .cs-label {
     display: block;
-    font-size: 10px;
+    font-size: 16px;
     color: var(--text-muted);
-    margin-top: 2px;
 }
 
-/* Google Chooser Modal */
+/* Google Chooser */
 .google-chooser-card {
     max-width: 440px;
-    background: #ffffff;
-    color: #3c4043;
+    background: var(--panel);
+    color: #fff;
 }
 
 .google-chooser-header {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 16px;
-    border-bottom: 1px solid #e0e0e0;
-    padding-bottom: 12px;
+    margin-bottom: 14px;
+    border-bottom: 4px solid #000;
+    padding-bottom: 10px;
     position: relative;
 }
 
 .google-chooser-header h3 {
-    font-size: 16px;
-    color: #202124;
-    margin: 0;
+    font-family: var(--font-pixel);
+    font-weight: normal;
+    font-size: 11px;
+    color: #fff;
 }
 
 .google-chooser-header p {
-    font-size: 12px;
-    color: #5f6368;
-    margin: 2px 0 0 0;
+    font-size: 17px;
+    color: var(--text-muted);
+    margin-top: 4px;
 }
 
 .google-chooser-header .btn-close-modal {
     position: absolute;
     right: 0;
     top: 0;
-    color: #5f6368;
 }
 
 .google-account-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
 }
 
 .google-acc-row {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    border: 1px solid #e0e0e0;
+    padding: 8px 10px;
+    border: 3px solid #000;
+    background: var(--stone-mid);
     cursor: pointer;
-    transition: background 0.15s;
 }
 
-.google-acc-row:hover {
-    background: #f1f3f4;
-}
+.google-acc-row:hover { background: #7c8bd6; }
 
 .google-acc-img {
     width: 38px;
     height: 38px;
-    border-radius: 50%;
     object-fit: cover;
+    border: 2px solid #000;
 }
 
-.google-acc-name {
-    font-size: 13px;
-    font-weight: 600;
-    color: #202124;
-}
-
-.google-acc-email {
-    font-size: 11px;
-    color: #5f6368;
-}
+.google-acc-name { color: #fff; }
+.google-acc-email { font-size: 16px; color: #ddd; }
 
 .google-custom-divider {
     text-align: center;
-    margin: 14px 0 10px 0;
+    margin: 14px 0 10px;
     position: relative;
 }
 
@@ -1071,16 +1160,16 @@ body {
     left: 0;
     top: 50%;
     width: 100%;
-    height: 1px;
-    background: #e0e0e0;
+    height: 2px;
+    background: #000;
 }
 
 .google-custom-divider span {
     position: relative;
-    background: #ffffff;
+    background: var(--panel);
     padding: 0 8px;
-    font-size: 11px;
-    color: #70757a;
+    font-size: 17px;
+    color: var(--text-muted);
 }
 
 .google-custom-email-row {
@@ -1088,296 +1177,108 @@ body {
     gap: 8px;
 }
 
-.google-custom-email-row .auth-input {
-    background: #fff;
-    color: #202124;
-    border-color: #dadce0;
-}
-
 /* ==========================================
-   ARMORY, SKINS, ARENA & LEADERBOARD STYLES
+   ARMORY, SKINS, ARENA & LEADERBOARD
    ========================================== */
-
-/* Gold Balance Pill */
-.gold-pill {
-    background: linear-gradient(135deg, rgba(241, 196, 15, 0.25), rgba(243, 156, 18, 0.15));
-    border: 1px solid #f1c40f;
-    color: #f1c40f;
-    font-weight: 800;
-    font-size: 13px;
-    padding: 5px 10px;
-    border-radius: 6px;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    box-shadow: 0 0 10px rgba(241, 196, 15, 0.2);
-}
-
-.btn-gold {
-    border-color: #f1c40f !important;
-    color: #f1c40f !important;
-}
-
-.btn-cyan {
-    border-color: #00d2d3 !important;
-    color: #00d2d3 !important;
-}
-
-.btn-download {
-    background: linear-gradient(135deg, #05c46b, #0be881) !important;
-    border-color: #05c46b !important;
-    color: #111 !important;
-    font-weight: 700 !important;
-    box-shadow: 0 2px 10px rgba(5, 196, 107, 0.35);
-}
-
-.btn-download:hover {
-    background: linear-gradient(135deg, #0be881, #05c46b) !important;
-    transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 4px 14px rgba(5, 196, 107, 0.55);
-}
-
-.header-tier-tag {
-    font-size: 9px;
-    font-weight: 800;
-    padding: 1px 5px;
-    border-radius: 3px;
-    color: #fff;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.6);
-}
-
-/* Home Banners Row */
-.home-banners-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    width: 100%;
-    max-width: 760px;
-    margin-bottom: 16px;
-}
-
-@media (max-width: 680px) {
-    .home-banners-row {
-        grid-template-columns: 1fr;
-    }
-}
-
-.home-arena-banner {
-    background: linear-gradient(90deg, rgba(155, 89, 182, 0.18) 0%, rgba(0, 210, 211, 0.18) 100%);
-    border: 1px solid rgba(155, 89, 182, 0.45);
-    border-radius: 10px;
-    padding: 12px 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.home-arena-banner:hover {
-    background: linear-gradient(90deg, rgba(155, 89, 182, 0.28) 0%, rgba(0, 210, 211, 0.28) 100%);
-    border-color: #9b59b6;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(155, 89, 182, 0.3);
-}
-
-.ha-left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.ha-icon {
-    font-size: 24px;
-}
-
-.ha-title {
-    font-size: 13px;
-    font-weight: 700;
-    color: #fff;
-}
-
-.ha-desc {
-    font-size: 11px;
-    color: var(--text-muted);
-}
-
-.ha-btn {
-    background: #9b59b6;
-    color: #fff;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-weight: 700;
-    font-size: 11px;
-    cursor: pointer;
-    white-space: nowrap;
-}
-
-.modal-subtitle {
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-bottom: 16px;
-    line-height: 1.4;
-}
-
-/* Armory & Weapons Shop Modal */
-.modal-weapons-card {
-    max-width: 640px;
-    width: 95%;
-}
+.modal-weapons-card { max-width: 640px; width: 95%; }
 
 .weapons-list-container {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
 }
 
-.weapon-shop-card {
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    padding: 14px;
-    transition: all 0.2s;
+.weapon-shop-card,
+.skin-card,
+.arena-section,
+.action-box {
+    background: rgba(0, 0, 0, 0.35);
+    border: 3px solid #000;
+    padding: 12px;
 }
 
-.weapon-shop-card.equipped {
-    border-color: #00d2d3;
-    background: rgba(0, 210, 211, 0.06);
+.weapon-shop-card.equipped,
+.skin-card.equipped {
+    border-color: var(--grass);
 }
 
 .weapon-shop-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 10px;
     margin-bottom: 8px;
 }
 
 .ws-left {
     display: flex;
     align-items: center;
-    gap: 10px;
-}
-
-.ws-icon {
-    font-size: 26px;
+    gap: 12px;
 }
 
 .ws-title {
-    font-size: 16px;
-    font-weight: 700;
-    color: #fff;
-}
-
-.ws-cat {
+    font-family: var(--font-pixel);
     font-size: 11px;
-    color: #00d2d3;
-    font-weight: 600;
+    color: #fff;
+    margin-bottom: 4px;
 }
 
-.ws-desc {
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-bottom: 8px;
-}
+.ws-cat { font-size: 17px; color: #55ffff; }
+.ws-desc { font-size: 18px; color: var(--text-muted); margin-bottom: 8px; }
 
 .ws-stats-row {
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
-    font-size: 11px;
-    background: rgba(0, 0, 0, 0.2);
+    font-size: 17px;
+    background: rgba(0, 0, 0, 0.35);
     padding: 6px 10px;
-    border-radius: 6px;
     margin-bottom: 10px;
 }
 
-.ws-stats-row b {
-    color: #fff;
-}
+.ws-stats-row b { color: #fff; }
 
-.badge-equipped {
-    background: #00d2d3;
-    color: #090d13;
-    font-weight: 800;
-    font-size: 10px;
-    padding: 4px 8px;
-    border-radius: 4px;
-}
-
+.badge-equipped,
 .badge-max {
-    background: #e67e22;
+    display: inline-block;
+    background: var(--grass);
     color: #fff;
-    font-weight: 800;
-    font-size: 9px;
-    padding: 3px 6px;
-    border-radius: 3px;
+    border: 2px solid #000;
+    text-shadow: 2px 2px 0 #1f3f12;
+    font-size: 16px;
+    padding: 2px 8px;
 }
+
+.badge-max { background: #e67e22; text-shadow: 2px 2px 0 #4a2800; }
 
 .weapon-upgrades-section {
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 3px solid #000;
     padding-top: 8px;
 }
 
 .wu-header {
-    font-size: 12px;
-    font-weight: 700;
-    color: #f1c40f;
-    margin-bottom: 6px;
+    font-family: var(--font-pixel);
+    font-size: 10px;
+    color: var(--gold);
+    margin-bottom: 8px;
 }
 
-.wu-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
+.wu-list { display: flex; flex-direction: column; gap: 6px; }
 
 .wu-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(255, 255, 255, 0.03);
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.06);
     padding: 6px 10px;
-    border-radius: 6px;
 }
 
-.wu-name {
-    font-weight: 700;
-    font-size: 12px;
-    color: #fff;
-    margin-right: 6px;
-}
+.wu-name { color: #fff; margin-right: 6px; }
+.wu-level { font-size: 16px; color: #55ffff; }
+.wu-desc { font-size: 16px; color: var(--text-muted); }
 
-.wu-level {
-    font-size: 10px;
-    color: #00d2d3;
-    font-weight: 700;
-}
-
-.wu-desc {
-    font-size: 10px;
-    color: var(--text-muted);
-}
-
-.btn-upgrade-weap {
-    background: #f39c12;
-    color: #000;
-    font-weight: 700;
-    font-size: 11px;
-    border: none;
-    padding: 4px 8px;
-}
-
-.btn-upgrade-weap:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-/* Skins Shop Modal */
-.modal-skins-card {
-    max-width: 600px;
-    width: 95%;
-}
+.modal-skins-card { max-width: 620px; width: 95%; }
 
 .skins-grid-container {
     display: grid;
@@ -1386,119 +1287,57 @@ body {
 }
 
 .skin-card {
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    padding: 12px;
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
-    transition: all 0.2s;
-}
-
-.skin-card.equipped {
-    border-color: #00d2d3;
-    box-shadow: 0 0 10px rgba(0, 210, 211, 0.3);
 }
 
 .skin-avatar-preview {
-    font-size: 38px;
-    margin-bottom: 6px;
-}
-
-.skin-name {
-    font-size: 13px;
-    font-weight: 700;
-    color: #fff;
-    margin-bottom: 4px;
-}
-
-.skin-desc {
-    font-size: 10px;
-    color: var(--text-muted);
-    margin-bottom: 10px;
-    min-height: 28px;
-}
-
-.skin-action {
-    width: 100%;
-}
-
-.skin-action .btn-ctrl {
-    width: 100%;
+    height: 72px;
+    display: flex;
+    align-items: center;
     justify-content: center;
-    font-size: 11px;
+    margin-bottom: 8px;
 }
 
-/* Arena Hub Modal */
-.modal-arena-card {
-    max-width: 680px;
-    width: 95%;
-}
+.skin-name { color: #fff; margin-bottom: 4px; }
+.skin-desc { font-size: 16px; color: var(--text-muted); margin-bottom: 10px; min-height: 36px; }
+.skin-action { width: 100%; }
+.skin-action .btn-ctrl { width: 100%; }
+
+/* Arena Hub */
+.modal-arena-card { max-width: 680px; width: 95%; }
 
 .arena-rank-banner {
-    background: linear-gradient(90deg, #162438, #223755);
-    border: 1px solid #3d5a80;
-    border-radius: 8px;
-    padding: 14px 18px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 3px solid #000;
+    padding: 12px 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
-}
-
-.arb-left {
-    display: flex;
-    align-items: center;
     gap: 12px;
+    margin-bottom: 14px;
 }
 
-.arb-icon {
-    font-size: 32px;
-}
-
-.arb-tier {
-    font-size: 18px;
-    font-weight: 800;
-}
-
-.arb-rp {
-    font-size: 12px;
-    color: #bdc3c7;
-}
-
-.arb-progress {
-    width: 180px;
-}
+.arb-left { display: flex; align-items: center; gap: 12px; }
+.arb-icon .tier-pip { width: 28px; height: 28px; }
+.arb-tier { font-size: 24px; }
+.arb-rp { font-size: 17px; color: #ddd; }
+.arb-progress { width: 180px; }
 
 .arb-track {
     width: 100%;
-    height: 8px;
-    background: #101a26;
-    border-radius: 4px;
-    overflow: hidden;
+    height: 12px;
+    background: #000;
+    outline: 2px solid var(--stone-mid);
     margin-bottom: 4px;
 }
 
-.arb-fill {
-    height: 100%;
-    transition: width 0.3s;
-}
+.arb-fill { height: 100%; transition: width 0.3s steps(8); }
+.arb-next { font-size: 16px; color: var(--text-muted); text-align: right; }
 
-.arb-next {
-    font-size: 10px;
-    color: var(--text-muted);
-    text-align: right;
-}
-
-.arena-section {
-    background: rgba(0, 0, 0, 0.25);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 8px;
-    padding: 14px;
-    margin-bottom: 12px;
-}
+.arena-section { margin-bottom: 12px; }
 
 .arena-modes-row {
     display: grid;
@@ -1507,215 +1346,108 @@ body {
 }
 
 .arena-mode-pill {
-    background: #172334;
-    border: 1px solid #2e3e57;
-    border-radius: 8px;
-    padding: 12px 8px;
-    color: #fff;
-    cursor: pointer;
-    display: flex;
     flex-direction: column;
-    align-items: center;
-    text-align: center;
-    transition: all 0.2s;
+    height: auto;
+    min-height: 64px;
+    white-space: normal;
+    gap: 2px;
 }
 
-.arena-mode-pill:hover {
-    border-color: #00d2d3;
-}
+.amp-title { font-size: 20px; }
+.amp-sub { font-size: 16px; color: #eee; text-shadow: none; }
 
-.arena-mode-pill.active {
-    border-color: #00d2d3;
-    background: rgba(0, 210, 211, 0.12);
-    box-shadow: 0 0 12px rgba(0, 210, 211, 0.3);
-}
-
-.amp-icon {
-    font-size: 22px;
-    margin-bottom: 4px;
-}
-
-.amp-title {
-    font-size: 13px;
-    font-weight: 700;
-}
-
-.amp-sub {
-    font-size: 10px;
-    color: var(--text-muted);
-    margin-top: 2px;
-}
-
-.arena-wep-grid {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.arena-wep-card {
-    background: #16202e;
-    border: 1px solid #28374d;
-    border-radius: 6px;
-    padding: 8px 12px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    font-size: 12px;
-    color: #fff;
-    font-weight: 600;
-    transition: all 0.15s;
-}
-
-.arena-wep-card:hover {
-    border-color: #00d2d3;
-}
-
-.arena-wep-card.selected {
-    border-color: #00d2d3;
-    background: rgba(0, 210, 211, 0.15);
-}
+.arena-wep-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+.arena-wep-card { min-width: 96px; }
 
 .arena-actions-split {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 14px;
+    gap: 12px;
 }
 
 @media (max-width: 600px) {
-    .arena-actions-split {
-        grid-template-columns: 1fr;
-    }
-}
-
-.action-box {
-    background: rgba(0, 0, 0, 0.25);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 6px;
-    padding: 12px;
+    .arena-actions-split { grid-template-columns: 1fr; }
 }
 
 .action-box h4 {
-    font-size: 13px;
+    font-family: var(--font-pixel);
+    font-weight: normal;
+    font-size: 10px;
     color: #fff;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
 }
 
 .action-box p {
-    font-size: 11px;
+    font-size: 17px;
     color: var(--text-muted);
     margin-bottom: 10px;
 }
 
-.btn-submit-arena {
-    width: 100%;
-    background: linear-gradient(135deg, #00d2d3, #0984e3);
-    color: #fff;
-    border: none;
-    padding: 10px;
-    border-radius: 6px;
-    font-weight: 800;
-    font-size: 13px;
-    cursor: pointer;
-    transition: transform 0.1s, box-shadow 0.2s;
-}
+.btn-submit-arena { width: 100%; }
 
-.btn-submit-arena:hover {
-    box-shadow: 0 4px 14px rgba(0, 210, 211, 0.4);
-    transform: translateY(-1px);
-}
-
-.private-controls-row {
-    margin-bottom: 8px;
-}
+.private-controls-row { margin-bottom: 8px; }
+.private-controls-row .btn-ctrl { width: 100%; }
 
 .private-room-panel {
-    background: rgba(0, 210, 211, 0.08);
-    border: 1px solid rgba(0, 210, 211, 0.3);
-    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 2px solid #000;
     padding: 8px 10px;
     margin-bottom: 8px;
-    font-size: 12px;
+    font-size: 18px;
 }
 
-.room-code-val {
-    color: #00d2d3;
-    font-family: monospace;
-    font-size: 14px;
-}
+.private-room-panel .btn-submit-arena { margin-top: 8px; }
 
-.join-private-row {
-    display: flex;
-    gap: 6px;
-}
+.room-code-val { color: #55ff55; font-size: 22px; }
 
-/* Queue Radar Modal */
+.join-private-row { display: flex; gap: 8px; }
+.join-private-row .btn-ctrl { min-width: 72px; padding: 4px 8px; }
+
+/* Queue modal (square pixel "radar") */
 .queue-card {
     max-width: 380px;
     text-align: center;
-    padding: 28px 20px;
+    padding: 24px 20px;
 }
+
+.queue-card .btn-ctrl { margin-top: 16px; }
 
 .queue-radar {
     position: relative;
-    width: 90px;
-    height: 90px;
-    margin: 0 auto 16px auto;
-    border-radius: 50%;
-    background: rgba(0, 210, 211, 0.05);
-    border: 2px solid #00d2d3;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 16px;
+    background: #000;
+    border: 4px solid var(--grass);
     overflow: hidden;
 }
 
 .radar-circle {
     position: absolute;
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    border: 1px dashed rgba(0, 210, 211, 0.5);
+    inset: 24px;
+    border: 4px dashed #3f7d2a;
 }
 
 .radar-sweep {
     position: absolute;
+    left: 0;
+    top: 0;
     width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    background: conic-gradient(from 0deg, rgba(0, 210, 211, 0.4) 0deg, transparent 90deg);
-    animation: radarSpin 1.8s linear infinite;
+    height: 8px;
+    background: var(--grass);
+    animation: radarScan 1s steps(8) infinite alternate;
 }
 
-@keyframes radarSpin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+@keyframes radarScan {
+    from { top: 0; }
+    to   { top: calc(100% - 8px); }
 }
 
-.radar-icon {
-    font-size: 28px;
-    position: relative;
-    z-index: 2;
-}
+.queue-count { font-size: 24px; color: #55ff55; margin: 6px 0; }
+.queue-timer { font-size: 20px; color: var(--text-muted); }
 
-.queue-count {
-    font-size: 15px;
-    color: #00d2d3;
-    font-weight: 700;
-    margin: 6px 0;
-}
-
-.queue-timer {
-    font-size: 13px;
-    color: var(--text-muted);
-    font-family: monospace;
-}
-
-/* National Leaderboard Modal */
-.modal-leaderboard-card {
-    max-width: 720px;
-    width: 95%;
-}
+/* Leaderboard */
+.modal-leaderboard-card { max-width: 720px; width: 95%; }
 
 .leaderboard-tier-explainer {
     display: flex;
@@ -1725,83 +1457,45 @@ body {
 }
 
 .lte-badge {
-    font-size: 10px;
-    font-weight: 800;
-    padding: 3px 7px;
-    border-radius: 4px;
+    font-size: 16px;
+    padding: 2px 8px;
     color: #fff;
+    border: 2px solid #000;
 }
 
-.leaderboard-list-container {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
+.leaderboard-list-container { display: flex; flex-direction: column; gap: 6px; }
 
 .leaderboard-row {
     display: grid;
     grid-template-columns: 50px 1.5fr 1fr 80px 1fr 70px;
     align-items: center;
-    background: rgba(0, 0, 0, 0.25);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 6px;
-    padding: 8px 12px;
-    font-size: 12px;
-    transition: background 0.15s;
+    background: rgba(0, 0, 0, 0.35);
+    border: 2px solid #000;
+    padding: 6px 12px;
+    font-size: 18px;
 }
 
-.leaderboard-row:hover {
-    background: rgba(255, 255, 255, 0.04);
-}
+.leaderboard-row:hover { background: rgba(255, 255, 255, 0.08); }
+.leaderboard-row.top-three { border-color: var(--gold); }
+.leaderboard-row.user-highlight { border-color: #55ff55; background: rgba(93, 168, 62, 0.25); }
 
-.leaderboard-row.top-three {
-    border-color: rgba(241, 196, 15, 0.4);
-    background: rgba(241, 196, 15, 0.06);
-}
+.lb-rank { color: var(--gold); }
+.lb-player { display: flex; align-items: center; gap: 8px; color: #fff; }
+.lb-flag .px-head { border-width: 2px; }
+.lb-tier { font-size: 17px; }
+.lb-rp { color: #55ffff; }
+.lb-weapon { color: var(--text-muted); }
+.lb-winrate { color: #55ff55; }
 
-.leaderboard-row.user-highlight {
-    border-color: #00d2d3;
-    background: rgba(0, 210, 211, 0.12);
-    box-shadow: 0 0 10px rgba(0, 210, 211, 0.2);
-}
-
-.lb-rank {
-    font-weight: 800;
-    color: #f1c40f;
-}
-
-.lb-player {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-weight: 700;
-    color: #fff;
-}
-
-.lb-flag {
-    font-size: 15px;
-}
-
-.lb-tier {
-    font-weight: 700;
-    font-size: 11px;
-}
-
-.lb-rp {
-    color: #00d2d3;
-}
-
-.lb-weapon {
-    color: var(--text-muted);
-}
-
-.lb-winrate {
-    color: #2ecc71;
-    font-weight: 700;
+@media (max-width: 700px) {
+    .game-title { font-size: 13px; }
+    .menu-title-banner h1 { font-size: 16px; }
+    .leaderboard-row { grid-template-columns: 40px 1.5fr 1fr 70px; }
+    .lb-weapon, .lb-winrate { display: none; }
 }
 
 </style>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚔️</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 8 8%22 shape-rendering=%22crispEdges%22><rect width=%228%22 height=%228%22 fill=%22%235b4129%22/><rect y=%220%22 width=%228%22 height=%222%22 fill=%22%234fae3c%22/></svg>">
     <!-- Google Identity Services (GIS) Client Library -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -1809,40 +1503,28 @@ body {
 
     <!-- Header Navigation -->
     <header class="game-header">
-        <div class="logo-group">
-            <span class="logo-icon">⚔️</span>
-            <div>
-                <h1 class="game-title">SPEAR-MACE PVP</h1>
+        <div class="header-top">
+            <h1 class="game-title">SPEAR-MACE PVP</h1>
+            <div class="header-top-right">
+                <!-- Gold Currency Balance -->
+                <div id="gold-display" class="gold-pill" title="Your Gold Balance">Gold: 500</div>
+                <!-- User Profile & Sign-In Badge -->
+                <button id="btn-user-profile" class="btn-ctrl btn-profile" title="Player Profile & Google Sign-In">
+                    <span class="header-username">Steve</span>
+                    <span class="header-level-badge">Lv.1</span>
+                </button>
             </div>
         </div>
         <div class="top-bar-controls">
-            <!-- Gold Currency Balance -->
-            <div id="gold-display" class="gold-pill" title="Your Gold Balance">💰 500</div>
-
-            <!-- Armory & Skins -->
-            <button id="btn-armory" class="btn-ctrl btn-gold" title="Equip & Upgrade Minecraft Weapons">⚔️ Armory</button>
-            <button id="btn-skins" class="btn-ctrl" title="Minecraft & Roblox Block Face Skins">🎭 Skins</button>
-
-            <!-- Multiplayer Arena & Leaderboard -->
-            <button id="btn-arena" class="btn-ctrl btn-cyan" title="1v1, 2v2, 5v5 Arena Matchmaking">🏟️ Arena Hub</button>
-            <button id="btn-leaderboard" class="btn-ctrl" title="National Obsidian Leaderboard">🏆 Ranked</button>
-
-            <!-- User Profile & Sign-In Badge -->
-            <button id="btn-user-profile" class="btn-ctrl btn-profile" title="Player Profile & Google Sign-In">
-                <span class="header-avatar-icon">⚔️</span>
-                <span class="header-username">Steve</span>
-                <span class="header-level-badge">Lv.1</span>
-            </button>
-
-            <!-- Download Standalone HTML Button -->
-            <button id="btn-download" class="btn-ctrl btn-download" title="Download Game as a Single-File Standalone HTML Document">📥 Download .html</button>
-
-            <!-- Utility Controls -->
-            <button id="btn-style" class="btn-ctrl" title="Toggle Graphics Style">🎨 Style: Enhanced</button>
-            <button id="btn-mute" class="btn-ctrl" title="Toggle Audio">🔊 Sound On</button>
-            <button id="btn-stats" class="btn-ctrl" title="View Match Statistics">📊 Stats</button>
-            <button id="btn-restart" class="btn-ctrl" title="Restart Match (R)">🔄 Restart</button>
-            <button id="btn-home" class="btn-ctrl" title="Home Menu (H)">🏠 Home</button>
+            <button id="btn-armory" class="btn-ctrl" title="Equip & Upgrade Minecraft Weapons">Armory</button>
+            <button id="btn-skins" class="btn-ctrl" title="Minecraft & Roblox Block Face Skins">Skins</button>
+            <button id="btn-leaderboard" class="btn-ctrl" title="National Obsidian Leaderboard">Ranked</button>
+            <button id="btn-stats" class="btn-ctrl" title="View Match Statistics">Stats</button>
+            <button id="btn-style" class="btn-ctrl" title="Toggle Graphics Style">Style: Enhanced</button>
+            <button id="btn-mute" class="btn-ctrl" title="Toggle Audio">Sound On</button>
+            <button id="btn-restart" class="btn-ctrl" title="Restart Match (R)">Restart</button>
+            <button id="btn-home" class="btn-ctrl" title="Home Menu (H)">Home</button>
+            <button id="btn-download" class="btn-ctrl" title="Download Game as a Single-File Standalone HTML Document">Download</button>
         </div>
     </header>
 
@@ -1854,54 +1536,86 @@ body {
         <div id="menu-overlay" class="overlay">
             <div class="menu-title-banner">
                 <h1>Spear-Mace PVP</h1>
-                <p>Inspired by Minecraft Spear & Mace Aerial Combat • Khan Academy Remaster</p>
+                <p>Minecraft Spear &amp; Mace Aerial Combat</p>
             </div>
 
-            <!-- Banners: Arena Hub & Gamer Profile -->
-            <div class="home-banners-row">
-                <div id="home-arena-banner" class="home-arena-banner" title="Enter Arena Matches (1v1, 2v2, 5v5)">
-                    <div class="ha-left">
-                        <span class="ha-icon">🏟️</span>
-                        <div>
-                            <div class="ha-title">Multiplayer Arena Hub</div>
-                            <div class="ha-desc">Queuing & Lobby for 1v1, 2v2, 5v5 • Climb from Bronze to Obsidian Tier</div>
-                        </div>
+            <!-- Carousel: use the side arrows to browse every match type -->
+            <div class="carousel">
+                <button id="car-prev" class="car-arrow" aria-label="Previous page">
+                    <svg viewBox="0 0 8 8" shape-rendering="crispEdges" width="22" height="22" fill="currentColor"><rect x="5" y="0" width="2" height="1"/><rect x="4" y="1" width="2" height="1"/><rect x="3" y="2" width="2" height="1"/><rect x="2" y="3" width="2" height="1"/><rect x="2" y="4" width="2" height="1"/><rect x="3" y="5" width="2" height="1"/><rect x="4" y="6" width="2" height="1"/><rect x="5" y="7" width="2" height="1"/></svg>
+                </button>
+
+                <div class="car-viewport">
+                    <div id="car-track" class="car-track">
+
+                        <!-- Page 1: Home / Profile -->
+                        <section class="car-slide" data-title="Home">
+                            <div id="home-profile-banner" class="home-profile-banner" title="Click to edit Gamer Tag or Sign In with Google">
+                                <div class="hp-left">
+                                    <div id="home-cube" class="home-cube"></div>
+                                    <div>
+                                        <div id="hp-name" class="hp-title">Steve</div>
+                                        <div class="hp-desc">Sign in, set your Gamer Tag and track career stats</div>
+                                    </div>
+                                </div>
+                                <button class="hp-btn">Profile</button>
+                            </div>
+                            <p class="car-hint">Use the side arrows to find Bot Battles, Versus matches and the Arena.</p>
+                            <div class="menu-key-guide">
+                                <div><span class="key-pill">WASD</span> or <span class="key-pill">ARROWS</span> Move</div>
+                                <div><span class="key-pill">UP</span> Jump / Double Jump</div>
+                                <div><span class="key-pill">SPACE</span> Attack / Dash / Shoot</div>
+                                <div><span class="key-pill">DOWN</span> / <span class="key-pill">S</span> Mace Slam</div>
+                                <div><span class="key-pill">ESC</span> Pause</div>
+                            </div>
+                        </section>
+
+                        <!-- Page 2: Bot Battles -->
+                        <section class="car-slide" data-title="Bot Battles">
+                            <div id="mode-cards" class="mode-cards-grid">
+                                <!-- Dynamically populated by ui.js -->
+                            </div>
+                        </section>
+
+                        <!-- Page 3: Versus & Sandbox -->
+                        <section class="car-slide" data-title="Versus &amp; Sandbox">
+                            <div id="mode-cards-versus" class="mode-cards-grid">
+                                <!-- Dynamically populated by ui.js -->
+                            </div>
+                        </section>
+
+                        <!-- Page 4: Arena -->
+                        <section class="car-slide" data-title="Arena Matches">
+                            <div id="home-arena-banner" class="home-arena-banner" title="Enter Arena Matches (1v1, 2v2, 5v5)">
+                                <div class="ha-left">
+                                    <div>
+                                        <div class="ha-title">Multiplayer Arena Hub</div>
+                                        <div class="ha-desc">Queue for 1v1, 2v2 and 5v5 matches. Climb from Bronze to Obsidian.</div>
+                                    </div>
+                                </div>
+                                <button class="ha-btn">Enter Arena</button>
+                            </div>
+                        </section>
                     </div>
-                    <button class="ha-btn">Enter Arena →</button>
                 </div>
 
-                <div id="home-profile-banner" class="home-profile-banner" title="Click to edit Gamer Tag or Sign In with Google">
-                    <div class="hp-left">
-                        <span class="hp-icon">🎮</span>
-                        <div>
-                            <div class="hp-title">Player Profile & Auth</div>
-                            <div class="hp-desc">Sign in with Google, customize your Gamer Tag & track career stats</div>
-                        </div>
-                    </div>
-                    <button class="hp-btn">Profile →</button>
-                </div>
+                <button id="car-next" class="car-arrow" aria-label="Next page">
+                    <svg viewBox="0 0 8 8" shape-rendering="crispEdges" width="22" height="22" fill="currentColor"><rect x="1" y="0" width="2" height="1"/><rect x="2" y="1" width="2" height="1"/><rect x="3" y="2" width="2" height="1"/><rect x="4" y="3" width="2" height="1"/><rect x="4" y="4" width="2" height="1"/><rect x="3" y="5" width="2" height="1"/><rect x="2" y="6" width="2" height="1"/><rect x="1" y="7" width="2" height="1"/></svg>
+                </button>
             </div>
 
-            <!-- Single Player & Bot Modes Grid -->
-            <div id="mode-cards" class="mode-cards-grid">
-                <!-- Dynamically populated by ui.js -->
-            </div>
-
-            <!-- Keyboard Guide Footer -->
-            <div class="menu-key-guide">
-                <div><span class="key-pill">WASD</span> or <span class="key-pill">ARROWS</span> Move</div>
-                <div><span class="key-pill">UP</span> Jump / Double Jump</div>
-                <div><span class="key-pill">SPACE</span> Attack / Spear Dash / Shoot Bow</div>
-                <div><span class="key-pill">DOWN</span> / <span class="key-pill">S</span> Mace Slam</div>
-                <div><span class="key-pill">ESC</span> Pause</div>
+            <div class="car-footer">
+                <div id="car-title" class="car-title">Home</div>
+                <div id="car-dots" class="car-dots"></div>
             </div>
         </div>
+
 
         <!-- Armory & Weapons Shop Modal -->
         <div id="weapons-modal" class="modal-backdrop hidden">
             <div class="modal-card modal-weapons-card">
                 <div class="modal-header">
-                    <h2>⚔️ Minecraft Weapons Armory & Enchantments</h2>
+                    <h2>Weapons Armory & Enchantments</h2>
                     <button class="btn-close-modal">&times;</button>
                 </div>
                 <p class="modal-subtitle">Equip your preferred weapon. Spend Gold earned from defeating bots and arena matches to unlock new weapons and upgrade Minecraft enchantments!</p>
@@ -1915,7 +1629,7 @@ body {
         <div id="skins-modal" class="modal-backdrop hidden">
             <div class="modal-card modal-skins-card">
                 <div class="modal-header">
-                    <h2>🎭 Block Face Skins Shop</h2>
+                    <h2>Block Face Skins Shop</h2>
                     <button class="btn-close-modal">&times;</button>
                 </div>
                 <p class="modal-subtitle">Switch between Steve, Alex, iconic Roblox block faces, Creepers, Endermen, and more!</p>
@@ -1929,7 +1643,7 @@ body {
         <div id="arena-modal" class="modal-backdrop hidden">
             <div class="modal-card modal-arena-card">
                 <div class="modal-header">
-                    <h2>🏟️ Aerial Combat Arena Hub</h2>
+                    <h2>Aerial Combat Arena Hub</h2>
                     <button class="btn-close-modal">&times;</button>
                 </div>
 
@@ -1943,17 +1657,17 @@ body {
                     <h3 class="auth-sec-title">1. Select Battle Size</h3>
                     <div class="arena-modes-row">
                         <button class="arena-mode-pill" data-mode="1v1">
-                            <span class="amp-icon">⚔️</span>
+                            
                             <span class="amp-title">1 v 1 Duel</span>
                             <span class="amp-sub">Pure Solo Aerial Combat</span>
                         </button>
                         <button class="arena-mode-pill active" data-mode="2v2">
-                            <span class="amp-icon">👥</span>
+                            
                             <span class="amp-title">2 v 2 Tag Team</span>
                             <span class="amp-sub">Co-op Team Strategy</span>
                         </button>
                         <button class="arena-mode-pill" data-mode="5v5">
-                            <span class="amp-icon">🔥</span>
+                            
                             <span class="amp-title">5 v 5 Epic Brawl</span>
                             <span class="amp-sub">Full 10-Player Chaos</span>
                         </button>
@@ -1965,23 +1679,23 @@ body {
                     <h3 class="auth-sec-title">2. Choose Your Weapon Loadout</h3>
                     <div class="arena-wep-grid">
                         <div class="arena-wep-card selected" data-wep="mace">
-                            <span class="awc-icon">🔨</span>
+                            
                             <span class="awc-name">Mace</span>
                         </div>
                         <div class="arena-wep-card" data-wep="spear">
-                            <span class="awc-icon">🗡️</span>
+                            
                             <span class="awc-name">Spear</span>
                         </div>
                         <div class="arena-wep-card" data-wep="sword">
-                            <span class="awc-icon">⚔️</span>
+                            
                             <span class="awc-name">Sword</span>
                         </div>
                         <div class="arena-wep-card" data-wep="fists">
-                            <span class="awc-icon">👊</span>
+                            
                             <span class="awc-name">Fists</span>
                         </div>
                         <div class="arena-wep-card" data-wep="bow">
-                            <span class="awc-icon">🏹</span>
+                            
                             <span class="awc-name">Bow</span>
                         </div>
                     </div>
@@ -1994,7 +1708,7 @@ body {
                         <div class="action-box">
                             <h4>Public Matchmaking</h4>
                             <p>Queue up and enter live arena matches against ranked fighters.</p>
-                            <button id="btn-arena-find-match" class="btn-submit-arena">⚡ Find Match / Queue</button>
+                            <button id="btn-arena-find-match" class="btn-submit-arena">Find Match / Queue</button>
                         </div>
                         <div class="action-box">
                             <h4>Private Room</h4>
@@ -2004,7 +1718,7 @@ body {
                             </div>
                             <div id="private-room-panel" class="private-room-panel hidden">
                                 <div>Room Code: <b id="private-room-code-display" class="room-code-val">----</b></div>
-                                <button id="btn-launch-private" class="btn-submit-arena" style="margin-top:8px;">Start Private Match</button>
+                                <button id="btn-launch-private" class="btn-submit-arena">Start Private Match</button>
                             </div>
                             <div class="join-private-row">
                                 <input type="text" id="input-join-code" class="auth-input" placeholder="Enter Room Code">
@@ -2022,12 +1736,12 @@ body {
                 <div class="queue-radar">
                     <div class="radar-circle"></div>
                     <div class="radar-sweep"></div>
-                    <span class="radar-icon">⚔️</span>
+                    
                 </div>
                 <h3 id="queue-status-text">Searching for opponents...</h3>
                 <div id="queue-count-text" class="queue-count">1 / 4 Players</div>
                 <div id="queue-timer-text" class="queue-timer">0:00</div>
-                <button id="btn-cancel-queue" class="btn-ctrl" style="margin-top:16px;">Cancel Matchmaking</button>
+                <button id="btn-cancel-queue" class="btn-ctrl">Cancel Matchmaking</button>
             </div>
         </div>
 
@@ -2035,15 +1749,15 @@ body {
         <div id="leaderboard-modal" class="modal-backdrop hidden">
             <div class="modal-card modal-leaderboard-card">
                 <div class="modal-header">
-                    <h2>👑 National Obsidian Leaderboard</h2>
+                    <h2>National Obsidian Leaderboard</h2>
                     <button class="btn-close-modal">&times;</button>
                 </div>
                 <div class="leaderboard-tier-explainer">
-                    <span class="lte-badge" style="background:#cd7f32">🥉 Bronze</span>
-                    <span class="lte-badge" style="background:#bdc3c7; color:#000;">🥈 Silver</span>
-                    <span class="lte-badge" style="background:#f1c40f; color:#000;">🥇 Gold</span>
-                    <span class="lte-badge" style="background:#00d2d3; color:#000;">💎 Diamond</span>
-                    <span class="lte-badge" style="background:#9b59b6">👑 Obsidian (Top Tier)</span>
+                    <span class="lte-badge" style="background:#cd7f32">Bronze</span>
+                    <span class="lte-badge" style="background:#bdc3c7; color:#000;">Silver</span>
+                    <span class="lte-badge" style="background:#f1c40f; color:#000;">Gold</span>
+                    <span class="lte-badge" style="background:#00d2d3; color:#000;">Diamond</span>
+                    <span class="lte-badge" style="background:#9b59b6">Obsidian (Top Tier)</span>
                 </div>
                 <div id="leaderboard-list-container" class="leaderboard-list-container">
                     <!-- Populated by ui.js -->
@@ -2055,7 +1769,7 @@ body {
         <div id="auth-modal" class="modal-backdrop hidden">
             <div class="modal-card modal-auth-card">
                 <div class="modal-header">
-                    <h2>👤 Player Profile & Google Sign-In</h2>
+                    <h2>Player Profile & Google Sign-In</h2>
                     <button class="btn-close-modal">&times;</button>
                 </div>
 
@@ -2073,7 +1787,7 @@ body {
                     <p class="auth-sec-desc">This name appears in matches, on the health bar, and on the victory screen.</p>
                     <div class="username-input-row">
                         <input type="text" id="input-username" class="auth-input" placeholder="Enter username" maxlength="16" autocomplete="off">
-                        <button id="btn-random-username" class="btn-ctrl" type="button" title="Generate random Gamer Tag">🎲 Random</button>
+                        <button id="btn-random-username" class="btn-ctrl" type="button" title="Generate random Gamer Tag">Random</button>
                         <button id="btn-save-username" class="btn-ctrl btn-save-name" type="button">Save</button>
                     </div>
                     <div id="username-feedback" class="form-feedback"></div>
@@ -2136,9 +1850,9 @@ body {
                 </div>
                 <p style="color: var(--text-muted); margin-bottom: 20px;">Take a breather or review your match strategy.</p>
                 <div class="modal-actions">
-                    <button id="btn-resume" class="btn-ctrl" style="background:#00d2d3; color:#000; font-weight:bold;">▶ Resume Match</button>
-                    <button id="btn-pause-restart" class="btn-ctrl">🔄 Restart</button>
-                    <button id="btn-pause-home" class="btn-ctrl">🏠 Home Menu</button>
+                    <button id="btn-resume" class="btn-ctrl">Resume</button>
+                    <button id="btn-pause-restart" class="btn-ctrl">Restart</button>
+                    <button id="btn-pause-home" class="btn-ctrl">Home Menu</button>
                 </div>
             </div>
         </div>
@@ -2147,14 +1861,14 @@ body {
         <div id="custom-bot-modal" class="modal-backdrop hidden">
             <div class="modal-card">
                 <div class="modal-header">
-                    <h2>🛠️ Custom Bot Sandbox</h2>
+                    <h2>Custom Bot Sandbox</h2>
                     <button class="btn-close-modal">&times;</button>
                 </div>
                 <form id="custom-bot-form">
                     <div id="custom-bot-fields" class="custom-bot-fields">
                         <!-- Populated by ui.js -->
                     </div>
-                    <button type="submit" class="btn-submit-custom">⚔️ Deploy Custom Bot Match</button>
+                    <button type="submit" class="btn-submit-custom">Deploy Custom Bot Match</button>
                 </form>
             </div>
         </div>
@@ -2163,7 +1877,7 @@ body {
         <div id="stats-modal" class="modal-backdrop hidden">
             <div class="modal-card">
                 <div class="modal-header">
-                    <h2>📊 Match Statistics</h2>
+                    <h2>Match Statistics</h2>
                     <button class="btn-close-modal">&times;</button>
                 </div>
                 <div id="stats-body">
@@ -2176,13 +1890,13 @@ body {
     <!-- Mobile Touch Controls -->
     <div id="touch-controls" class="touch-controls hidden">
         <div class="touch-cluster">
-            <button id="touch-left" class="touch-btn" aria-label="Left">◀</button>
-            <button id="touch-right" class="touch-btn" aria-label="Right">▶</button>
+            <button id="touch-left" class="touch-btn" aria-label="Left">&lt;</button>
+            <button id="touch-right" class="touch-btn" aria-label="Right">&gt;</button>
         </div>
         <div class="touch-cluster">
-            <button id="touch-jump" class="touch-btn touch-btn-action" aria-label="Jump">▲</button>
-            <button id="touch-dash" class="touch-btn touch-btn-dash" aria-label="Attack / Dash">💨</button>
-            <button id="touch-slam" class="touch-btn touch-btn-slam" aria-label="Slam">🔨</button>
+            <button id="touch-jump" class="touch-btn touch-btn-action" aria-label="Jump">JUMP</button>
+            <button id="touch-dash" class="touch-btn touch-btn-dash" aria-label="Attack / Dash">DASH</button>
+            <button id="touch-slam" class="touch-btn touch-btn-slam" aria-label="Slam">SLAM</button>
         </div>
     </div>
 
@@ -2372,6 +2086,230 @@ body {
       }
   
       return params;
+  }
+  
+
+  // ===== pixel.js =====
+  // ==========================================
+  // SPEAR-MACE PVP - Pixel Art Helpers
+  // Procedurally generated Minecraft-style textures:
+  //  - dirt background tile
+  //  - 8x8 block heads (Steve, Alex, mobs) + rotating 3D cube avatars
+  //  - 16x16 weapon icons
+  // No external image assets are needed.
+  // ==========================================
+  
+  const PX_CACHE = {};
+  
+  function pxCanvas(w, h) {
+      const c = document.createElement("canvas");
+      c.width = w;
+      c.height = h;
+      return c;
+  }
+  
+  // Darken / lighten a #rrggbb color by an amount (-1..1)
+  function pxShade(hex, amt) {
+      const n = parseInt(hex.slice(1), 16);
+      let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+      const f = (v) => Math.max(0, Math.min(255, Math.round(amt >= 0 ? v + (255 - v) * amt : v * (1 + amt))));
+      r = f(r); g = f(g); b = f(b);
+      return `rgb(${r},${g},${b})`;
+  }
+  
+  // Tiny deterministic noise so the textures feel like Minecraft blocks
+  function pxNoise(x, y, seed = 0) {
+      const v = Math.sin(x * 127.1 + y * 311.7 + seed * 74.7) * 43758.5453;
+      return v - Math.floor(v);
+  }
+  
+  // ------------------------------------------
+  // DIRT BACKGROUND (what the Minecraft menus use)
+  // ------------------------------------------
+  function applyMinecraftBackground() {
+      const c = pxCanvas(16, 16);
+      const ctx = c.getContext("2d");
+      const base = ["#5b4129", "#503824", "#654a30", "#483221", "#6b4e33"];
+      for (let y = 0; y < 16; y++) {
+          for (let x = 0; x < 16; x++) {
+              const i = Math.floor(pxNoise(x, y, 3) * base.length);
+              ctx.fillStyle = base[i];
+              ctx.fillRect(x, y, 1, 1);
+          }
+      }
+      // A few darker pebbles
+      ctx.fillStyle = "#3a2a1b";
+      for (let k = 0; k < 10; k++) {
+          ctx.fillRect(Math.floor(pxNoise(k, 1, 9) * 16), Math.floor(pxNoise(k, 2, 9) * 16), 1, 1);
+      }
+      document.documentElement.style.setProperty("--dirt", `url(${c.toDataURL()})`);
+  }
+  
+  // ------------------------------------------
+  // BLOCK HEADS
+  // Pattern legend per skin palette: H hair, S skin, W white, P pupil, M mouth/nose, D dark
+  // ------------------------------------------
+  const PX_HEADS = {
+      steve: {
+          pal: { H: "#3b2a17", S: "#c4936a", W: "#ffffff", P: "#4a3f9e", M: "#7a4d30" },
+          hairRows: 3, hair: "#3b2a17", skin: "#c4936a",
+          front: ["HHHHHHHH", "HHHHHHHH", "HSSSSSSH", "SSSSSSSS", "SWPSSPWS", "SSSMMSSS", "SSMMMMSS", "SSMSSMSS"]
+      },
+      alex: {
+          pal: { H: "#c9792a", S: "#e6b48f", W: "#ffffff", P: "#3f8a3f", M: "#b9826b" },
+          hairRows: 3, hair: "#c9792a", skin: "#e6b48f",
+          front: ["HHHHHHHH", "HHHHHHHH", "HHSSSSHH", "HSSSSSSH", "SWPSSPWS", "SSSSSSSS", "SSSMMSSS", "SSSSSSSS"]
+      },
+      noob: {
+          pal: { S: "#f2d21f", D: "#222222" },
+          hairRows: 0, skin: "#f2d21f", hair: "#f2d21f",
+          front: ["SSSSSSSS", "SSSSSSSS", "SSSSSSSS", "SSDSSDSS", "SSSSSSSS", "SDSSSSDS", "SSDDDDSS", "SSSSSSSS"]
+      },
+      man_face: {
+          pal: { H: "#2d2d2d", S: "#e8c690", D: "#111111" },
+          hairRows: 2, hair: "#2d2d2d", skin: "#e8c690",
+          front: ["HHHHHHHH", "HHHHHHHH", "SSSSSSSS", "SDDSSDDS", "SSDSSSDS", "SSSSSSSS", "SSSSDDDS", "SSSSSSSS"]
+      },
+      creeper: {
+          pal: { G: "#4fae3c", B: "#1a1a1a", L: "#3d8a2e" },
+          hairRows: 0, skin: "#4fae3c", hair: "#4fae3c",
+          front: ["GGLGGGLG", "GBBGGBBG", "GBBGGBBG", "GGGBBGGG", "GGBBBBGG", "GLBBBBGG", "GGBGGBGG", "GGGGLGGG"]
+      },
+      enderman: {
+          pal: { K: "#16101c", P: "#e07cff", Q: "#ffffff" },
+          hairRows: 0, skin: "#16101c", hair: "#16101c",
+          front: ["KKKKKKKK", "KKKKKKKK", "KKKKKKKK", "KKKKKKKK", "KQPKKPQK", "KKKKKKKK", "KKKKKKKK", "KKKKKKKK"]
+      },
+      skeleton: {
+          pal: { S: "#d6d6d6", L: "#bdbdbd", D: "#4a4a4a" },
+          hairRows: 0, skin: "#d6d6d6", hair: "#d6d6d6",
+          front: ["SSSLSSSS", "SSSSSSLS", "SSSSSSSS", "SDDSSDDS", "SDDSSDDS", "SSSDDSSS", "SDSDSDSD", "SSDSDSDS"]
+      },
+      zombie: {
+          pal: { H: "#2f5f27", S: "#5a9a45", P: "#2a3a8a", M: "#2f5f27", D: "#3d6e32" },
+          hairRows: 2, hair: "#2f5f27", skin: "#5a9a45",
+          front: ["HHHHHHHH", "HHHHHHHH", "SSSSSSSS", "SSSSSSSS", "SPPSSPPS", "SSSDDSSS", "SSMMMMSS", "SSSSSSSS"]
+      },
+      diamond_knight: {
+          pal: { C: "#3fd6d6", B: "#1d9aa0", V: "#10222b", W: "#d9ffff" },
+          hairRows: 0, skin: "#3fd6d6", hair: "#2ab5b8",
+          front: ["BBBBBBBB", "BCCCCCCB", "CCCCCCCC", "VVVVVVVV", "VWVVVVWV", "CCCCCCCC", "CBCCCCBC", "BBBBBBBB"]
+      }
+  };
+  
+  // Avatar presets in auth.js that don't have their own head use these
+  const PX_PRESET_HEAD = {
+      steve: "steve", alex: "alex", mace_knight: "diamond_knight", wind_breeze: "skeleton",
+      nether_warrior: "zombie", ender_champion: "enderman", golden_paladin: "noob", shadow_bot: "creeper"
+  };
+  
+  function pxDrawTexture(rows, pal, size = 8, seed = 0) {
+      const c = pxCanvas(size, size);
+      const ctx = c.getContext("2d");
+      for (let y = 0; y < size; y++) {
+          for (let x = 0; x < size; x++) {
+              const ch = rows[y][x];
+              const col = pal[ch] || "#ff00ff";
+              const n = pxNoise(x, y, seed);
+              ctx.fillStyle = pxShade(col, (n - 0.5) * 0.12);
+              ctx.fillRect(x, y, 1, 1);
+          }
+      }
+      return c.toDataURL();
+  }
+  
+  function pxSolidTexture(col, seed = 0) {
+      const rows = Array(8).fill("SSSSSSSS");
+      return pxDrawTexture(rows, { S: col }, 8, seed);
+  }
+  
+  // Returns { front, back, left, right, top, bottom } data URLs for a head.
+  function headTextures(skinId) {
+      const id = PX_HEADS[skinId] ? skinId : (PX_PRESET_HEAD[skinId] || "steve");
+      const key = "head:" + id;
+      if (PX_CACHE[key]) return PX_CACHE[key];
+  
+      const h = PX_HEADS[id];
+      const front = pxDrawTexture(h.front, h.pal, 8, 1);
+  
+      const sideRows = [];
+      for (let y = 0; y < 8; y++) sideRows.push((y < h.hairRows ? "H" : "S").repeat(8));
+      const sidePal = { H: h.hair, S: h.skin };
+      const side = pxDrawTexture(sideRows, sidePal, 8, 2);
+      const back = pxSolidTexture(h.hairRows > 0 ? h.hair : h.skin, 4);
+      const top = pxSolidTexture(h.hair, 5);
+      const bottom = pxSolidTexture(h.skin, 6);
+  
+      PX_CACHE[key] = { front, back, left: side, right: side, top, bottom };
+      return PX_CACHE[key];
+  }
+  
+  // Flat 2D head icon (just the face) as an <img>
+  function headImgHTML(skinId, size = 32, cls = "") {
+      const t = headTextures(skinId);
+      return `<img class="px-head ${cls}" src="${t.front}" width="${size}" height="${size}" alt="" style="width:${size}px;height:${size}px">`;
+  }
+  
+  // Rotating 3D cube whose faces are the Minecraft head textures
+  function cubeHTML(skinId, size = 40) {
+      const t = headTextures(skinId);
+      const faces = ["front", "back", "left", "right", "top", "bottom"]
+          .map(f => `<span class="cube-face cube-${f}" style="background-image:url(${t[f]})"></span>`)
+          .join("");
+      return `<span class="cube-wrap" style="--s:${size}px"><span class="cube">${faces}</span></span>`;
+  }
+  
+  function presetHeadId(presetId) {
+      return PX_PRESET_HEAD[presetId] || "steve";
+  }
+  
+  // Small colored square used in place of tier medals
+  function tierPipHTML(tier) {
+      return `<span class="tier-pip" style="background:${tier.color}"></span>`;
+  }
+  
+  // ------------------------------------------
+  // WEAPON ICONS (16x16 sprites)
+  // ------------------------------------------
+  function pxWeaponSprite(id) {
+      const c = pxCanvas(16, 16);
+      const ctx = c.getContext("2d");
+      const px = (x, y, col) => { ctx.fillStyle = col; ctx.fillRect(x, y, 1, 1); };
+      const rect = (x, y, w, h, col) => { ctx.fillStyle = col; ctx.fillRect(x, y, w, h); };
+      const wood = "#8a5a2b", woodD = "#5e3b1c";
+  
+      if (id === "sword") {
+          for (let i = 0; i < 10; i++) { px(5 + i, 10 - i, "#f0f0f0"); px(6 + i, 10 - i, "#aeb7bd"); }
+          for (let k = 0; k < 5; k++) px(3 + k, 9 + k, woodD);
+          px(4, 12, wood); px(3, 13, wood); px(2, 14, woodD);
+      } else if (id === "spear") {
+          for (let i = 0; i < 12; i++) { px(1 + i, 14 - i, wood); px(2 + i, 14 - i, woodD); }
+          rect(12, 2, 2, 2, "#cfd6db"); px(14, 1, "#f0f0f0"); px(15, 0, "#f0f0f0"); px(11, 3, "#aeb7bd"); px(13, 1, "#aeb7bd");
+      } else if (id === "fists") {
+          rect(2, 6, 5, 6, "#d9a577"); rect(2, 10, 5, 2, "#b8855a");
+          rect(9, 4, 5, 6, "#d9a577"); rect(9, 8, 5, 2, "#b8855a");
+          rect(2, 6, 5, 1, "#f0c79d"); rect(9, 4, 5, 1, "#f0c79d");
+      } else if (id === "bow") {
+          [[9, 1], [10, 2], [11, 3], [11, 4], [12, 5], [12, 6], [12, 7], [12, 8], [12, 9], [11, 10], [11, 11], [10, 12], [9, 13]]
+              .forEach(([x, y]) => px(x, y, wood));
+          for (let y = 1; y <= 13; y++) px(8, y, "#e8e8e8");
+          for (let x = 2; x <= 10; x++) px(x, 7, "#9aa3a8");
+          px(1, 7, "#d9d9d9"); px(1, 6, "#d9d9d9"); px(1, 8, "#d9d9d9");
+      } else { // mace
+          for (let i = 0; i < 10; i++) { px(2 + i, 14 - i, wood); px(3 + i, 14 - i, woodD); }
+          rect(9, 1, 6, 6, "#5a5f66");
+          rect(10, 2, 4, 4, "#8a9199");
+          rect(10, 2, 2, 2, "#c1c8cf");
+          rect(8, 3, 1, 2, "#3a3d42"); rect(15, 3, 1, 2, "#3a3d42");
+          rect(11, 0, 2, 1, "#3a3d42"); rect(11, 7, 2, 1, "#3a3d42");
+      }
+      return c.toDataURL();
+  }
+  
+  function weaponIconHTML(id, size = 32) {
+      const key = "wep:" + id;
+      if (!PX_CACHE[key]) PX_CACHE[key] = pxWeaponSprite(id);
+      return `<img class="px-icon" src="${PX_CACHE[key]}" width="${size}" height="${size}" alt="" style="width:${size}px;height:${size}px">`;
   }
   
 
@@ -2775,7 +2713,7 @@ body {
       mace: {
           id: "mace",
           name: "Minecraft Mace",
-          icon: "🔨",
+          icon: "",
           category: "Heavy Impact",
           desc: "Signature weapon. Height-scaled slam damage with orbital launches and ground shockwaves.",
           baseCost: 0, // Default starter weapon
@@ -2822,7 +2760,7 @@ body {
       spear: {
           id: "spear",
           name: "Wind Spear",
-          icon: "🗡️",
+          icon: "",
           category: "Wind Charge",
           desc: "Super-fast wind dashes on ground and air. Pierces through incoming attacks.",
           baseCost: 200,
@@ -2869,7 +2807,7 @@ body {
       sword: {
           id: "sword",
           name: "Diamond Sword",
-          icon: "⚔️",
+          icon: "",
           category: "Blade Slice",
           desc: "Shorter, precision dash slice that deals massive swift slash damage.",
           baseCost: 350,
@@ -2916,7 +2854,7 @@ body {
       fists: {
           id: "fists",
           name: "Steve Bare Fists",
-          icon: "👊",
+          icon: "",
           category: "Martial Brawl",
           desc: "Pure close-quarters Steve punches! Does brutal damage in hand-to-hand combat.",
           baseCost: 150,
@@ -2963,7 +2901,7 @@ body {
       bow: {
           id: "bow",
           name: "Enchanted Bow",
-          icon: "🏹",
+          icon: "",
           category: "Ranged Marksman",
           desc: "Fires deadly arrows from afar. Dash key shoots arrows with a reload cooldown.",
           baseCost: 500,
@@ -3172,7 +3110,7 @@ body {
           minRP: 0,
           maxRP: 499,
           color: "#cd7f32",
-          icon: "🥉",
+          icon: "",
           badge: "BRONZE"
       },
       silver: {
@@ -3181,7 +3119,7 @@ body {
           minRP: 500,
           maxRP: 999,
           color: "#bdc3c7",
-          icon: "🥈",
+          icon: "",
           badge: "SILVER"
       },
       gold: {
@@ -3190,7 +3128,7 @@ body {
           minRP: 1000,
           maxRP: 1499,
           color: "#f1c40f",
-          icon: "🥇",
+          icon: "",
           badge: "GOLD"
       },
       diamond: {
@@ -3199,7 +3137,7 @@ body {
           minRP: 1500,
           maxRP: 1999,
           color: "#00d2d3",
-          icon: "💎",
+          icon: "",
           badge: "DIAMOND"
       },
       obsidian: {
@@ -3208,22 +3146,22 @@ body {
           minRP: 2000,
           maxRP: Infinity,
           color: "#9b59b6",
-          icon: "👑",
+          icon: "",
           badge: "OBSIDIAN"
       }
   };
   
   const NATIONAL_LEADERBOARD_SEED = [
-      { rank: 1, name: "xX_MaceGod_Xx", rp: 2840, tier: "obsidian", wins: 342, winRate: "89%", weapon: "mace", flag: "🇺🇸", skin: "steve" },
-      { rank: 2, name: "SkySniper_Pro", rp: 2715, tier: "obsidian", wins: 298, winRate: "84%", weapon: "bow", flag: "🇨🇦", skin: "alex" },
-      { rank: 3, name: "DiamondSlicer", rp: 2640, tier: "obsidian", wins: 285, winRate: "82%", weapon: "sword", flag: "🇬🇧", skin: "man_face" },
-      { rank: 4, name: "BreezeTitan", rp: 2580, tier: "obsidian", wins: 260, winRate: "80%", weapon: "spear", flag: "🇩🇪", skin: "steve" },
-      { rank: 5, name: "NoobDestroyer99", rp: 2490, tier: "obsidian", wins: 245, winRate: "79%", weapon: "fists", flag: "🇯🇵", skin: "noob" },
-      { rank: 6, name: "ApexSlammer", rp: 2410, tier: "obsidian", wins: 231, winRate: "77%", weapon: "mace", flag: "🇦🇺", skin: "creeper" },
-      { rank: 7, name: "EnderValkyrie", rp: 2350, tier: "obsidian", wins: 219, winRate: "76%", weapon: "spear", flag: "🇫🇷", skin: "enderman" },
-      { rank: 8, name: "NetherKnight", rp: 2280, tier: "obsidian", wins: 208, winRate: "75%", weapon: "sword", flag: "🇧🇷", skin: "steve" },
-      { rank: 9, name: "GravityGhost", rp: 2190, tier: "obsidian", wins: 195, winRate: "74%", weapon: "mace", flag: "🇰🇷", skin: "skeleton" },
-      { rank: 10, name: "BowLegend_Infinity", rp: 2120, tier: "obsidian", wins: 184, winRate: "73%", weapon: "bow", flag: "🇸🇪", skin: "alex" }
+      { rank: 1, name: "xX_MaceGod_Xx", rp: 2840, tier: "obsidian", wins: 342, winRate: "89%", weapon: "mace", flag: "", skin: "steve" },
+      { rank: 2, name: "SkySniper_Pro", rp: 2715, tier: "obsidian", wins: 298, winRate: "84%", weapon: "bow", flag: "", skin: "alex" },
+      { rank: 3, name: "DiamondSlicer", rp: 2640, tier: "obsidian", wins: 285, winRate: "82%", weapon: "sword", flag: "", skin: "man_face" },
+      { rank: 4, name: "BreezeTitan", rp: 2580, tier: "obsidian", wins: 260, winRate: "80%", weapon: "spear", flag: "", skin: "steve" },
+      { rank: 5, name: "NoobDestroyer99", rp: 2490, tier: "obsidian", wins: 245, winRate: "79%", weapon: "fists", flag: "", skin: "noob" },
+      { rank: 6, name: "ApexSlammer", rp: 2410, tier: "obsidian", wins: 231, winRate: "77%", weapon: "mace", flag: "", skin: "creeper" },
+      { rank: 7, name: "EnderValkyrie", rp: 2350, tier: "obsidian", wins: 219, winRate: "76%", weapon: "spear", flag: "", skin: "enderman" },
+      { rank: 8, name: "NetherKnight", rp: 2280, tier: "obsidian", wins: 208, winRate: "75%", weapon: "sword", flag: "", skin: "steve" },
+      { rank: 9, name: "GravityGhost", rp: 2190, tier: "obsidian", wins: 195, winRate: "74%", weapon: "mace", flag: "", skin: "skeleton" },
+      { rank: 10, name: "BowLegend_Infinity", rp: 2120, tier: "obsidian", wins: 184, winRate: "73%", weapon: "bow", flag: "", skin: "alex" }
   ];
   
   class ArenaManager {
@@ -3335,7 +3273,7 @@ body {
               wins: userWins,
               winRate: userWinRate,
               weapon: userProfile.equippedWeapon || "mace",
-              flag: "🎮",
+              flag: "",
               skin: userProfile.skinId || "steve",
               isUser: true
           };
@@ -3376,26 +3314,26 @@ body {
   const STORAGE_KEY = "spear_mace_user_profile";
   
   const AVATAR_PRESETS = [
-      { id: "steve", name: "Steve", icon: "⚔️", bg: "#2ecc71" },
-      { id: "alex", name: "Alex", icon: "🏹", bg: "#e67e22" },
-      { id: "mace_knight", name: "Mace Knight", icon: "🔨", bg: "#3498db" },
-      { id: "wind_breeze", name: "Wind Breeze", icon: "💨", bg: "#00d2d3" },
-      { id: "nether_warrior", name: "Nether Titan", icon: "🔥", bg: "#e74c3c" },
-      { id: "ender_champion", name: "Ender Champion", icon: "👁️", bg: "#9b59b6" },
-      { id: "golden_paladin", name: "Gold Paladin", icon: "👑", bg: "#f1c40f" },
-      { id: "shadow_bot", name: "Shadow Rogue", icon: "🥷", bg: "#2c3e50" }
+      { id: "steve", name: "Steve", icon: "", bg: "#2ecc71" },
+      { id: "alex", name: "Alex", icon: "", bg: "#e67e22" },
+      { id: "mace_knight", name: "Mace Knight", icon: "", bg: "#3498db" },
+      { id: "wind_breeze", name: "Wind Breeze", icon: "", bg: "#00d2d3" },
+      { id: "nether_warrior", name: "Nether Titan", icon: "", bg: "#e74c3c" },
+      { id: "ender_champion", name: "Ender Champion", icon: "", bg: "#9b59b6" },
+      { id: "golden_paladin", name: "Gold Paladin", icon: "", bg: "#f1c40f" },
+      { id: "shadow_bot", name: "Shadow Rogue", icon: "", bg: "#2c3e50" }
   ];
   
   const BLOCK_FACES = [
-      { id: "steve", name: "Minecraft Steve", icon: "🟩", cost: 0, desc: "Classic Minecraft icon with cyan tee and brown hair." },
-      { id: "alex", name: "Minecraft Alex", icon: "🟧", cost: 0, desc: "Classic Minecraft explorer with green tunic and orange hair." },
-      { id: "noob", name: "Roblox Noob", icon: "🟨", cost: 100, desc: "The iconic yellow block head with simple smile and blue torso." },
-      { id: "man_face", name: "Roblox Man Face", icon: "😏", cost: 200, desc: "The legendary, unmistakable smirking block face." },
-      { id: "creeper", name: "Creeper Face", icon: "🧨", cost: 250, desc: "Pixelated green explosive face with iconic black frown." },
-      { id: "enderman", name: "Enderman", icon: "👁️", cost: 300, desc: "Deep dark obsidian head with glowing mystical violet eyes." },
-      { id: "skeleton", name: "Skeleton Skull", icon: "💀", cost: 250, desc: "Bone white archer skull with hollow dark eyes." },
-      { id: "zombie", name: "Zombie", icon: "🧟", cost: 200, desc: "Infected undead Steve with necrotic green skin." },
-      { id: "diamond_knight", name: "Diamond Helmet", icon: "💎", cost: 400, desc: "Gleaming enchanted diamond helmet warrior." }
+      { id: "steve", name: "Minecraft Steve", icon: "", cost: 0, desc: "Classic Minecraft icon with cyan tee and brown hair." },
+      { id: "alex", name: "Minecraft Alex", icon: "", cost: 0, desc: "Classic Minecraft explorer with green tunic and orange hair." },
+      { id: "noob", name: "Roblox Noob", icon: "", cost: 100, desc: "The iconic yellow block head with simple smile and blue torso." },
+      { id: "man_face", name: "Roblox Man Face", icon: "", cost: 200, desc: "The legendary, unmistakable smirking block face." },
+      { id: "creeper", name: "Creeper Face", icon: "", cost: 250, desc: "Pixelated green explosive face with iconic black frown." },
+      { id: "enderman", name: "Enderman", icon: "", cost: 300, desc: "Deep dark obsidian head with glowing mystical violet eyes." },
+      { id: "skeleton", name: "Skeleton Skull", icon: "", cost: 250, desc: "Bone white archer skull with hollow dark eyes." },
+      { id: "zombie", name: "Zombie", icon: "", cost: 200, desc: "Infected undead Steve with necrotic green skin." },
+      { id: "diamond_knight", name: "Diamond Helmet", icon: "", cost: 400, desc: "Gleaming enchanted diamond helmet warrior." }
   ];
   
   const RANDOM_USERNAMES = [
@@ -5021,38 +4959,30 @@ body {
               return;
           }
   
-          // Sky gradient
-          const skyGrad = ctx.createLinearGradient(0, 0, 0, this.height);
-          skyGrad.addColorStop(0, "#54a0ff");
-          skyGrad.addColorStop(0.7, "#a8dcff");
-          skyGrad.addColorStop(1, "#cbe8fc");
-          ctx.fillStyle = skyGrad;
+          // Flat Minecraft sky (no gradient)
+          ctx.fillStyle = "#79a6ff";
           ctx.fillRect(0, 0, this.width, this.height);
   
-          // Distant mountains
-          ctx.fillStyle = "rgba(72, 126, 176, 0.25)";
-          ctx.beginPath();
-          ctx.moveTo(0, this.height);
-          ctx.lineTo(0, 320);
-          ctx.lineTo(160, 260);
-          ctx.lineTo(340, 330);
-          ctx.lineTo(520, 250);
-          ctx.lineTo(680, 310);
-          ctx.lineTo(800, 270);
-          ctx.lineTo(800, this.height);
-          ctx.closePath();
-          ctx.fill();
+          // Blocky distant hills (stepped, flat colors)
+          ctx.fillStyle = "#5f8f4f";
+          const hills = [[0, 320], [80, 296], [160, 272], [240, 296], [320, 320], [400, 296], [480, 264], [560, 288], [640, 312], [720, 288]];
+          for (const [hx, hy] of hills) {
+              ctx.fillRect(hx, hy, 80, this.height - hy);
+          }
   
-          // Drifting clouds
-          ctx.fillStyle = "rgba(255, 255, 255, 0.65)";
+          // Drifting blocky clouds
+          ctx.fillStyle = "#ffffff";
           for (const cloud of this.clouds) {
               cloud.x += cloud.speed;
               if (cloud.x > this.width + 100) cloud.x = -150;
   
-              ctx.beginPath();
-              ctx.roundRect(cloud.x, cloud.y, cloud.w, 22, 10);
-              ctx.roundRect(cloud.x + 18, cloud.y - 10, cloud.w * 0.6, 24, 12);
-              ctx.fill();
+              const cx = Math.round(cloud.x / 8) * 8;
+              const cy = Math.round(cloud.y / 8) * 8;
+              ctx.fillRect(cx, cy, cloud.w, 16);
+              ctx.fillRect(cx + 16, cy - 8, Math.round(cloud.w * 0.6 / 8) * 8, 8);
+              ctx.fillStyle = "#dfe9ff";
+              ctx.fillRect(cx, cy + 16, cloud.w, 4);
+              ctx.fillStyle = "#ffffff";
           }
       }
   
@@ -5066,22 +4996,23 @@ body {
                   continue;
               }
   
-              // Stone platform
-              ctx.fillStyle = "#3e424b";
+              // Stone block platform with pixel brick lines
+              ctx.fillStyle = "#7d7d7d";
               ctx.fillRect(p.x, p.y, p.w, p.h);
+              ctx.fillStyle = "#5f5f5f";
+              for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                  ctx.fillRect(bx, p.y, 2, p.h);
+              }
+              ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
+              if (p.h > 12) ctx.fillRect(p.x, p.y + Math.floor(p.h / 2), p.w, 2);
   
-              // Brick outline texture
-              ctx.strokeStyle = "#2b2e36";
-              ctx.lineWidth = 2;
-              ctx.strokeRect(p.x + 1, p.y + 1, p.w - 2, p.h - 2);
-  
-              // Platform top trim
-              ctx.fillStyle = p.y >= 380 ? "#4da847" : "#5a626f";
-              ctx.fillRect(p.x, p.y, p.w, 4);
-  
-              // Top highlight
-              ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
-              ctx.fillRect(p.x, p.y, p.w, 1.5);
+              // Grass top (ground) or lighter stone cap (floating)
+              ctx.fillStyle = p.y >= 380 ? "#5da83e" : "#a4a4a4";
+              ctx.fillRect(p.x, p.y, p.w, 6);
+              ctx.fillStyle = p.y >= 380 ? "#3f7d2a" : "#808080";
+              for (let gx = p.x; gx < p.x + p.w; gx += 8) {
+                  ctx.fillRect(gx, p.y + 6, 4, 2);
+              }
           }
       }
   
@@ -6298,6 +6229,8 @@ body {
           this.downloadBtn = document.getElementById("btn-download");
   
           this.modeCardsContainer = document.getElementById("mode-cards");
+          this.modeCardsVersus = document.getElementById("mode-cards-versus");
+          this.carSlide = 0;
           this.touchControls = document.getElementById("touch-controls");
   
           // Arena Matchmaking State
@@ -6311,6 +6244,7 @@ body {
   
       init() {
           this.renderModeCards();
+          this.setupCarousel();
           this.setupEventListeners();
           this.setupCustomBotForm();
           this.setupAuthUI();
@@ -6321,11 +6255,63 @@ body {
           this.detectTouchDevice();
       }
   
+      // Home screen carousel: Home -> Bot Battles -> Versus & Sandbox -> Arena
+      setupCarousel() {
+          this.carTrack = document.getElementById("car-track");
+          this.carSlides = this.carTrack ? this.carTrack.querySelectorAll(".car-slide") : [];
+          this.carTitle = document.getElementById("car-title");
+          this.carDots = document.getElementById("car-dots");
+          const prev = document.getElementById("car-prev");
+          const next = document.getElementById("car-next");
+          if (!this.carTrack) return;
+  
+          if (this.carDots) {
+              this.carDots.innerHTML = "";
+              this.carSlides.forEach((_, i) => {
+                  const d = document.createElement("span");
+                  d.className = "car-dot";
+                  d.addEventListener("click", () => this.goToSlide(i));
+                  this.carDots.appendChild(d);
+              });
+          }
+  
+          if (prev) prev.addEventListener("click", () => this.goToSlide(this.carSlide - 1));
+          if (next) next.addEventListener("click", () => this.goToSlide(this.carSlide + 1));
+  
+          window.addEventListener("keydown", (e) => {
+              if (this.menuOverlay.classList.contains("hidden")) return;
+              if (document.querySelector(".modal-backdrop:not(.hidden)")) return;
+              if (e.key === "ArrowRight") this.goToSlide(this.carSlide + 1);
+              else if (e.key === "ArrowLeft") this.goToSlide(this.carSlide - 1);
+          });
+  
+          this.goToSlide(0, true);
+      }
+  
+      goToSlide(index, silent = false) {
+          if (!this.carTrack) return;
+          const max = this.carSlides.length - 1;
+          const i = Math.max(0, Math.min(max, index));
+          this.carSlide = i;
+          this.carTrack.style.transform = `translateX(${-i * 100}%)`;
+          if (this.carTitle) this.carTitle.textContent = this.carSlides[i].dataset.title || "";
+          if (this.carDots) {
+              [...this.carDots.children].forEach((d, k) => d.classList.toggle("active", k === i));
+          }
+          const prev = document.getElementById("car-prev");
+          const next = document.getElementById("car-next");
+          if (prev) prev.disabled = i === 0;
+          if (next) next.disabled = i === max;
+          if (!silent) sound.playClick();
+      }
+  
       renderModeCards() {
           if (!this.modeCardsContainer) return;
           this.modeCardsContainer.innerHTML = "";
+          if (this.modeCardsVersus) this.modeCardsVersus.innerHTML = "";
   
           const modes = ["practice", "easy", "normal", "pro", "god", "pvp", "custom"];
+          const versusModes = ["pvp", "custom"];
   
           modes.forEach((modeKey) => {
               const meta = MODE_METADATA[modeKey];
@@ -6352,11 +6338,22 @@ body {
                   }
               });
   
-              this.modeCardsContainer.appendChild(card);
+              const target = (versusModes.includes(modeKey) && this.modeCardsVersus) ? this.modeCardsVersus : this.modeCardsContainer;
+              target.appendChild(card);
           });
       }
   
       setupEventListeners() {
+          // Retro button press animation for every button
+          document.addEventListener("click", (e) => {
+              const b = e.target.closest("button, .btn-ctrl, .mode-card, .home-arena-banner, .home-profile-banner");
+              if (!b || b.disabled) return;
+              b.classList.remove("mc-press");
+              void b.offsetWidth;
+              b.classList.add("mc-press");
+              setTimeout(() => b.classList.remove("mc-press"), 220);
+          });
+  
           // Sound mute toggle
           if (this.muteBtn) {
               this.muteBtn.addEventListener("click", () => {
@@ -6372,7 +6369,7 @@ body {
                   const current = this.game.renderer.graphicStyle;
                   const next = current === "enhanced" ? "classic" : "enhanced";
                   this.game.renderer.setStyle(next);
-                  this.styleBtn.textContent = next === "enhanced" ? "🎨 Style: Enhanced" : "🟩 Style: Classic";
+                  this.styleBtn.textContent = next === "enhanced" ? "Style: Enhanced" : "Style: Classic";
                   sound.playClick();
               });
           }
@@ -6426,7 +6423,7 @@ body {
   
       updateMuteButton(isMuted) {
           if (!this.muteBtn) return;
-          this.muteBtn.textContent = isMuted ? "🔇 Unmute" : "🔊 Sound On";
+          this.muteBtn.textContent = isMuted ? "Unmute" : "Sound On";
       }
   
       // ==========================================
@@ -6437,8 +6434,9 @@ body {
           auth.onUserChanged((user) => {
               this.updateHeaderProfileBadge(user);
               if (this.goldDisplay) {
-                  this.goldDisplay.textContent = `💰 ${user.gold || 0}`;
+                  this.goldDisplay.textContent = `Gold: ${user.gold || 0}`;
               }
+              this.updateHomeProfile(user);
           });
   
           const profileBanner = document.getElementById("home-profile-banner");
@@ -6447,26 +6445,30 @@ body {
           }
       }
   
+      // Cube avatar uses Steve's or Alex's head (other presets map to a matching block head)
+      avatarHeadId(user) {
+          if (user.avatarType === "preset" && user.avatarVal) return presetHeadId(user.avatarVal);
+          return user.skinId === "alex" ? "alex" : "steve";
+      }
+  
+      updateHomeProfile(user) {
+          const cube = document.getElementById("home-cube");
+          if (cube) cube.innerHTML = cubeHTML(this.avatarHeadId(user), 56);
+          const name = document.getElementById("hp-name");
+          if (name) name.textContent = user.username || "Steve";
+      }
+  
       updateHeaderProfileBadge(user) {
           if (!this.userProfileBtn) return;
   
-          let avatarHtml = "⚔️";
-          if (user.avatarType === "url" && user.avatarUrl) {
-              avatarHtml = `<img src="${user.avatarUrl}" alt="Avatar" class="header-avatar-img">`;
-          } else {
-              const preset = AVATAR_PRESETS.find(p => p.id === user.avatarVal) || AVATAR_PRESETS[0];
-              avatarHtml = `<span class="header-avatar-icon" style="background:${preset.bg}">${preset.icon}</span>`;
-          }
-  
+          const avatarHtml = cubeHTML(this.avatarHeadId(user), 22);
           const isGoogle = user.authProvider === "google";
           const googleTag = isGoogle ? `<span class="google-pill-tag">G</span>` : "";
-          const tier = arena.getTier(user.arenaRP || 250);
   
           this.userProfileBtn.innerHTML = `
               ${avatarHtml}
               <span class="header-username">${user.username || "Steve"}</span>
               ${googleTag}
-              <span class="header-tier-tag" style="background:${tier.color}">${tier.icon} ${tier.name}</span>
               <span class="header-level-badge">Lv.${user.level}</span>
           `;
       }
@@ -6490,7 +6492,7 @@ body {
                   googleSection.innerHTML = `
                       <div class="google-connected-box">
                           <div class="google-user-info">
-                              <span class="google-check-icon">✓</span>
+                              <span class="google-check-icon">OK</span>
                               <div>
                                   <div class="google-name">${user.email ? user.email : "Connected Google Account"}</div>
                                   <div class="google-status">Google Account Connected</div>
@@ -6544,7 +6546,7 @@ body {
                   const result = auth.setUsername(usernameInput.value);
                   if (result.success) {
                       if (usernameFeedback) {
-                          usernameFeedback.textContent = "✓ Username saved successfully!";
+                          usernameFeedback.textContent = "Username saved successfully!";
                           usernameFeedback.className = "form-feedback success";
                       }
                       sound.playClick();
@@ -6577,8 +6579,7 @@ body {
                   const isSelected = (user.avatarType === 'preset' && user.avatarVal === preset.id);
                   const el = document.createElement("div");
                   el.className = `avatar-choice ${isSelected ? 'selected' : ''}`;
-                  el.style.backgroundColor = preset.bg;
-                  el.innerHTML = `<span class="avatar-icon">${preset.icon}</span>`;
+                                  el.innerHTML = headImgHTML(presetHeadId(preset.id), 40);
                   el.title = preset.name;
                   el.addEventListener("click", () => {
                       auth.setAvatar("preset", preset.id);
@@ -6600,7 +6601,7 @@ body {
               statsContainer.innerHTML = `
                   <div class="career-header">
                       <div class="career-rank-badge">
-                          <span class="rank-name" style="color:${tier.color}">${tier.icon} ${tier.name} Tier</span>
+                          <span class="rank-name" style="color:${tier.color}">${tierPipHTML(tier)} ${tier.name} Tier</span>
                           <span class="level-pill">Level ${user.level}</span>
                       </div>
                       <div class="xp-bar-wrapper">
@@ -6612,7 +6613,7 @@ body {
                   </div>
                   <div class="career-stats-grid">
                       <div class="career-stat-card">
-                          <span class="cs-val">💰 ${user.gold || 0}</span>
+                          <span class="cs-val">${user.gold || 0}</span>
                           <span class="cs-label">Gold</span>
                       </div>
                       <div class="career-stat-card">
@@ -6762,7 +6763,7 @@ body {
                                           ${isMax ? 
                                               `<span class="badge-max">MAX</span>` : 
                                               `<button class="btn-ctrl btn-upgrade-weap" data-upg="${u.id}" data-cost="${cost}" ${(!isUnlocked || gold < cost) ? 'disabled' : ''}>
-                                                  Upgrade (💰${cost})
+                                                  Upgrade (${cost} G)
                                               </button>`
                                           }
                                       </div>
@@ -6776,7 +6777,7 @@ body {
               card.innerHTML = `
                   <div class="weapon-shop-header">
                       <div class="ws-left">
-                          <span class="ws-icon">${w.icon}</span>
+                          <span class="ws-icon">${weaponIconHTML(w.id, 32)}</span>
                           <div>
                               <div class="ws-title">${w.name}</div>
                               <div class="ws-cat">${w.category}</div>
@@ -6788,7 +6789,7 @@ body {
                               (isUnlocked ? 
                                   `<button class="btn-ctrl btn-equip-weap" data-id="${w.id}">Equip</button>` :
                                   `<button class="btn-ctrl btn-unlock-weap" data-id="${w.id}" data-cost="${w.baseCost}" ${gold < w.baseCost ? 'disabled' : ''}>
-                                      Unlock (💰${w.baseCost})
+                                      Unlock (${w.baseCost} G)
                                   </button>`
                               )
                           }
@@ -6796,10 +6797,10 @@ body {
                   </div>
                   <div class="ws-desc">${w.desc}</div>
                   <div class="ws-stats-row">
-                      <span>⚔️ Base DMG: <b>${w.stats.dashDamage}</b></span>
-                      <span>💨 Speed: <b>${w.stats.dashSpeed}</b></span>
-                      <span>⏱️ Recovery: <b>${w.stats.attackCooldown}f</b></span>
-                      ${w.stats.arrowDamage ? `<span>🎯 Arrow DMG: <b>${w.stats.arrowDamage}</b></span>` : ''}
+                      <span>Base DMG: <b>${w.stats.dashDamage}</b></span>
+                      <span>Speed: <b>${w.stats.dashSpeed}</b></span>
+                      <span>Recovery: <b>${w.stats.attackCooldown}f</b></span>
+                      ${w.stats.arrowDamage ? `<span>Arrow DMG: <b>${w.stats.arrowDamage}</b></span>` : ''}
                   </div>
                   ${upgradesHtml}
               `;
@@ -6871,7 +6872,7 @@ body {
               const card = document.createElement("div");
               card.className = `skin-card ${isEquipped ? 'equipped' : ''}`;
               card.innerHTML = `
-                  <div class="skin-avatar-preview">${face.icon}</div>
+                  <div class="skin-avatar-preview">${cubeHTML(face.id, 48)}</div>
                   <div class="skin-info">
                       <div class="skin-name">${face.name}</div>
                       <div class="skin-desc">${face.desc}</div>
@@ -6882,7 +6883,7 @@ body {
                           (isUnlocked ?
                               `<button class="btn-ctrl btn-equip-skin" data-id="${face.id}">Equip</button>` :
                               `<button class="btn-ctrl btn-unlock-skin" data-id="${face.id}" data-cost="${face.cost}" ${gold < face.cost ? 'disabled' : ''}>
-                                  💰 ${face.cost} Gold
+                                  ${face.cost} Gold
                               </button>`
                           )
                       }
@@ -7002,7 +7003,7 @@ body {
   
               banner.innerHTML = `
                   <div class="arb-left">
-                      <span class="arb-icon" style="color:${tier.color}">${tier.icon}</span>
+                      <span class="arb-icon" style="color:${tier.color}">${tierPipHTML(tier)}</span>
                       <div>
                           <div class="arb-tier" style="color:${tier.color}">${tier.name} Division</div>
                           <div class="arb-rp">${currentRP} Rating Points (RP)</div>
@@ -7102,21 +7103,21 @@ body {
               row.className = `leaderboard-row ${isUser ? 'user-highlight' : ''} ${entry.rank <= 3 ? 'top-three' : ''}`;
   
               let rankBadge = `#${entry.rank}`;
-              if (entry.rank === 1) rankBadge = "👑 #1";
-              else if (entry.rank === 2) rankBadge = "🥈 #2";
-              else if (entry.rank === 3) rankBadge = "🥉 #3";
+              if (entry.rank === 1) rankBadge = "#1";
+              else if (entry.rank === 2) rankBadge = "#2";
+              else if (entry.rank === 3) rankBadge = "#3";
   
               row.innerHTML = `
                   <div class="lb-rank">${rankBadge}</div>
                   <div class="lb-player">
-                      <span class="lb-flag">${entry.flag}</span>
+                      <span class="lb-flag">${headImgHTML(entry.skin || "steve", 22)}</span>
                       <span class="lb-name">${entry.name}</span>
                   </div>
                   <div class="lb-tier" style="color:${tierObj.color}">
-                      <span>${tierObj.icon} ${tierObj.name}</span>
+                      <span>${tierPipHTML(tierObj)} ${tierObj.name}</span>
                   </div>
                   <div class="lb-rp"><b>${entry.rp}</b> RP</div>
-                  <div class="lb-weapon">${WEAPON_TYPES[entry.weapon]?.icon || '⚔️'} ${WEAPON_TYPES[entry.weapon]?.name || entry.weapon}</div>
+                  <div class="lb-weapon">${WEAPON_TYPES[entry.weapon]?.name || entry.weapon}</div>
                   <div class="lb-winrate">${entry.winRate} Win</div>
               `;
               container.appendChild(row);
@@ -7172,15 +7173,15 @@ body {
               extrasGroup.innerHTML = `
                   <label class="toggle-label">
                       <input type="checkbox" id="custom-air-dash" data-key="airDashRecharge">
-                      <span>⚡ Instant Air Dash Recharge</span>
+                      <span>Instant Air Dash Recharge</span>
                   </label>
                   <label class="toggle-label">
                       <input type="checkbox" id="custom-climb-height" data-key="climbHeight" checked>
-                      <span>🦅 Double Jump Climb Height (Higher Slams)</span>
+                      <span>Double Jump Climb Height (Higher Slams)</span>
                   </label>
                   <label class="toggle-label">
                       <input type="checkbox" id="custom-invisible" data-key="invisible">
-                      <span>👻 Stealth Camouflage (Periodic Invisibility)</span>
+                      <span>Stealth Camouflage (Periodic Invisibility)</span>
                   </label>
               `;
               container.appendChild(extrasGroup);
@@ -7355,6 +7356,8 @@ body {
           console.error("Game canvas element not found.");
           return;
       }
+  
+      applyMinecraftBackground();
   
       let ui = null;
   

@@ -180,6 +180,230 @@
   }
   
 
+  // ===== pixel.js =====
+  // ==========================================
+  // SPEAR-MACE PVP - Pixel Art Helpers
+  // Procedurally generated Minecraft-style textures:
+  //  - dirt background tile
+  //  - 8x8 block heads (Steve, Alex, mobs) + rotating 3D cube avatars
+  //  - 16x16 weapon icons
+  // No external image assets are needed.
+  // ==========================================
+  
+  const PX_CACHE = {};
+  
+  function pxCanvas(w, h) {
+      const c = document.createElement("canvas");
+      c.width = w;
+      c.height = h;
+      return c;
+  }
+  
+  // Darken / lighten a #rrggbb color by an amount (-1..1)
+  function pxShade(hex, amt) {
+      const n = parseInt(hex.slice(1), 16);
+      let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+      const f = (v) => Math.max(0, Math.min(255, Math.round(amt >= 0 ? v + (255 - v) * amt : v * (1 + amt))));
+      r = f(r); g = f(g); b = f(b);
+      return `rgb(${r},${g},${b})`;
+  }
+  
+  // Tiny deterministic noise so the textures feel like Minecraft blocks
+  function pxNoise(x, y, seed = 0) {
+      const v = Math.sin(x * 127.1 + y * 311.7 + seed * 74.7) * 43758.5453;
+      return v - Math.floor(v);
+  }
+  
+  // ------------------------------------------
+  // DIRT BACKGROUND (what the Minecraft menus use)
+  // ------------------------------------------
+  function applyMinecraftBackground() {
+      const c = pxCanvas(16, 16);
+      const ctx = c.getContext("2d");
+      const base = ["#5b4129", "#503824", "#654a30", "#483221", "#6b4e33"];
+      for (let y = 0; y < 16; y++) {
+          for (let x = 0; x < 16; x++) {
+              const i = Math.floor(pxNoise(x, y, 3) * base.length);
+              ctx.fillStyle = base[i];
+              ctx.fillRect(x, y, 1, 1);
+          }
+      }
+      // A few darker pebbles
+      ctx.fillStyle = "#3a2a1b";
+      for (let k = 0; k < 10; k++) {
+          ctx.fillRect(Math.floor(pxNoise(k, 1, 9) * 16), Math.floor(pxNoise(k, 2, 9) * 16), 1, 1);
+      }
+      document.documentElement.style.setProperty("--dirt", `url(${c.toDataURL()})`);
+  }
+  
+  // ------------------------------------------
+  // BLOCK HEADS
+  // Pattern legend per skin palette: H hair, S skin, W white, P pupil, M mouth/nose, D dark
+  // ------------------------------------------
+  const PX_HEADS = {
+      steve: {
+          pal: { H: "#3b2a17", S: "#c4936a", W: "#ffffff", P: "#4a3f9e", M: "#7a4d30" },
+          hairRows: 3, hair: "#3b2a17", skin: "#c4936a",
+          front: ["HHHHHHHH", "HHHHHHHH", "HSSSSSSH", "SSSSSSSS", "SWPSSPWS", "SSSMMSSS", "SSMMMMSS", "SSMSSMSS"]
+      },
+      alex: {
+          pal: { H: "#c9792a", S: "#e6b48f", W: "#ffffff", P: "#3f8a3f", M: "#b9826b" },
+          hairRows: 3, hair: "#c9792a", skin: "#e6b48f",
+          front: ["HHHHHHHH", "HHHHHHHH", "HHSSSSHH", "HSSSSSSH", "SWPSSPWS", "SSSSSSSS", "SSSMMSSS", "SSSSSSSS"]
+      },
+      noob: {
+          pal: { S: "#f2d21f", D: "#222222" },
+          hairRows: 0, skin: "#f2d21f", hair: "#f2d21f",
+          front: ["SSSSSSSS", "SSSSSSSS", "SSSSSSSS", "SSDSSDSS", "SSSSSSSS", "SDSSSSDS", "SSDDDDSS", "SSSSSSSS"]
+      },
+      man_face: {
+          pal: { H: "#2d2d2d", S: "#e8c690", D: "#111111" },
+          hairRows: 2, hair: "#2d2d2d", skin: "#e8c690",
+          front: ["HHHHHHHH", "HHHHHHHH", "SSSSSSSS", "SDDSSDDS", "SSDSSSDS", "SSSSSSSS", "SSSSDDDS", "SSSSSSSS"]
+      },
+      creeper: {
+          pal: { G: "#4fae3c", B: "#1a1a1a", L: "#3d8a2e" },
+          hairRows: 0, skin: "#4fae3c", hair: "#4fae3c",
+          front: ["GGLGGGLG", "GBBGGBBG", "GBBGGBBG", "GGGBBGGG", "GGBBBBGG", "GLBBBBGG", "GGBGGBGG", "GGGGLGGG"]
+      },
+      enderman: {
+          pal: { K: "#16101c", P: "#e07cff", Q: "#ffffff" },
+          hairRows: 0, skin: "#16101c", hair: "#16101c",
+          front: ["KKKKKKKK", "KKKKKKKK", "KKKKKKKK", "KKKKKKKK", "KQPKKPQK", "KKKKKKKK", "KKKKKKKK", "KKKKKKKK"]
+      },
+      skeleton: {
+          pal: { S: "#d6d6d6", L: "#bdbdbd", D: "#4a4a4a" },
+          hairRows: 0, skin: "#d6d6d6", hair: "#d6d6d6",
+          front: ["SSSLSSSS", "SSSSSSLS", "SSSSSSSS", "SDDSSDDS", "SDDSSDDS", "SSSDDSSS", "SDSDSDSD", "SSDSDSDS"]
+      },
+      zombie: {
+          pal: { H: "#2f5f27", S: "#5a9a45", P: "#2a3a8a", M: "#2f5f27", D: "#3d6e32" },
+          hairRows: 2, hair: "#2f5f27", skin: "#5a9a45",
+          front: ["HHHHHHHH", "HHHHHHHH", "SSSSSSSS", "SSSSSSSS", "SPPSSPPS", "SSSDDSSS", "SSMMMMSS", "SSSSSSSS"]
+      },
+      diamond_knight: {
+          pal: { C: "#3fd6d6", B: "#1d9aa0", V: "#10222b", W: "#d9ffff" },
+          hairRows: 0, skin: "#3fd6d6", hair: "#2ab5b8",
+          front: ["BBBBBBBB", "BCCCCCCB", "CCCCCCCC", "VVVVVVVV", "VWVVVVWV", "CCCCCCCC", "CBCCCCBC", "BBBBBBBB"]
+      }
+  };
+  
+  // Avatar presets in auth.js that don't have their own head use these
+  const PX_PRESET_HEAD = {
+      steve: "steve", alex: "alex", mace_knight: "diamond_knight", wind_breeze: "skeleton",
+      nether_warrior: "zombie", ender_champion: "enderman", golden_paladin: "noob", shadow_bot: "creeper"
+  };
+  
+  function pxDrawTexture(rows, pal, size = 8, seed = 0) {
+      const c = pxCanvas(size, size);
+      const ctx = c.getContext("2d");
+      for (let y = 0; y < size; y++) {
+          for (let x = 0; x < size; x++) {
+              const ch = rows[y][x];
+              const col = pal[ch] || "#ff00ff";
+              const n = pxNoise(x, y, seed);
+              ctx.fillStyle = pxShade(col, (n - 0.5) * 0.12);
+              ctx.fillRect(x, y, 1, 1);
+          }
+      }
+      return c.toDataURL();
+  }
+  
+  function pxSolidTexture(col, seed = 0) {
+      const rows = Array(8).fill("SSSSSSSS");
+      return pxDrawTexture(rows, { S: col }, 8, seed);
+  }
+  
+  // Returns { front, back, left, right, top, bottom } data URLs for a head.
+  function headTextures(skinId) {
+      const id = PX_HEADS[skinId] ? skinId : (PX_PRESET_HEAD[skinId] || "steve");
+      const key = "head:" + id;
+      if (PX_CACHE[key]) return PX_CACHE[key];
+  
+      const h = PX_HEADS[id];
+      const front = pxDrawTexture(h.front, h.pal, 8, 1);
+  
+      const sideRows = [];
+      for (let y = 0; y < 8; y++) sideRows.push((y < h.hairRows ? "H" : "S").repeat(8));
+      const sidePal = { H: h.hair, S: h.skin };
+      const side = pxDrawTexture(sideRows, sidePal, 8, 2);
+      const back = pxSolidTexture(h.hairRows > 0 ? h.hair : h.skin, 4);
+      const top = pxSolidTexture(h.hair, 5);
+      const bottom = pxSolidTexture(h.skin, 6);
+  
+      PX_CACHE[key] = { front, back, left: side, right: side, top, bottom };
+      return PX_CACHE[key];
+  }
+  
+  // Flat 2D head icon (just the face) as an <img>
+  function headImgHTML(skinId, size = 32, cls = "") {
+      const t = headTextures(skinId);
+      return `<img class="px-head ${cls}" src="${t.front}" width="${size}" height="${size}" alt="" style="width:${size}px;height:${size}px">`;
+  }
+  
+  // Rotating 3D cube whose faces are the Minecraft head textures
+  function cubeHTML(skinId, size = 40) {
+      const t = headTextures(skinId);
+      const faces = ["front", "back", "left", "right", "top", "bottom"]
+          .map(f => `<span class="cube-face cube-${f}" style="background-image:url(${t[f]})"></span>`)
+          .join("");
+      return `<span class="cube-wrap" style="--s:${size}px"><span class="cube">${faces}</span></span>`;
+  }
+  
+  function presetHeadId(presetId) {
+      return PX_PRESET_HEAD[presetId] || "steve";
+  }
+  
+  // Small colored square used in place of tier medals
+  function tierPipHTML(tier) {
+      return `<span class="tier-pip" style="background:${tier.color}"></span>`;
+  }
+  
+  // ------------------------------------------
+  // WEAPON ICONS (16x16 sprites)
+  // ------------------------------------------
+  function pxWeaponSprite(id) {
+      const c = pxCanvas(16, 16);
+      const ctx = c.getContext("2d");
+      const px = (x, y, col) => { ctx.fillStyle = col; ctx.fillRect(x, y, 1, 1); };
+      const rect = (x, y, w, h, col) => { ctx.fillStyle = col; ctx.fillRect(x, y, w, h); };
+      const wood = "#8a5a2b", woodD = "#5e3b1c";
+  
+      if (id === "sword") {
+          for (let i = 0; i < 10; i++) { px(5 + i, 10 - i, "#f0f0f0"); px(6 + i, 10 - i, "#aeb7bd"); }
+          for (let k = 0; k < 5; k++) px(3 + k, 9 + k, woodD);
+          px(4, 12, wood); px(3, 13, wood); px(2, 14, woodD);
+      } else if (id === "spear") {
+          for (let i = 0; i < 12; i++) { px(1 + i, 14 - i, wood); px(2 + i, 14 - i, woodD); }
+          rect(12, 2, 2, 2, "#cfd6db"); px(14, 1, "#f0f0f0"); px(15, 0, "#f0f0f0"); px(11, 3, "#aeb7bd"); px(13, 1, "#aeb7bd");
+      } else if (id === "fists") {
+          rect(2, 6, 5, 6, "#d9a577"); rect(2, 10, 5, 2, "#b8855a");
+          rect(9, 4, 5, 6, "#d9a577"); rect(9, 8, 5, 2, "#b8855a");
+          rect(2, 6, 5, 1, "#f0c79d"); rect(9, 4, 5, 1, "#f0c79d");
+      } else if (id === "bow") {
+          [[9, 1], [10, 2], [11, 3], [11, 4], [12, 5], [12, 6], [12, 7], [12, 8], [12, 9], [11, 10], [11, 11], [10, 12], [9, 13]]
+              .forEach(([x, y]) => px(x, y, wood));
+          for (let y = 1; y <= 13; y++) px(8, y, "#e8e8e8");
+          for (let x = 2; x <= 10; x++) px(x, 7, "#9aa3a8");
+          px(1, 7, "#d9d9d9"); px(1, 6, "#d9d9d9"); px(1, 8, "#d9d9d9");
+      } else { // mace
+          for (let i = 0; i < 10; i++) { px(2 + i, 14 - i, wood); px(3 + i, 14 - i, woodD); }
+          rect(9, 1, 6, 6, "#5a5f66");
+          rect(10, 2, 4, 4, "#8a9199");
+          rect(10, 2, 2, 2, "#c1c8cf");
+          rect(8, 3, 1, 2, "#3a3d42"); rect(15, 3, 1, 2, "#3a3d42");
+          rect(11, 0, 2, 1, "#3a3d42"); rect(11, 7, 2, 1, "#3a3d42");
+      }
+      return c.toDataURL();
+  }
+  
+  function weaponIconHTML(id, size = 32) {
+      const key = "wep:" + id;
+      if (!PX_CACHE[key]) PX_CACHE[key] = pxWeaponSprite(id);
+      return `<img class="px-icon" src="${PX_CACHE[key]}" width="${size}" height="${size}" alt="" style="width:${size}px;height:${size}px">`;
+  }
+  
+
   // ===== audio.js =====
   // ==========================================
   // SPEAR-MACE PVP - Procedural Web Audio Engine
@@ -580,7 +804,7 @@
       mace: {
           id: "mace",
           name: "Minecraft Mace",
-          icon: "🔨",
+          icon: "",
           category: "Heavy Impact",
           desc: "Signature weapon. Height-scaled slam damage with orbital launches and ground shockwaves.",
           baseCost: 0, // Default starter weapon
@@ -627,7 +851,7 @@
       spear: {
           id: "spear",
           name: "Wind Spear",
-          icon: "🗡️",
+          icon: "",
           category: "Wind Charge",
           desc: "Super-fast wind dashes on ground and air. Pierces through incoming attacks.",
           baseCost: 200,
@@ -674,7 +898,7 @@
       sword: {
           id: "sword",
           name: "Diamond Sword",
-          icon: "⚔️",
+          icon: "",
           category: "Blade Slice",
           desc: "Shorter, precision dash slice that deals massive swift slash damage.",
           baseCost: 350,
@@ -721,7 +945,7 @@
       fists: {
           id: "fists",
           name: "Steve Bare Fists",
-          icon: "👊",
+          icon: "",
           category: "Martial Brawl",
           desc: "Pure close-quarters Steve punches! Does brutal damage in hand-to-hand combat.",
           baseCost: 150,
@@ -768,7 +992,7 @@
       bow: {
           id: "bow",
           name: "Enchanted Bow",
-          icon: "🏹",
+          icon: "",
           category: "Ranged Marksman",
           desc: "Fires deadly arrows from afar. Dash key shoots arrows with a reload cooldown.",
           baseCost: 500,
@@ -977,7 +1201,7 @@
           minRP: 0,
           maxRP: 499,
           color: "#cd7f32",
-          icon: "🥉",
+          icon: "",
           badge: "BRONZE"
       },
       silver: {
@@ -986,7 +1210,7 @@
           minRP: 500,
           maxRP: 999,
           color: "#bdc3c7",
-          icon: "🥈",
+          icon: "",
           badge: "SILVER"
       },
       gold: {
@@ -995,7 +1219,7 @@
           minRP: 1000,
           maxRP: 1499,
           color: "#f1c40f",
-          icon: "🥇",
+          icon: "",
           badge: "GOLD"
       },
       diamond: {
@@ -1004,7 +1228,7 @@
           minRP: 1500,
           maxRP: 1999,
           color: "#00d2d3",
-          icon: "💎",
+          icon: "",
           badge: "DIAMOND"
       },
       obsidian: {
@@ -1013,22 +1237,22 @@
           minRP: 2000,
           maxRP: Infinity,
           color: "#9b59b6",
-          icon: "👑",
+          icon: "",
           badge: "OBSIDIAN"
       }
   };
   
   const NATIONAL_LEADERBOARD_SEED = [
-      { rank: 1, name: "xX_MaceGod_Xx", rp: 2840, tier: "obsidian", wins: 342, winRate: "89%", weapon: "mace", flag: "🇺🇸", skin: "steve" },
-      { rank: 2, name: "SkySniper_Pro", rp: 2715, tier: "obsidian", wins: 298, winRate: "84%", weapon: "bow", flag: "🇨🇦", skin: "alex" },
-      { rank: 3, name: "DiamondSlicer", rp: 2640, tier: "obsidian", wins: 285, winRate: "82%", weapon: "sword", flag: "🇬🇧", skin: "man_face" },
-      { rank: 4, name: "BreezeTitan", rp: 2580, tier: "obsidian", wins: 260, winRate: "80%", weapon: "spear", flag: "🇩🇪", skin: "steve" },
-      { rank: 5, name: "NoobDestroyer99", rp: 2490, tier: "obsidian", wins: 245, winRate: "79%", weapon: "fists", flag: "🇯🇵", skin: "noob" },
-      { rank: 6, name: "ApexSlammer", rp: 2410, tier: "obsidian", wins: 231, winRate: "77%", weapon: "mace", flag: "🇦🇺", skin: "creeper" },
-      { rank: 7, name: "EnderValkyrie", rp: 2350, tier: "obsidian", wins: 219, winRate: "76%", weapon: "spear", flag: "🇫🇷", skin: "enderman" },
-      { rank: 8, name: "NetherKnight", rp: 2280, tier: "obsidian", wins: 208, winRate: "75%", weapon: "sword", flag: "🇧🇷", skin: "steve" },
-      { rank: 9, name: "GravityGhost", rp: 2190, tier: "obsidian", wins: 195, winRate: "74%", weapon: "mace", flag: "🇰🇷", skin: "skeleton" },
-      { rank: 10, name: "BowLegend_Infinity", rp: 2120, tier: "obsidian", wins: 184, winRate: "73%", weapon: "bow", flag: "🇸🇪", skin: "alex" }
+      { rank: 1, name: "xX_MaceGod_Xx", rp: 2840, tier: "obsidian", wins: 342, winRate: "89%", weapon: "mace", flag: "", skin: "steve" },
+      { rank: 2, name: "SkySniper_Pro", rp: 2715, tier: "obsidian", wins: 298, winRate: "84%", weapon: "bow", flag: "", skin: "alex" },
+      { rank: 3, name: "DiamondSlicer", rp: 2640, tier: "obsidian", wins: 285, winRate: "82%", weapon: "sword", flag: "", skin: "man_face" },
+      { rank: 4, name: "BreezeTitan", rp: 2580, tier: "obsidian", wins: 260, winRate: "80%", weapon: "spear", flag: "", skin: "steve" },
+      { rank: 5, name: "NoobDestroyer99", rp: 2490, tier: "obsidian", wins: 245, winRate: "79%", weapon: "fists", flag: "", skin: "noob" },
+      { rank: 6, name: "ApexSlammer", rp: 2410, tier: "obsidian", wins: 231, winRate: "77%", weapon: "mace", flag: "", skin: "creeper" },
+      { rank: 7, name: "EnderValkyrie", rp: 2350, tier: "obsidian", wins: 219, winRate: "76%", weapon: "spear", flag: "", skin: "enderman" },
+      { rank: 8, name: "NetherKnight", rp: 2280, tier: "obsidian", wins: 208, winRate: "75%", weapon: "sword", flag: "", skin: "steve" },
+      { rank: 9, name: "GravityGhost", rp: 2190, tier: "obsidian", wins: 195, winRate: "74%", weapon: "mace", flag: "", skin: "skeleton" },
+      { rank: 10, name: "BowLegend_Infinity", rp: 2120, tier: "obsidian", wins: 184, winRate: "73%", weapon: "bow", flag: "", skin: "alex" }
   ];
   
   class ArenaManager {
@@ -1140,7 +1364,7 @@
               wins: userWins,
               winRate: userWinRate,
               weapon: userProfile.equippedWeapon || "mace",
-              flag: "🎮",
+              flag: "",
               skin: userProfile.skinId || "steve",
               isUser: true
           };
@@ -1181,26 +1405,26 @@
   const STORAGE_KEY = "spear_mace_user_profile";
   
   const AVATAR_PRESETS = [
-      { id: "steve", name: "Steve", icon: "⚔️", bg: "#2ecc71" },
-      { id: "alex", name: "Alex", icon: "🏹", bg: "#e67e22" },
-      { id: "mace_knight", name: "Mace Knight", icon: "🔨", bg: "#3498db" },
-      { id: "wind_breeze", name: "Wind Breeze", icon: "💨", bg: "#00d2d3" },
-      { id: "nether_warrior", name: "Nether Titan", icon: "🔥", bg: "#e74c3c" },
-      { id: "ender_champion", name: "Ender Champion", icon: "👁️", bg: "#9b59b6" },
-      { id: "golden_paladin", name: "Gold Paladin", icon: "👑", bg: "#f1c40f" },
-      { id: "shadow_bot", name: "Shadow Rogue", icon: "🥷", bg: "#2c3e50" }
+      { id: "steve", name: "Steve", icon: "", bg: "#2ecc71" },
+      { id: "alex", name: "Alex", icon: "", bg: "#e67e22" },
+      { id: "mace_knight", name: "Mace Knight", icon: "", bg: "#3498db" },
+      { id: "wind_breeze", name: "Wind Breeze", icon: "", bg: "#00d2d3" },
+      { id: "nether_warrior", name: "Nether Titan", icon: "", bg: "#e74c3c" },
+      { id: "ender_champion", name: "Ender Champion", icon: "", bg: "#9b59b6" },
+      { id: "golden_paladin", name: "Gold Paladin", icon: "", bg: "#f1c40f" },
+      { id: "shadow_bot", name: "Shadow Rogue", icon: "", bg: "#2c3e50" }
   ];
   
   const BLOCK_FACES = [
-      { id: "steve", name: "Minecraft Steve", icon: "🟩", cost: 0, desc: "Classic Minecraft icon with cyan tee and brown hair." },
-      { id: "alex", name: "Minecraft Alex", icon: "🟧", cost: 0, desc: "Classic Minecraft explorer with green tunic and orange hair." },
-      { id: "noob", name: "Roblox Noob", icon: "🟨", cost: 100, desc: "The iconic yellow block head with simple smile and blue torso." },
-      { id: "man_face", name: "Roblox Man Face", icon: "😏", cost: 200, desc: "The legendary, unmistakable smirking block face." },
-      { id: "creeper", name: "Creeper Face", icon: "🧨", cost: 250, desc: "Pixelated green explosive face with iconic black frown." },
-      { id: "enderman", name: "Enderman", icon: "👁️", cost: 300, desc: "Deep dark obsidian head with glowing mystical violet eyes." },
-      { id: "skeleton", name: "Skeleton Skull", icon: "💀", cost: 250, desc: "Bone white archer skull with hollow dark eyes." },
-      { id: "zombie", name: "Zombie", icon: "🧟", cost: 200, desc: "Infected undead Steve with necrotic green skin." },
-      { id: "diamond_knight", name: "Diamond Helmet", icon: "💎", cost: 400, desc: "Gleaming enchanted diamond helmet warrior." }
+      { id: "steve", name: "Minecraft Steve", icon: "", cost: 0, desc: "Classic Minecraft icon with cyan tee and brown hair." },
+      { id: "alex", name: "Minecraft Alex", icon: "", cost: 0, desc: "Classic Minecraft explorer with green tunic and orange hair." },
+      { id: "noob", name: "Roblox Noob", icon: "", cost: 100, desc: "The iconic yellow block head with simple smile and blue torso." },
+      { id: "man_face", name: "Roblox Man Face", icon: "", cost: 200, desc: "The legendary, unmistakable smirking block face." },
+      { id: "creeper", name: "Creeper Face", icon: "", cost: 250, desc: "Pixelated green explosive face with iconic black frown." },
+      { id: "enderman", name: "Enderman", icon: "", cost: 300, desc: "Deep dark obsidian head with glowing mystical violet eyes." },
+      { id: "skeleton", name: "Skeleton Skull", icon: "", cost: 250, desc: "Bone white archer skull with hollow dark eyes." },
+      { id: "zombie", name: "Zombie", icon: "", cost: 200, desc: "Infected undead Steve with necrotic green skin." },
+      { id: "diamond_knight", name: "Diamond Helmet", icon: "", cost: 400, desc: "Gleaming enchanted diamond helmet warrior." }
   ];
   
   const RANDOM_USERNAMES = [
@@ -2826,38 +3050,30 @@
               return;
           }
   
-          // Sky gradient
-          const skyGrad = ctx.createLinearGradient(0, 0, 0, this.height);
-          skyGrad.addColorStop(0, "#54a0ff");
-          skyGrad.addColorStop(0.7, "#a8dcff");
-          skyGrad.addColorStop(1, "#cbe8fc");
-          ctx.fillStyle = skyGrad;
+          // Flat Minecraft sky (no gradient)
+          ctx.fillStyle = "#79a6ff";
           ctx.fillRect(0, 0, this.width, this.height);
   
-          // Distant mountains
-          ctx.fillStyle = "rgba(72, 126, 176, 0.25)";
-          ctx.beginPath();
-          ctx.moveTo(0, this.height);
-          ctx.lineTo(0, 320);
-          ctx.lineTo(160, 260);
-          ctx.lineTo(340, 330);
-          ctx.lineTo(520, 250);
-          ctx.lineTo(680, 310);
-          ctx.lineTo(800, 270);
-          ctx.lineTo(800, this.height);
-          ctx.closePath();
-          ctx.fill();
+          // Blocky distant hills (stepped, flat colors)
+          ctx.fillStyle = "#5f8f4f";
+          const hills = [[0, 320], [80, 296], [160, 272], [240, 296], [320, 320], [400, 296], [480, 264], [560, 288], [640, 312], [720, 288]];
+          for (const [hx, hy] of hills) {
+              ctx.fillRect(hx, hy, 80, this.height - hy);
+          }
   
-          // Drifting clouds
-          ctx.fillStyle = "rgba(255, 255, 255, 0.65)";
+          // Drifting blocky clouds
+          ctx.fillStyle = "#ffffff";
           for (const cloud of this.clouds) {
               cloud.x += cloud.speed;
               if (cloud.x > this.width + 100) cloud.x = -150;
   
-              ctx.beginPath();
-              ctx.roundRect(cloud.x, cloud.y, cloud.w, 22, 10);
-              ctx.roundRect(cloud.x + 18, cloud.y - 10, cloud.w * 0.6, 24, 12);
-              ctx.fill();
+              const cx = Math.round(cloud.x / 8) * 8;
+              const cy = Math.round(cloud.y / 8) * 8;
+              ctx.fillRect(cx, cy, cloud.w, 16);
+              ctx.fillRect(cx + 16, cy - 8, Math.round(cloud.w * 0.6 / 8) * 8, 8);
+              ctx.fillStyle = "#dfe9ff";
+              ctx.fillRect(cx, cy + 16, cloud.w, 4);
+              ctx.fillStyle = "#ffffff";
           }
       }
   
@@ -2871,22 +3087,23 @@
                   continue;
               }
   
-              // Stone platform
-              ctx.fillStyle = "#3e424b";
+              // Stone block platform with pixel brick lines
+              ctx.fillStyle = "#7d7d7d";
               ctx.fillRect(p.x, p.y, p.w, p.h);
+              ctx.fillStyle = "#5f5f5f";
+              for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                  ctx.fillRect(bx, p.y, 2, p.h);
+              }
+              ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
+              if (p.h > 12) ctx.fillRect(p.x, p.y + Math.floor(p.h / 2), p.w, 2);
   
-              // Brick outline texture
-              ctx.strokeStyle = "#2b2e36";
-              ctx.lineWidth = 2;
-              ctx.strokeRect(p.x + 1, p.y + 1, p.w - 2, p.h - 2);
-  
-              // Platform top trim
-              ctx.fillStyle = p.y >= 380 ? "#4da847" : "#5a626f";
-              ctx.fillRect(p.x, p.y, p.w, 4);
-  
-              // Top highlight
-              ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
-              ctx.fillRect(p.x, p.y, p.w, 1.5);
+              // Grass top (ground) or lighter stone cap (floating)
+              ctx.fillStyle = p.y >= 380 ? "#5da83e" : "#a4a4a4";
+              ctx.fillRect(p.x, p.y, p.w, 6);
+              ctx.fillStyle = p.y >= 380 ? "#3f7d2a" : "#808080";
+              for (let gx = p.x; gx < p.x + p.w; gx += 8) {
+                  ctx.fillRect(gx, p.y + 6, 4, 2);
+              }
           }
       }
   
@@ -4103,6 +4320,8 @@
           this.downloadBtn = document.getElementById("btn-download");
   
           this.modeCardsContainer = document.getElementById("mode-cards");
+          this.modeCardsVersus = document.getElementById("mode-cards-versus");
+          this.carSlide = 0;
           this.touchControls = document.getElementById("touch-controls");
   
           // Arena Matchmaking State
@@ -4116,6 +4335,7 @@
   
       init() {
           this.renderModeCards();
+          this.setupCarousel();
           this.setupEventListeners();
           this.setupCustomBotForm();
           this.setupAuthUI();
@@ -4126,11 +4346,63 @@
           this.detectTouchDevice();
       }
   
+      // Home screen carousel: Home -> Bot Battles -> Versus & Sandbox -> Arena
+      setupCarousel() {
+          this.carTrack = document.getElementById("car-track");
+          this.carSlides = this.carTrack ? this.carTrack.querySelectorAll(".car-slide") : [];
+          this.carTitle = document.getElementById("car-title");
+          this.carDots = document.getElementById("car-dots");
+          const prev = document.getElementById("car-prev");
+          const next = document.getElementById("car-next");
+          if (!this.carTrack) return;
+  
+          if (this.carDots) {
+              this.carDots.innerHTML = "";
+              this.carSlides.forEach((_, i) => {
+                  const d = document.createElement("span");
+                  d.className = "car-dot";
+                  d.addEventListener("click", () => this.goToSlide(i));
+                  this.carDots.appendChild(d);
+              });
+          }
+  
+          if (prev) prev.addEventListener("click", () => this.goToSlide(this.carSlide - 1));
+          if (next) next.addEventListener("click", () => this.goToSlide(this.carSlide + 1));
+  
+          window.addEventListener("keydown", (e) => {
+              if (this.menuOverlay.classList.contains("hidden")) return;
+              if (document.querySelector(".modal-backdrop:not(.hidden)")) return;
+              if (e.key === "ArrowRight") this.goToSlide(this.carSlide + 1);
+              else if (e.key === "ArrowLeft") this.goToSlide(this.carSlide - 1);
+          });
+  
+          this.goToSlide(0, true);
+      }
+  
+      goToSlide(index, silent = false) {
+          if (!this.carTrack) return;
+          const max = this.carSlides.length - 1;
+          const i = Math.max(0, Math.min(max, index));
+          this.carSlide = i;
+          this.carTrack.style.transform = `translateX(${-i * 100}%)`;
+          if (this.carTitle) this.carTitle.textContent = this.carSlides[i].dataset.title || "";
+          if (this.carDots) {
+              [...this.carDots.children].forEach((d, k) => d.classList.toggle("active", k === i));
+          }
+          const prev = document.getElementById("car-prev");
+          const next = document.getElementById("car-next");
+          if (prev) prev.disabled = i === 0;
+          if (next) next.disabled = i === max;
+          if (!silent) sound.playClick();
+      }
+  
       renderModeCards() {
           if (!this.modeCardsContainer) return;
           this.modeCardsContainer.innerHTML = "";
+          if (this.modeCardsVersus) this.modeCardsVersus.innerHTML = "";
   
           const modes = ["practice", "easy", "normal", "pro", "god", "pvp", "custom"];
+          const versusModes = ["pvp", "custom"];
   
           modes.forEach((modeKey) => {
               const meta = MODE_METADATA[modeKey];
@@ -4157,11 +4429,22 @@
                   }
               });
   
-              this.modeCardsContainer.appendChild(card);
+              const target = (versusModes.includes(modeKey) && this.modeCardsVersus) ? this.modeCardsVersus : this.modeCardsContainer;
+              target.appendChild(card);
           });
       }
   
       setupEventListeners() {
+          // Retro button press animation for every button
+          document.addEventListener("click", (e) => {
+              const b = e.target.closest("button, .btn-ctrl, .mode-card, .home-arena-banner, .home-profile-banner");
+              if (!b || b.disabled) return;
+              b.classList.remove("mc-press");
+              void b.offsetWidth;
+              b.classList.add("mc-press");
+              setTimeout(() => b.classList.remove("mc-press"), 220);
+          });
+  
           // Sound mute toggle
           if (this.muteBtn) {
               this.muteBtn.addEventListener("click", () => {
@@ -4177,7 +4460,7 @@
                   const current = this.game.renderer.graphicStyle;
                   const next = current === "enhanced" ? "classic" : "enhanced";
                   this.game.renderer.setStyle(next);
-                  this.styleBtn.textContent = next === "enhanced" ? "🎨 Style: Enhanced" : "🟩 Style: Classic";
+                  this.styleBtn.textContent = next === "enhanced" ? "Style: Enhanced" : "Style: Classic";
                   sound.playClick();
               });
           }
@@ -4231,7 +4514,7 @@
   
       updateMuteButton(isMuted) {
           if (!this.muteBtn) return;
-          this.muteBtn.textContent = isMuted ? "🔇 Unmute" : "🔊 Sound On";
+          this.muteBtn.textContent = isMuted ? "Unmute" : "Sound On";
       }
   
       // ==========================================
@@ -4242,8 +4525,9 @@
           auth.onUserChanged((user) => {
               this.updateHeaderProfileBadge(user);
               if (this.goldDisplay) {
-                  this.goldDisplay.textContent = `💰 ${user.gold || 0}`;
+                  this.goldDisplay.textContent = `Gold: ${user.gold || 0}`;
               }
+              this.updateHomeProfile(user);
           });
   
           const profileBanner = document.getElementById("home-profile-banner");
@@ -4252,26 +4536,30 @@
           }
       }
   
+      // Cube avatar uses Steve's or Alex's head (other presets map to a matching block head)
+      avatarHeadId(user) {
+          if (user.avatarType === "preset" && user.avatarVal) return presetHeadId(user.avatarVal);
+          return user.skinId === "alex" ? "alex" : "steve";
+      }
+  
+      updateHomeProfile(user) {
+          const cube = document.getElementById("home-cube");
+          if (cube) cube.innerHTML = cubeHTML(this.avatarHeadId(user), 56);
+          const name = document.getElementById("hp-name");
+          if (name) name.textContent = user.username || "Steve";
+      }
+  
       updateHeaderProfileBadge(user) {
           if (!this.userProfileBtn) return;
   
-          let avatarHtml = "⚔️";
-          if (user.avatarType === "url" && user.avatarUrl) {
-              avatarHtml = `<img src="${user.avatarUrl}" alt="Avatar" class="header-avatar-img">`;
-          } else {
-              const preset = AVATAR_PRESETS.find(p => p.id === user.avatarVal) || AVATAR_PRESETS[0];
-              avatarHtml = `<span class="header-avatar-icon" style="background:${preset.bg}">${preset.icon}</span>`;
-          }
-  
+          const avatarHtml = cubeHTML(this.avatarHeadId(user), 22);
           const isGoogle = user.authProvider === "google";
           const googleTag = isGoogle ? `<span class="google-pill-tag">G</span>` : "";
-          const tier = arena.getTier(user.arenaRP || 250);
   
           this.userProfileBtn.innerHTML = `
               ${avatarHtml}
               <span class="header-username">${user.username || "Steve"}</span>
               ${googleTag}
-              <span class="header-tier-tag" style="background:${tier.color}">${tier.icon} ${tier.name}</span>
               <span class="header-level-badge">Lv.${user.level}</span>
           `;
       }
@@ -4295,7 +4583,7 @@
                   googleSection.innerHTML = `
                       <div class="google-connected-box">
                           <div class="google-user-info">
-                              <span class="google-check-icon">✓</span>
+                              <span class="google-check-icon">OK</span>
                               <div>
                                   <div class="google-name">${user.email ? user.email : "Connected Google Account"}</div>
                                   <div class="google-status">Google Account Connected</div>
@@ -4349,7 +4637,7 @@
                   const result = auth.setUsername(usernameInput.value);
                   if (result.success) {
                       if (usernameFeedback) {
-                          usernameFeedback.textContent = "✓ Username saved successfully!";
+                          usernameFeedback.textContent = "Username saved successfully!";
                           usernameFeedback.className = "form-feedback success";
                       }
                       sound.playClick();
@@ -4382,8 +4670,7 @@
                   const isSelected = (user.avatarType === 'preset' && user.avatarVal === preset.id);
                   const el = document.createElement("div");
                   el.className = `avatar-choice ${isSelected ? 'selected' : ''}`;
-                  el.style.backgroundColor = preset.bg;
-                  el.innerHTML = `<span class="avatar-icon">${preset.icon}</span>`;
+                                  el.innerHTML = headImgHTML(presetHeadId(preset.id), 40);
                   el.title = preset.name;
                   el.addEventListener("click", () => {
                       auth.setAvatar("preset", preset.id);
@@ -4405,7 +4692,7 @@
               statsContainer.innerHTML = `
                   <div class="career-header">
                       <div class="career-rank-badge">
-                          <span class="rank-name" style="color:${tier.color}">${tier.icon} ${tier.name} Tier</span>
+                          <span class="rank-name" style="color:${tier.color}">${tierPipHTML(tier)} ${tier.name} Tier</span>
                           <span class="level-pill">Level ${user.level}</span>
                       </div>
                       <div class="xp-bar-wrapper">
@@ -4417,7 +4704,7 @@
                   </div>
                   <div class="career-stats-grid">
                       <div class="career-stat-card">
-                          <span class="cs-val">💰 ${user.gold || 0}</span>
+                          <span class="cs-val">${user.gold || 0}</span>
                           <span class="cs-label">Gold</span>
                       </div>
                       <div class="career-stat-card">
@@ -4567,7 +4854,7 @@
                                           ${isMax ? 
                                               `<span class="badge-max">MAX</span>` : 
                                               `<button class="btn-ctrl btn-upgrade-weap" data-upg="${u.id}" data-cost="${cost}" ${(!isUnlocked || gold < cost) ? 'disabled' : ''}>
-                                                  Upgrade (💰${cost})
+                                                  Upgrade (${cost} G)
                                               </button>`
                                           }
                                       </div>
@@ -4581,7 +4868,7 @@
               card.innerHTML = `
                   <div class="weapon-shop-header">
                       <div class="ws-left">
-                          <span class="ws-icon">${w.icon}</span>
+                          <span class="ws-icon">${weaponIconHTML(w.id, 32)}</span>
                           <div>
                               <div class="ws-title">${w.name}</div>
                               <div class="ws-cat">${w.category}</div>
@@ -4593,7 +4880,7 @@
                               (isUnlocked ? 
                                   `<button class="btn-ctrl btn-equip-weap" data-id="${w.id}">Equip</button>` :
                                   `<button class="btn-ctrl btn-unlock-weap" data-id="${w.id}" data-cost="${w.baseCost}" ${gold < w.baseCost ? 'disabled' : ''}>
-                                      Unlock (💰${w.baseCost})
+                                      Unlock (${w.baseCost} G)
                                   </button>`
                               )
                           }
@@ -4601,10 +4888,10 @@
                   </div>
                   <div class="ws-desc">${w.desc}</div>
                   <div class="ws-stats-row">
-                      <span>⚔️ Base DMG: <b>${w.stats.dashDamage}</b></span>
-                      <span>💨 Speed: <b>${w.stats.dashSpeed}</b></span>
-                      <span>⏱️ Recovery: <b>${w.stats.attackCooldown}f</b></span>
-                      ${w.stats.arrowDamage ? `<span>🎯 Arrow DMG: <b>${w.stats.arrowDamage}</b></span>` : ''}
+                      <span>Base DMG: <b>${w.stats.dashDamage}</b></span>
+                      <span>Speed: <b>${w.stats.dashSpeed}</b></span>
+                      <span>Recovery: <b>${w.stats.attackCooldown}f</b></span>
+                      ${w.stats.arrowDamage ? `<span>Arrow DMG: <b>${w.stats.arrowDamage}</b></span>` : ''}
                   </div>
                   ${upgradesHtml}
               `;
@@ -4676,7 +4963,7 @@
               const card = document.createElement("div");
               card.className = `skin-card ${isEquipped ? 'equipped' : ''}`;
               card.innerHTML = `
-                  <div class="skin-avatar-preview">${face.icon}</div>
+                  <div class="skin-avatar-preview">${cubeHTML(face.id, 48)}</div>
                   <div class="skin-info">
                       <div class="skin-name">${face.name}</div>
                       <div class="skin-desc">${face.desc}</div>
@@ -4687,7 +4974,7 @@
                           (isUnlocked ?
                               `<button class="btn-ctrl btn-equip-skin" data-id="${face.id}">Equip</button>` :
                               `<button class="btn-ctrl btn-unlock-skin" data-id="${face.id}" data-cost="${face.cost}" ${gold < face.cost ? 'disabled' : ''}>
-                                  💰 ${face.cost} Gold
+                                  ${face.cost} Gold
                               </button>`
                           )
                       }
@@ -4807,7 +5094,7 @@
   
               banner.innerHTML = `
                   <div class="arb-left">
-                      <span class="arb-icon" style="color:${tier.color}">${tier.icon}</span>
+                      <span class="arb-icon" style="color:${tier.color}">${tierPipHTML(tier)}</span>
                       <div>
                           <div class="arb-tier" style="color:${tier.color}">${tier.name} Division</div>
                           <div class="arb-rp">${currentRP} Rating Points (RP)</div>
@@ -4907,21 +5194,21 @@
               row.className = `leaderboard-row ${isUser ? 'user-highlight' : ''} ${entry.rank <= 3 ? 'top-three' : ''}`;
   
               let rankBadge = `#${entry.rank}`;
-              if (entry.rank === 1) rankBadge = "👑 #1";
-              else if (entry.rank === 2) rankBadge = "🥈 #2";
-              else if (entry.rank === 3) rankBadge = "🥉 #3";
+              if (entry.rank === 1) rankBadge = "#1";
+              else if (entry.rank === 2) rankBadge = "#2";
+              else if (entry.rank === 3) rankBadge = "#3";
   
               row.innerHTML = `
                   <div class="lb-rank">${rankBadge}</div>
                   <div class="lb-player">
-                      <span class="lb-flag">${entry.flag}</span>
+                      <span class="lb-flag">${headImgHTML(entry.skin || "steve", 22)}</span>
                       <span class="lb-name">${entry.name}</span>
                   </div>
                   <div class="lb-tier" style="color:${tierObj.color}">
-                      <span>${tierObj.icon} ${tierObj.name}</span>
+                      <span>${tierPipHTML(tierObj)} ${tierObj.name}</span>
                   </div>
                   <div class="lb-rp"><b>${entry.rp}</b> RP</div>
-                  <div class="lb-weapon">${WEAPON_TYPES[entry.weapon]?.icon || '⚔️'} ${WEAPON_TYPES[entry.weapon]?.name || entry.weapon}</div>
+                  <div class="lb-weapon">${WEAPON_TYPES[entry.weapon]?.name || entry.weapon}</div>
                   <div class="lb-winrate">${entry.winRate} Win</div>
               `;
               container.appendChild(row);
@@ -4977,15 +5264,15 @@
               extrasGroup.innerHTML = `
                   <label class="toggle-label">
                       <input type="checkbox" id="custom-air-dash" data-key="airDashRecharge">
-                      <span>⚡ Instant Air Dash Recharge</span>
+                      <span>Instant Air Dash Recharge</span>
                   </label>
                   <label class="toggle-label">
                       <input type="checkbox" id="custom-climb-height" data-key="climbHeight" checked>
-                      <span>🦅 Double Jump Climb Height (Higher Slams)</span>
+                      <span>Double Jump Climb Height (Higher Slams)</span>
                   </label>
                   <label class="toggle-label">
                       <input type="checkbox" id="custom-invisible" data-key="invisible">
-                      <span>👻 Stealth Camouflage (Periodic Invisibility)</span>
+                      <span>Stealth Camouflage (Periodic Invisibility)</span>
                   </label>
               `;
               container.appendChild(extrasGroup);
@@ -5160,6 +5447,8 @@
           console.error("Game canvas element not found.");
           return;
       }
+  
+      applyMinecraftBackground();
   
       let ui = null;
   

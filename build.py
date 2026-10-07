@@ -18,6 +18,7 @@ STANDALONE_HTML = os.path.join(BASE_DIR, "spear-mace-pvp.html")
 
 FILES_IN_ORDER = [
     "config.js",
+    "pixel.js",
     "audio.js",
     "weapons.js",
     "arena.js",

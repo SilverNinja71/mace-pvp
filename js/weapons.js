@@ -7,7 +7,7 @@ export const WEAPON_TYPES = {
     mace: {
         id: "mace",
         name: "Minecraft Mace",
-        icon: "🔨",
+        icon: "",
         category: "Heavy Impact",
         desc: "Signature weapon. Height-scaled slam damage with orbital launches and ground shockwaves.",
         baseCost: 0, // Default starter weapon
@@ -54,7 +54,7 @@ export const WEAPON_TYPES = {
     spear: {
         id: "spear",
         name: "Wind Spear",
-        icon: "🗡️",
+        icon: "",
         category: "Wind Charge",
         desc: "Super-fast wind dashes on ground and air. Pierces through incoming attacks.",
         baseCost: 200,
@@ -101,7 +101,7 @@ export const WEAPON_TYPES = {
     sword: {
         id: "sword",
         name: "Diamond Sword",
-        icon: "⚔️",
+        icon: "",
         category: "Blade Slice",
         desc: "Shorter, precision dash slice that deals massive swift slash damage.",
         baseCost: 350,
@@ -148,7 +148,7 @@ export const WEAPON_TYPES = {
     fists: {
         id: "fists",
         name: "Steve Bare Fists",
-        icon: "👊",
+        icon: "",
         category: "Martial Brawl",
         desc: "Pure close-quarters Steve punches! Does brutal damage in hand-to-hand combat.",
         baseCost: 150,
@@ -195,7 +195,7 @@ export const WEAPON_TYPES = {
     bow: {
         id: "bow",
         name: "Enchanted Bow",
-        icon: "🏹",
+        icon: "",
         category: "Ranged Marksman",
         desc: "Fires deadly arrows from afar. Dash key shoots arrows with a reload cooldown.",
         baseCost: 500,

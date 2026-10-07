@@ -4,6 +4,7 @@
 
 import { Game } from './game.js';
 import { UIManager } from './ui.js';
+import { applyMinecraftBackground } from './pixel.js';
 
 window.addEventListener("DOMContentLoaded", () => {
     const canvas = document.getElementById("game-canvas");
@@ -11,6 +12,8 @@ window.addEventListener("DOMContentLoaded", () => {
         console.error("Game canvas element not found.");
         return;
     }
+
+    applyMinecraftBackground();
 
     let ui = null;
 

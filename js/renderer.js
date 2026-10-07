@@ -51,38 +51,30 @@ export class Renderer {
             return;
         }
 
-        // Sky gradient
-        const skyGrad = ctx.createLinearGradient(0, 0, 0, this.height);
-        skyGrad.addColorStop(0, "#54a0ff");
-        skyGrad.addColorStop(0.7, "#a8dcff");
-        skyGrad.addColorStop(1, "#cbe8fc");
-        ctx.fillStyle = skyGrad;
+        // Flat Minecraft sky (no gradient)
+        ctx.fillStyle = "#79a6ff";
         ctx.fillRect(0, 0, this.width, this.height);
 
-        // Distant mountains
-        ctx.fillStyle = "rgba(72, 126, 176, 0.25)";
-        ctx.beginPath();
-        ctx.moveTo(0, this.height);
-        ctx.lineTo(0, 320);
-        ctx.lineTo(160, 260);
-        ctx.lineTo(340, 330);
-        ctx.lineTo(520, 250);
-        ctx.lineTo(680, 310);
-        ctx.lineTo(800, 270);
-        ctx.lineTo(800, this.height);
-        ctx.closePath();
-        ctx.fill();
+        // Blocky distant hills (stepped, flat colors)
+        ctx.fillStyle = "#5f8f4f";
+        const hills = [[0, 320], [80, 296], [160, 272], [240, 296], [320, 320], [400, 296], [480, 264], [560, 288], [640, 312], [720, 288]];
+        for (const [hx, hy] of hills) {
+            ctx.fillRect(hx, hy, 80, this.height - hy);
+        }
 
-        // Drifting clouds
-        ctx.fillStyle = "rgba(255, 255, 255, 0.65)";
+        // Drifting blocky clouds
+        ctx.fillStyle = "#ffffff";
         for (const cloud of this.clouds) {
             cloud.x += cloud.speed;
             if (cloud.x > this.width + 100) cloud.x = -150;
 
-            ctx.beginPath();
-            ctx.roundRect(cloud.x, cloud.y, cloud.w, 22, 10);
-            ctx.roundRect(cloud.x + 18, cloud.y - 10, cloud.w * 0.6, 24, 12);
-            ctx.fill();
+            const cx = Math.round(cloud.x / 8) * 8;
+            const cy = Math.round(cloud.y / 8) * 8;
+            ctx.fillRect(cx, cy, cloud.w, 16);
+            ctx.fillRect(cx + 16, cy - 8, Math.round(cloud.w * 0.6 / 8) * 8, 8);
+            ctx.fillStyle = "#dfe9ff";
+            ctx.fillRect(cx, cy + 16, cloud.w, 4);
+            ctx.fillStyle = "#ffffff";
         }
     }
 
@@ -96,22 +88,23 @@ export class Renderer {
                 continue;
             }
 
-            // Stone platform
-            ctx.fillStyle = "#3e424b";
+            // Stone block platform with pixel brick lines
+            ctx.fillStyle = "#7d7d7d";
             ctx.fillRect(p.x, p.y, p.w, p.h);
+            ctx.fillStyle = "#5f5f5f";
+            for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+                ctx.fillRect(bx, p.y, 2, p.h);
+            }
+            ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
+            if (p.h > 12) ctx.fillRect(p.x, p.y + Math.floor(p.h / 2), p.w, 2);
 
-            // Brick outline texture
-            ctx.strokeStyle = "#2b2e36";
-            ctx.lineWidth = 2;
-            ctx.strokeRect(p.x + 1, p.y + 1, p.w - 2, p.h - 2);
-
-            // Platform top trim
-            ctx.fillStyle = p.y >= 380 ? "#4da847" : "#5a626f";
-            ctx.fillRect(p.x, p.y, p.w, 4);
-
-            // Top highlight
-            ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
-            ctx.fillRect(p.x, p.y, p.w, 1.5);
+            // Grass top (ground) or lighter stone cap (floating)
+            ctx.fillStyle = p.y >= 380 ? "#5da83e" : "#a4a4a4";
+            ctx.fillRect(p.x, p.y, p.w, 6);
+            ctx.fillStyle = p.y >= 380 ? "#3f7d2a" : "#808080";
+            for (let gx = p.x; gx < p.x + p.w; gx += 8) {
+                ctx.fillRect(gx, p.y + 6, 4, 2);
+            }
         }
     }
 
