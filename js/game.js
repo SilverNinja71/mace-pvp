@@ -538,9 +538,10 @@ export class Game {
         const botColor = botMeta.color;
 
         // Render all fighters
+        const isMultiplayer = this.isTeamMatch || this.mode === "pvp";
         for (let i = 0; i < this.allFighters.length; i++) {
             const f = this.allFighters[i];
-            this.renderer.drawFighter(f, botColor, this.isTeamMatch);
+            this.renderer.drawFighter(f, botColor, isMultiplayer);
             const indR = f.team === "red" ? 255 : (f.team === "blue" ? 30 : 46);
             const indG = f.team === "red" ? 71 : (f.team === "blue" ? 144 : 204);
             const indB = f.team === "red" ? 87 : (f.team === "blue" ? 255 : 113);

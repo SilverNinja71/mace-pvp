@@ -5703,29 +5703,53 @@ button:focus-visible {
       }
   
       drawOverheadBar(f) {
+          if (f.hp <= 0) return;
           const ctx = this.ctx;
           ctx.save();
   
-          const barW = 34;
-          const barH = 4;
-          const barX = f.x + f.w / 2 - barW / 2;
-          const barY = f.y - 12;
+          const barW = 46;
+          const barH = 5;
+          const barX = Math.round(f.x + f.w / 2 - barW / 2);
+          const barY = Math.round(f.y - 18);
   
-          // Background
-          ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-          ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
-  
-          // HP fill
-          const ratio = Math.max(0, f.hp / f.maxHp);
-          ctx.fillStyle = f.team === "red" ? "#ff4757" : (f.team === "blue" ? "#3498db" : "#2ecc71");
-          ctx.fillRect(barX, barY, barW * ratio, barH);
-  
-          // Name tag
-          ctx.fillStyle = "#ffffff";
-          ctx.font = "bold 9px 'Segoe UI', system-ui, sans-serif";
+          // Name tag background & text
+          const nameText = f.name || (f.team ? f.team.toUpperCase() : "PLAYER");
+          ctx.font = "bold 9px monospace";
           ctx.textAlign = "center";
           ctx.textBaseline = "bottom";
-          ctx.fillText(f.name || (f.team ? f.team.toUpperCase() : "P"), f.x + f.w / 2, barY - 2);
+  
+          // Small name tag backing
+          const nameWidth = ctx.measureText(nameText).width;
+          ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
+          ctx.fillRect(Math.round(f.x + f.w / 2 - nameWidth / 2 - 3), barY - 12, nameWidth + 6, 11);
+  
+          // Name text
+          ctx.fillStyle = f.team === "red" ? "#ff7675" : (f.team === "blue" ? "#74b9ff" : "#55ff55");
+          ctx.fillText(nameText, Math.round(f.x + f.w / 2), barY - 2);
+  
+          // Health bar frame
+          ctx.fillStyle = "#1e1e1e";
+          ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+          ctx.strokeStyle = "#000000";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(barX - 1, barY - 1, barW + 2, barH + 2);
+  
+          // Ghost HP
+          const ghostRatio = Math.max(0, Math.min(1, (f.ghostHp || f.hp) / f.maxHp));
+          ctx.fillStyle = "#e74c3c";
+          ctx.fillRect(barX, barY, Math.round(barW * ghostRatio), barH);
+  
+          // Current HP fill
+          const ratio = Math.max(0, Math.min(1, f.hp / f.maxHp));
+          ctx.fillStyle = ratio > 0.5 ? "#2ecc71" : (ratio > 0.25 ? "#f1c40f" : "#e74c3c");
+          ctx.fillRect(barX, barY, Math.round(barW * ratio), barH);
+  
+          // Exact HP text below bar
+          ctx.font = "bold 8px monospace";
+          ctx.fillStyle = "#ffffff";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+          ctx.fillText(`${Math.max(0, Math.ceil(f.hp))} HP`, Math.round(f.x + f.w / 2), barY + barH + 1);
   
           ctx.restore();
       }
@@ -5792,11 +5816,11 @@ button:focus-visible {
           ctx.fillStyle = curCooldown <= 0 ? "#00d2d3" : "#576574";
           ctx.fillRect(20, 38, barW * p1DashRatio, 4);
   
-          ctx.fillStyle = "#000000";
+          ctx.fillStyle = "#ffffff";
           ctx.font = "bold 13px 'Segoe UI', system-ui, sans-serif";
           ctx.textAlign = "left";
           ctx.textBaseline = "middle";
-          ctx.fillText(`${p1Label}: ${Math.max(0, player.hp).toFixed(1)}`, 24, 27);
+          ctx.fillText(`${p1Label}: ${Math.max(0, Math.ceil(player.hp))} / ${player.maxHp} HP`, 24, 27);
   
           // Bot / Player 2 HP
           const bX = this.width - 20 - barW;
@@ -5819,8 +5843,8 @@ button:focus-visible {
           ctx.fillStyle = bot.dashReady && bot.dashCooldown <= 0 ? "#00d2d3" : "#576574";
           ctx.fillRect(bX, 38, barW * bDashRatio, 4);
   
-          ctx.fillStyle = (botColor[0] + botColor[1] + botColor[2] < 200) ? "#ffffff" : "#000000";
-          ctx.fillText(`${p2Label}: ${Math.max(0, bot.hp).toFixed(1)}`, bX + 6, 27);
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText(`${p2Label}: ${Math.max(0, Math.ceil(bot.hp))} / ${bot.maxHp} HP`, bX + 6, 27);
   
           // Mode Label (Centered top)
           ctx.fillStyle = "#1e272e";
@@ -5831,7 +5855,7 @@ button:focus-visible {
           ctx.restore();
       }
   
-      // Team Arena 2v2 and 5v5 HUD
+      // Team Arena 1v1, 2v2 and 5v5 HUD displaying every person and their exact health
       drawTeamArenaHUD(redTeam, blueTeam, matchType) {
           const ctx = this.ctx;
           ctx.save();
@@ -5839,33 +5863,149 @@ button:focus-visible {
           const redAlive = redTeam.filter(f => f.hp > 0).length;
           const blueAlive = blueTeam.filter(f => f.hp > 0).length;
   
-          // Red Banner (Left)
-          ctx.fillStyle = "rgba(231, 76, 60, 0.95)";
-          ctx.fillRect(20, 16, 140, 26);
+          // Center Match Type Badge
+          ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+          ctx.fillRect(this.width / 2 - 60, 10, 120, 24);
           ctx.strokeStyle = "#000";
           ctx.lineWidth = 2;
-          ctx.strokeRect(20, 16, 140, 26);
-          ctx.fillStyle = "#fff";
-          ctx.font = "bold 13px monospace";
+          ctx.strokeRect(this.width / 2 - 60, 10, 120, 24);
+          ctx.fillStyle = "#f1c40f";
+          ctx.font = "bold 12px monospace";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText(`RED TEAM (${redAlive}/${redTeam.length})`, 90, 29);
+          ctx.fillText(`ARENA ${matchType.toUpperCase()}`, this.width / 2, 22);
   
-          // Blue Banner (Right)
-          ctx.fillStyle = "rgba(41, 128, 185, 0.95)";
-          ctx.fillRect(this.width - 160, 16, 140, 26);
-          ctx.strokeRect(this.width - 160, 16, 140, 26);
-          ctx.fillStyle = "#fff";
-          ctx.font = "bold 13px monospace";
-          ctx.fillText(`BLUE TEAM (${blueAlive}/${blueTeam.length})`, this.width - 90, 29);
-  
-          // Center Match Type Badge
-          ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
-          ctx.fillRect(this.width / 2 - 60, 16, 120, 26);
-          ctx.strokeRect(this.width / 2 - 60, 16, 120, 26);
+          // --- RED TEAM ROSTER (Left Side) ---
+          // Header
+          ctx.fillStyle = "rgba(231, 76, 60, 0.95)";
+          ctx.fillRect(16, 10, 160, 24);
+          ctx.strokeStyle = "#000";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(16, 10, 160, 24);
           ctx.fillStyle = "#fff";
           ctx.font = "bold 12px monospace";
-          ctx.fillText(`ARENA ${matchType.toUpperCase()}`, this.width / 2, 29);
+          ctx.textAlign = "center";
+          ctx.fillText(`RED TEAM (${redAlive}/${redTeam.length})`, 96, 22);
+  
+          // Each Red Team fighter's health bar
+          const rItemH = matchType === "5v5" ? 18 : 22;
+          redTeam.forEach((f, idx) => {
+              const itemY = 38 + idx * (rItemH + 4);
+              const isAlive = f.hp > 0;
+              const hpRatio = Math.max(0, Math.min(1, f.hp / f.maxHp));
+              const ghostRatio = Math.max(0, Math.min(1, (f.ghostHp || f.hp) / f.maxHp));
+  
+              // Card background
+              ctx.fillStyle = isAlive ? "rgba(20, 20, 20, 0.85)" : "rgba(40, 20, 20, 0.6)";
+              ctx.fillRect(16, itemY, 160, rItemH);
+              ctx.strokeStyle = isAlive ? "#c0392b" : "#555";
+              ctx.lineWidth = 1;
+              ctx.strokeRect(16, itemY, 160, rItemH);
+  
+              // Fighter Name
+              ctx.font = "bold 10px monospace";
+              ctx.textAlign = "left";
+              ctx.textBaseline = "middle";
+              ctx.fillStyle = isAlive ? "#ffffff" : "#888888";
+              const name = (f.name || `Red ${idx + 1}`).substring(0, 10);
+              ctx.fillText(name, 22, itemY + rItemH / 2);
+  
+              // HP Bar inside card
+              const barX = 90;
+              const barW = 80;
+              const barH = rItemH - 8;
+              const barY = itemY + 4;
+  
+              ctx.fillStyle = "#111";
+              ctx.fillRect(barX, barY, barW, barH);
+  
+              if (isAlive) {
+                  // Ghost HP
+                  ctx.fillStyle = "#e74c3c";
+                  ctx.fillRect(barX, barY, barW * ghostRatio, barH);
+  
+                  // Current HP
+                  ctx.fillStyle = hpRatio > 0.5 ? "#2ecc71" : (hpRatio > 0.25 ? "#f1c40f" : "#e74c3c");
+                  ctx.fillRect(barX, barY, barW * hpRatio, barH);
+  
+                  // HP Text
+                  ctx.fillStyle = "#ffffff";
+                  ctx.font = "bold 9px monospace";
+                  ctx.textAlign = "center";
+                  ctx.fillText(`${Math.max(0, Math.ceil(f.hp))} HP`, barX + barW / 2, itemY + rItemH / 2);
+              } else {
+                  ctx.fillStyle = "#e74c3c";
+                  ctx.font = "bold 9px monospace";
+                  ctx.textAlign = "center";
+                  ctx.fillText("ELIMINATED", barX + barW / 2, itemY + rItemH / 2);
+              }
+          });
+  
+          // --- BLUE TEAM ROSTER (Right Side) ---
+          const bStartX = this.width - 176;
+          // Header
+          ctx.fillStyle = "rgba(41, 128, 185, 0.95)";
+          ctx.fillRect(bStartX, 10, 160, 24);
+          ctx.strokeStyle = "#000";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(bStartX, 10, 160, 24);
+          ctx.fillStyle = "#fff";
+          ctx.font = "bold 12px monospace";
+          ctx.textAlign = "center";
+          ctx.fillText(`BLUE TEAM (${blueAlive}/${blueTeam.length})`, bStartX + 80, 22);
+  
+          // Each Blue Team fighter's health bar
+          blueTeam.forEach((f, idx) => {
+              const itemY = 38 + idx * (rItemH + 4);
+              const isAlive = f.hp > 0;
+              const hpRatio = Math.max(0, Math.min(1, f.hp / f.maxHp));
+              const ghostRatio = Math.max(0, Math.min(1, (f.ghostHp || f.hp) / f.maxHp));
+  
+              // Card background
+              ctx.fillStyle = isAlive ? "rgba(20, 20, 20, 0.85)" : "rgba(20, 30, 40, 0.6)";
+              ctx.fillRect(bStartX, itemY, 160, rItemH);
+              ctx.strokeStyle = isAlive ? "#2980b9" : "#555";
+              ctx.lineWidth = 1;
+              ctx.strokeRect(bStartX, itemY, 160, rItemH);
+  
+              // Fighter Name
+              ctx.font = "bold 10px monospace";
+              ctx.textAlign = "left";
+              ctx.textBaseline = "middle";
+              ctx.fillStyle = isAlive ? "#ffffff" : "#888888";
+              const name = (f.name || `Blue ${idx + 1}`).substring(0, 10);
+              ctx.fillText(name, bStartX + 6, itemY + rItemH / 2);
+  
+              // HP Bar inside card
+              const barX = bStartX + 74;
+              const barW = 80;
+              const barH = rItemH - 8;
+              const barY = itemY + 4;
+  
+              ctx.fillStyle = "#111";
+              ctx.fillRect(barX, barY, barW, barH);
+  
+              if (isAlive) {
+                  // Ghost HP
+                  ctx.fillStyle = "#e74c3c";
+                  ctx.fillRect(barX, barY, barW * ghostRatio, barH);
+  
+                  // Current HP
+                  ctx.fillStyle = hpRatio > 0.5 ? "#2ecc71" : (hpRatio > 0.25 ? "#f1c40f" : "#e74c3c");
+                  ctx.fillRect(barX, barY, barW * hpRatio, barH);
+  
+                  // HP Text
+                  ctx.fillStyle = "#ffffff";
+                  ctx.font = "bold 9px monospace";
+                  ctx.textAlign = "center";
+                  ctx.fillText(`${Math.max(0, Math.ceil(f.hp))} HP`, barX + barW / 2, itemY + rItemH / 2);
+              } else {
+                  ctx.fillStyle = "#e74c3c";
+                  ctx.font = "bold 9px monospace";
+                  ctx.textAlign = "center";
+                  ctx.fillText("ELIMINATED", barX + barW / 2, itemY + rItemH / 2);
+              }
+          });
   
           ctx.restore();
       }
@@ -6460,9 +6600,10 @@ button:focus-visible {
           const botColor = botMeta.color;
   
           // Render all fighters
+          const isMultiplayer = this.isTeamMatch || this.mode === "pvp";
           for (let i = 0; i < this.allFighters.length; i++) {
               const f = this.allFighters[i];
-              this.renderer.drawFighter(f, botColor, this.isTeamMatch);
+              this.renderer.drawFighter(f, botColor, isMultiplayer);
               const indR = f.team === "red" ? 255 : (f.team === "blue" ? 30 : 46);
               const indG = f.team === "red" ? 71 : (f.team === "blue" ? 144 : 204);
               const indB = f.team === "red" ? 87 : (f.team === "blue" ? 255 : 113);
