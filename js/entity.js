@@ -30,6 +30,7 @@ export class Fighter {
         this.weaponStats = getComputedWeaponStats("mace");
         this.skinId = "steve";
         this.arrowCooldown = 0;
+        this.aimAngle = null; // bow aim (radians) set from the mouse; null = shoot straight ahead
 
         // State Flags
         this.onGround = false;
@@ -209,16 +210,20 @@ export class Fighter {
                 const reloadTime = this.weaponStats.reloadTime || 45;
                 this.arrowCooldown = reloadTime;
 
-                // Spawn arrow
+                // Spawn arrow (aimed at the mouse when an aim angle is set)
+                const aim = this.aimAngle;
+                const aimed = aim !== null && aim !== undefined;
+                if (aimed) this.facing = Math.cos(aim) >= 0 ? 1 : -1;
                 arrowManager.spawnArrow(
-                    this.facing > 0 ? this.x + this.w + 4 : this.x - 4,
-                    this.y + this.h / 2,
+                    aimed ? this.x + this.w / 2 + Math.cos(aim) * 18 : (this.facing > 0 ? this.x + this.w + 4 : this.x - 4),
+                    aimed ? this.y + this.h / 2 + Math.sin(aim) * 18 : this.y + this.h / 2,
                     this.facing,
                     this.id,
                     this.team,
                     this.weaponStats.arrowDamage || 30,
                     this.weaponStats.arrowSpeed || 16,
-                    this.weaponStats.arrowKnockback || 1.0
+                    this.weaponStats.arrowKnockback || 1.0,
+                    aimed ? aim : null
                 );
 
                 sound.playDash(); // bow shoot twang

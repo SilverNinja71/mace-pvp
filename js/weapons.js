@@ -275,12 +275,14 @@ export class ArrowManager {
         this.arrows = [];
     }
 
-    spawnArrow(x, y, facing, ownerId, ownerTeam, damage = 30, speed = 16, knockbackMult = 1.0) {
+    // aimAngle (radians) fires toward a point; without it the arrow flies straight ahead
+    spawnArrow(x, y, facing, ownerId, ownerTeam, damage = 30, speed = 16, knockbackMult = 1.0, aimAngle = null) {
+        const aimed = aimAngle !== null && aimAngle !== undefined;
         this.arrows.push({
             x,
             y,
-            vx: facing * speed,
-            vy: -1.2, // slight upward arc
+            vx: aimed ? Math.cos(aimAngle) * speed : facing * speed,
+            vy: aimed ? Math.sin(aimAngle) * speed : -1.2, // slight upward arc
             gravity: 0.15,
             facing,
             ownerId,

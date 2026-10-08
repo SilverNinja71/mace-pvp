@@ -1180,12 +1180,14 @@
           this.arrows = [];
       }
   
-      spawnArrow(x, y, facing, ownerId, ownerTeam, damage = 30, speed = 16, knockbackMult = 1.0) {
+      // aimAngle (radians) fires toward a point; without it the arrow flies straight ahead
+      spawnArrow(x, y, facing, ownerId, ownerTeam, damage = 30, speed = 16, knockbackMult = 1.0, aimAngle = null) {
+          const aimed = aimAngle !== null && aimAngle !== undefined;
           this.arrows.push({
               x,
               y,
-              vx: facing * speed,
-              vy: -1.2, // slight upward arc
+              vx: aimed ? Math.cos(aimAngle) * speed : facing * speed,
+              vy: aimed ? Math.sin(aimAngle) * speed : -1.2, // slight upward arc
               gravity: 0.15,
               facing,
               ownerId,
@@ -2601,6 +2603,7 @@
           this.weaponStats = getComputedWeaponStats("mace");
           this.skinId = "steve";
           this.arrowCooldown = 0;
+          this.aimAngle = null; // bow aim (radians) set from the mouse; null = shoot straight ahead
   
           // State Flags
           this.onGround = false;
@@ -2780,16 +2783,20 @@
                   const reloadTime = this.weaponStats.reloadTime || 45;
                   this.arrowCooldown = reloadTime;
   
-                  // Spawn arrow
+                  // Spawn arrow (aimed at the mouse when an aim angle is set)
+                  const aim = this.aimAngle;
+                  const aimed = aim !== null && aim !== undefined;
+                  if (aimed) this.facing = Math.cos(aim) >= 0 ? 1 : -1;
                   arrowManager.spawnArrow(
-                      this.facing > 0 ? this.x + this.w + 4 : this.x - 4,
-                      this.y + this.h / 2,
+                      aimed ? this.x + this.w / 2 + Math.cos(aim) * 18 : (this.facing > 0 ? this.x + this.w + 4 : this.x - 4),
+                      aimed ? this.y + this.h / 2 + Math.sin(aim) * 18 : this.y + this.h / 2,
                       this.facing,
                       this.id,
                       this.team,
                       this.weaponStats.arrowDamage || 30,
                       this.weaponStats.arrowSpeed || 16,
-                      this.weaponStats.arrowKnockback || 1.0
+                      this.weaponStats.arrowKnockback || 1.0,
+                      aimed ? aim : null
                   );
   
                   sound.playDash(); // bow shoot twang
@@ -4720,6 +4727,9 @@
           // Key states
           this.keys = {};
   
+          // Mouse position in arena coordinates (for aiming the bow)
+          this.mouse = { x: 0, y: 0, active: false };
+  
           // Loop timing
           this.lastTime = 0;
           this.animFrameId = null;
@@ -4893,7 +4903,10 @@
               this.remoteInput.right = !!msg.r;
           } else if (msg.t === "act" && this.mode === "online" && this.onlineRole === "host" && this.state === "play") {
               if (msg.a === "jump") this.bot.jump();
-              if (msg.a === "dash") this.bot.dash(null, true, null, this.arrowManager);
+              if (msg.a === "dash") {
+                  this.bot.aimAngle = typeof msg.aim === "number" ? msg.aim : null;
+                  this.bot.dash(null, true, null, this.arrowManager);
+              }
               if (msg.a === "slam") this.bot.slam();
           } else if (msg.t === "end" && this.isOnlineGuest() && this.state === "play") {
               msg.stats.forEach((st, i) => { this.allFighters[i].stats = st; });
@@ -5052,7 +5065,61 @@
           }
       }
   
+      // The bow aims at the mouse for whoever this browser controls
+      usesMouseAim() {
+          const f = this.localFighter;
+          return this.state === "play" && this.mouse.active && f && f.weaponId === "bow" && f.hp > 0;
+      }
+  
+      aimAngleFor(f) {
+          return Math.atan2(this.mouse.y - (f.y + f.h / 2), this.mouse.x - (f.x + f.w / 2));
+      }
+  
+      // Space / left-click attack for the local fighter (bow shots go toward the mouse)
+      localAttack() {
+          const f = this.localFighter;
+          const aim = this.usesMouseAim() ? this.aimAngleFor(f) : null;
+          if (this.isOnlineGuest()) {
+              online.send({ t: "act", a: "dash", aim });
+              return;
+          }
+          f.aimAngle = aim;
+          f.dash(null, true, null, this.arrowManager);
+      }
+  
       setupInputs() {
+          const toArena = (e) => {
+              const rect = this.canvas.getBoundingClientRect();
+              if (!rect.width || !rect.height) return null;
+              return {
+                  x: (e.clientX - rect.left) * (this.renderer.width / rect.width),
+                  y: (e.clientY - rect.top) * (this.renderer.height / rect.height)
+              };
+          };
+  
+          this.canvas.addEventListener("mousemove", (e) => {
+              const p = toArena(e);
+              if (!p) return;
+              this.mouse.x = p.x;
+              this.mouse.y = p.y;
+              this.mouse.active = true;
+          });
+  
+          // Left-click shoots the bow toward the mouse
+          this.canvas.addEventListener("mousedown", (e) => {
+              if (e.button !== 0 || this.state !== "play") return;
+              const f = this.localFighter;
+              if (!f || f.weaponId !== "bow") return;
+              const p = toArena(e);
+              if (p) {
+                  this.mouse.x = p.x;
+                  this.mouse.y = p.y;
+                  this.mouse.active = true;
+              }
+              e.preventDefault();
+              this.localAttack();
+          });
+  
           window.addEventListener("keydown", (e) => {
               sound.ensureContext();
   
@@ -5126,7 +5193,7 @@
               // Online guest: send actions to the host, which runs the match
               if (this.isOnlineGuest()) {
                   if (e.code === "ArrowUp" || e.code === "KeyW") online.send({ t: "act", a: "jump" });
-                  if (e.code === "Space") online.send({ t: "act", a: "dash" });
+                  if (e.code === "Space") this.localAttack();
                   if (e.code === "ArrowDown" || e.code === "KeyS") online.send({ t: "act", a: "slam" });
                   return;
               }
@@ -5141,7 +5208,7 @@
   
               // --- Player 1 Weapon Attack / Dash / Bow Shoot ---
               if (e.code === "Space") {
-                  this.player.dash(null, true, null, this.arrowManager);
+                  this.localAttack();
               }
   
               // --- Player 1 Slam ---
@@ -5635,10 +5702,30 @@
               );
           }
   
+          // Bow aim line toward the mouse
+          const aiming = this.usesMouseAim();
+          const cursor = aiming ? "crosshair" : "";
+          if (this.canvas.style.cursor !== cursor) this.canvas.style.cursor = cursor;
+          if (aiming) this.drawAimLine(ctx, this.localFighter);
+  
           this.renderer.drawControlsHint(this.mode === "pvp", this.matchFrames);
   
           // Game Over: the Smash-style results screen is an HTML overlay (see UIManager.openResultsScreen)
   
+          ctx.restore();
+      }
+  
+      drawAimLine(ctx, f) {
+          const angle = this.aimAngleFor(f);
+          const cx = f.x + f.w / 2;
+          const cy = f.y + f.h / 2;
+          const ready = f.arrowCooldown <= 0;
+          ctx.save();
+          ctx.fillStyle = ready ? "rgba(255, 255, 255, 0.85)" : "rgba(255, 255, 255, 0.3)";
+          // Dotted pixel line, like a Minecraft bow trajectory hint
+          for (let d = 22; d <= 70; d += 8) {
+              ctx.fillRect(Math.round(cx + Math.cos(angle) * d) - 1, Math.round(cy + Math.sin(angle) * d) - 1, 3, 3);
+          }
           ctx.restore();
       }
   
