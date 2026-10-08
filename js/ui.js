@@ -210,10 +210,10 @@ export class UIManager {
         }
 
         this.themeBtn = document.getElementById("btn-theme");
-        this.currentBiome = "overworld";
+        this.currentBiome = "space";
         if (this.themeBtn) {
             this.themeBtn.addEventListener("click", () => {
-                const biomes = ["overworld", "nether", "end"];
+                const biomes = ["space", "overworld", "nether", "end"];
                 const nextIdx = (biomes.indexOf(this.currentBiome) + 1) % biomes.length;
                 this.currentBiome = biomes[nextIdx];
                 const capitalized = this.currentBiome.charAt(0).toUpperCase() + this.currentBiome.slice(1);

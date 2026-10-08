@@ -39,15 +39,36 @@ export class Renderer {
     }
 
     setBiome(biome) {
-        this.biome = biome || "overworld";
+        this.biome = biome || "space";
     }
 
     drawBackground() {
         const ctx = this.ctx;
         this.frameCount++;
-        const biome = this.biome || "overworld";
+        const biome = this.biome || "space";
 
-        if (biome === "nether") {
+        if (biome === "space") {
+            if (!this.spaceLayer) this.spaceLayer = this.buildSpaceLayer();
+            ctx.drawImage(this.spaceLayer, 0, 0, this.width, this.height);
+
+            // Twinkling stars
+            for (let i = 0; i < 36; i++) {
+                if ((Math.floor(this.frameCount / 18) + i * 7) % 6 === 0) continue;
+                ctx.fillStyle = i % 5 === 0 ? "#ffffff" : (i % 2 ? "#9fb4ff" : "#cfe0ff");
+                const sz = i % 7 === 0 ? 3 : 2;
+                ctx.fillRect((i * 131 + 37) % this.width, (i * 71 + 13) % 330, sz, sz);
+            }
+            // Occasional shooting star
+            const t = this.frameCount % 600;
+            if (t < 40) {
+                const sx = 120 + t * 9;
+                const sy = 40 + t * 3;
+                for (let k = 0; k < 6; k++) {
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.9 - k * 0.15})`;
+                    ctx.fillRect(Math.round(sx - k * 9), Math.round(sy - k * 3), 4, 2);
+                }
+            }
+        } else if (biome === "nether") {
             if (!this.netherLayer) this.netherLayer = this.buildNetherLayer();
             ctx.drawImage(this.netherLayer, 0, 0, this.width, this.height);
 
@@ -101,6 +122,140 @@ export class Renderer {
                 ctx.fillRect(cx, cy + 16, cloud.w, 6);
             }
         }
+    }
+
+    // Draws an isometric pixel cube from 8x8 face maps (top vertex at cx, ty; half = half-width)
+    drawIsoCube(g, cx, ty, half, faces, palette, shades) {
+        const k = 0.577 * half;
+        const mats = {
+            top: [half, -k, half, k, cx - half, ty + k],
+            left: [half, k, 0, 2 * k, cx - half, ty + k],
+            right: [half, -k, 0, 2 * k, cx, ty + 2 * k]
+        };
+        const shade = (hex, f) => {
+            const n = parseInt(hex.slice(1), 16);
+            const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => Math.max(0, Math.min(255, Math.round(v * f))));
+            return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+        };
+        for (const side of ["left", "right", "top"]) {
+            const grid = faces[side];
+            g.save();
+            g.transform(...mats[side]);
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    g.fillStyle = shade(palette[grid[r][c]], shades[side]);
+                    g.fillRect(c / 8, r / 8, 1 / 8 + 0.004, 1 / 8 + 0.004);
+                }
+            }
+            g.restore();
+        }
+        // bright front edges
+        g.strokeStyle = "rgba(232, 254, 255, 0.85)";
+        g.lineWidth = Math.max(1.5, half / 26);
+        g.beginPath();
+        g.moveTo(cx - half, ty + k);
+        g.lineTo(cx, ty + 2 * k);
+        g.lineTo(cx + half, ty + k);
+        g.stroke();
+    }
+
+    // Space backdrop matching the logo: starfield, cube globe planet with atmosphere, cube moon
+    buildSpaceLayer() {
+        const c = document.createElement("canvas");
+        c.width = this.width;
+        c.height = this.height;
+        const g = c.getContext("2d");
+        const W = this.width;
+
+        const bands = ["#060a1f", "#08102a", "#0b1535", "#0e1a42", "#121f4f", "#16255c"];
+        const bandH = Math.ceil(this.height / bands.length);
+        bands.forEach((col, i) => { g.fillStyle = col; g.fillRect(0, i * bandH, W, bandH + 1); });
+
+        // Pixel nebula clouds
+        const neb = [[40, 60, 120, 18, "#1d2a6a"], [70, 78, 80, 12, "#24327a"], [430, 300, 160, 16, "#1a2660"],
+            [470, 316, 90, 10, "#22307a"], [250, 40, 90, 10, "#1a2660"]];
+        for (const [x, y, w, h, col] of neb) { g.fillStyle = col; g.fillRect(x, y, w, h); }
+
+        // Static stars
+        for (let i = 0; i < 70; i++) {
+            g.fillStyle = i % 3 === 0 ? "#6f86d6" : (i % 3 === 1 ? "#9fb4ff" : "#ffffff");
+            g.fillRect((i * 97 + 11) % W, (i * 53 + 29) % 360, 1 + (i % 4 === 0 ? 1 : 0), 1 + (i % 4 === 0 ? 1 : 0));
+        }
+
+        // Atmosphere glow behind the planet
+        const pcx = 610, pty = 74, half = 62;
+        const glow = g.createRadialGradient(pcx, pty + 72, 10, pcx, pty + 72, 150);
+        glow.addColorStop(0, "rgba(95, 208, 255, 0.45)");
+        glow.addColorStop(0.5, "rgba(58, 157, 255, 0.15)");
+        glow.addColorStop(1, "rgba(58, 157, 255, 0)");
+        g.fillStyle = glow;
+        g.fillRect(pcx - 160, pty - 80, 320, 320);
+
+        // Cube globe planet (same maps as the logo)
+        const palette = { w: "#2f7de1", W: "#1f5fc0", l: "#5bbf3a", f: "#3a8f2a", s: "#e8d27a", m: "#9696a0", i: "#ecf4ff", c: "#ffffff" };
+        const faces = {
+            top: ["Wwwllwww", "wcclllfw", "wcllffll", "wwlllsww", "wwwswcWw", "Wwwwwclw", "lwcwlffl", "llwwwllw"],
+            left: ["wwlllwwW", "wllfflcc", "wwllswww", "Wwwwwwll", "lcwwwlfl", "llwWwwll", "slwwwwww", "iiiiwiii"],
+            right: ["wwwwllww", "Wwwlffll", "llwccllw", "flwwwwwW", "llwwwmlw", "scwwlllw", "wwWwwlww", "iiwiiiii"]
+        };
+        this.drawIsoCube(g, pcx, pty, half, faces, palette, { top: 1.12, left: 0.88, right: 0.62 });
+
+        // Cube moon
+        const moonFaces = {
+            top: Array(8).fill("gggggggg").map((r, i) => (i === 2 ? "ggdggggg" : i === 5 ? "gggggdgg" : r)),
+            left: Array(8).fill("gggggggg").map((r, i) => (i === 3 ? "gdgggggg" : r)),
+            right: Array(8).fill("gggggggg").map((r, i) => (i === 4 ? "ggggdggg" : r))
+        };
+        this.drawIsoCube(g, 712, 52, 16, moonFaces, { g: "#e3e0d5", d: "#b8b4a8" }, { top: 1.05, left: 0.82, right: 0.62 });
+
+        // Faint distant planet-cube on the left
+        g.globalAlpha = 0.55;
+        const redFaces = { top: Array(8).fill("rrrRrrrr"), left: Array(8).fill("rRrrrrRr"), right: Array(8).fill("rrrrRrrr") };
+        this.drawIsoCube(g, 92, 120, 20, redFaces, { r: "#c2553a", R: "#9a3f2a" }, { top: 1.1, left: 0.85, right: 0.6 });
+        g.globalAlpha = 1;
+        return c;
+    }
+
+    // Moon-rock floor: pale grey blocks with craters
+    drawMoonFloor(ctx, p) {
+        const B = 16;
+        for (let bx = p.x; bx < p.x + p.w; bx += B) {
+            const n = (bx / B) | 0;
+            ctx.fillStyle = n % 2 ? "#c9c6bb" : "#c2bfb3";
+            ctx.fillRect(bx, p.y, B, p.h);
+            ctx.fillStyle = "#a9a598";
+            ctx.fillRect(bx + ((n * 5) % 10) + 2, p.y + 12, 5, 4);
+            ctx.fillRect(bx + ((n * 7 + 3) % 11), p.y + 30, 4, 3);
+            ctx.fillStyle = "#918d80";
+            ctx.fillRect(bx + ((n * 5) % 10) + 3, p.y + 13, 3, 2);
+            ctx.fillStyle = "#dedbd0";
+            ctx.fillRect(bx + ((n * 3 + 9) % 13), p.y + 22, 2, 2);
+            ctx.fillStyle = "rgba(0, 0, 0, 0.12)";
+            ctx.fillRect(bx, p.y, 1, p.h);
+        }
+        // Lighter dusty top edge
+        ctx.fillStyle = "#e6e3d8";
+        ctx.fillRect(p.x, p.y, p.w, 3);
+        ctx.fillStyle = "#b3afa2";
+        ctx.fillRect(p.x, p.y + 3, p.w, 1);
+    }
+
+    // Glowing crystal ledge (sea-lantern style)
+    drawCrystalLedge(ctx, p) {
+        ctx.fillStyle = "rgba(95, 208, 255, 0.18)";
+        ctx.fillRect(p.x - 4, p.y - 3, p.w + 8, p.h + 10);
+        ctx.fillStyle = "#3e9fd6";
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+        for (let bx = p.x; bx < p.x + p.w; bx += 12) {
+            ctx.fillStyle = ((bx - p.x) / 12) % 2 ? "#5fc4ee" : "#4cb3e4";
+            ctx.fillRect(bx + 1, p.y + 2, 10, p.h - 4);
+            ctx.fillStyle = "#c8f4ff";
+            ctx.fillRect(bx + 3, p.y + 4, 2, 2);
+        }
+        ctx.fillStyle = "#e8fbff";
+        ctx.fillRect(p.x, p.y, p.w, 2);
+        ctx.fillStyle = "#245e8c";
+        ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
     }
 
     // Nether backdrop: crimson cave ceiling, glowstone, netherrack cliffs, lava sea
@@ -354,12 +509,15 @@ export class Renderer {
 
     drawPlatforms() {
         const ctx = this.ctx;
-        const biome = this.biome || "overworld";
+        const biome = this.biome || "space";
 
         for (const p of PLATFORMS_CONFIG) {
             const isFloor = p.y >= 380;
 
-            if (biome === "nether") {
+            if (biome === "space") {
+                if (isFloor) this.drawMoonFloor(ctx, p);
+                else this.drawCrystalLedge(ctx, p);
+            } else if (biome === "nether") {
                 // ==========================================
                 // NETHER: AUTHENTIC NETHERRACK BLOCKS
                 // ==========================================

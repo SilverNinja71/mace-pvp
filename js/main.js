@@ -13,7 +13,7 @@ window.addEventListener("DOMContentLoaded", () => {
         return;
     }
 
-    applyMinecraftBackground();
+    applyMinecraftBackground("space");
 
     let ui = null;
 

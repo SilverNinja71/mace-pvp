@@ -35,7 +35,48 @@ function pxNoise(x, y, seed = 0) {
 // DIRT BACKGROUND WITH TOP GRASS (Minecraft dirt block)
 // Clean pixel art without noisy random specks
 // ------------------------------------------
-export function applyMinecraftBackground(theme = "overworld") {
+// Page colors per theme (background behind the tile and the header bar)
+const PAGE_THEMES = {
+    space: { bg: "#0a0f2c", header: "rgba(8, 12, 34, 0.94)", tileSize: "128px" },
+    overworld: { bg: "#4a3322", header: "rgba(30, 20, 15, 0.94)", tileSize: "64px" },
+    nether: { bg: "#3a0c10", header: "rgba(30, 8, 10, 0.94)", tileSize: "64px" },
+    end: { bg: "#1a1424", header: "rgba(14, 10, 22, 0.94)", tileSize: "64px" }
+};
+
+// Starry deep-space tile matching the cube globe logo
+function spaceTile() {
+    const c = pxCanvas(64, 64);
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#0b1233";
+    ctx.fillRect(0, 0, 64, 64);
+    // stars of a few brightness levels
+    const stars = [
+        [6, 8, "#ffffff"], [21, 3, "#9fb4ff"], [37, 17, "#ffffff"], [52, 28, "#6f86d6"],
+        [11, 25, "#6f86d6"], [29, 33, "#cfe0ff"], [58, 45, "#ffffff"], [44, 56, "#9fb4ff"],
+        [17, 49, "#ffffff"], [3, 60, "#6f86d6"], [48, 11, "#6f86d6"], [33, 61, "#cfe0ff"]
+    ];
+    for (const [x, y, col] of stars) {
+        ctx.fillStyle = col;
+        ctx.fillRect(x, y, 1, 1);
+    }
+    // two "big" twinkle stars
+    ctx.fillStyle = "#e8f0ff";
+    ctx.fillRect(25, 12, 1, 3); ctx.fillRect(24, 13, 3, 1);
+    ctx.fillRect(55, 37, 1, 3); ctx.fillRect(54, 38, 3, 1);
+    return c;
+}
+
+export function applyMinecraftBackground(theme = "space") {
+    const page = PAGE_THEMES[theme] || PAGE_THEMES.overworld;
+    const rootStyle = document.documentElement.style;
+    rootStyle.setProperty("--page-bg", page.bg);
+    rootStyle.setProperty("--header-bg", page.header);
+    rootStyle.setProperty("--tile-size", page.tileSize);
+    if (theme === "space") {
+        rootStyle.setProperty("--dirt", `url(${spaceTile().toDataURL()})`);
+        return;
+    }
+
     const c = pxCanvas(16, 16);
     const ctx = c.getContext("2d");
     

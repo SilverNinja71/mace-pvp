@@ -85,6 +85,7 @@ def bundle():
             with open(icon_path, "rb") as f:
                 data_uri = f"data:{mime};base64," + base64.b64encode(f.read()).decode("ascii")
             html = html.replace(f'href="{fname}"', f'href="{data_uri}"')
+            html = html.replace(f'src="{fname}"', f'src="{data_uri}"')
 
     # Inline JS bundle
     js_inlined = f"<script>\n{js_code}\n</script>"
