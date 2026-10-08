@@ -2708,6 +2708,339 @@ button.btn-can-buy:active,
 }
 
 
+/* ==========================================
+   Text fields must stay selectable / pasteable
+   (the global user-select:none blocks typing & pasting in Safari)
+   ========================================== */
+input, textarea, .selectable {
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+.invite-link-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.invite-link-input {
+    flex: 1;
+    min-width: 0;
+    font-size: 16px;
+    color: #55ff55;
+}
+
+.invite-link-row .btn-ctrl {
+    min-width: 96px;
+    padding: 4px 8px;
+}
+
+.copy-link-status {
+    min-height: 18px;
+    margin-top: 4px;
+    font-size: 16px;
+    color: var(--gold);
+}
+
+/* ==========================================
+   SMASH-STYLE RESULTS SCREEN
+   ========================================== */
+.results-screen {
+    position: absolute;
+    inset: 0;
+    z-index: 150;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    pointer-events: none;
+    --rs-accent: #1e90ff;
+    --rs-accent-dark: #0b3d78;
+}
+
+.results-screen[data-winner="red"] {
+    --rs-accent: #ff4757;
+    --rs-accent-dark: #7a1020;
+}
+
+.results-screen.hidden {
+    display: none;
+}
+
+/* Phase 1: "GAME!" splash */
+.results-game-splash {
+    position: absolute;
+    font-family: var(--font-pixel);
+    font-size: clamp(48px, 11vw, 120px);
+    color: #fff;
+    text-shadow: 6px 6px 0 #000, -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 0 0 30px var(--rs-accent);
+    letter-spacing: 4px;
+    animation: rs-splash-in 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+.results-screen.show-panel .results-game-splash {
+    animation: rs-splash-out 0.25s ease-in forwards;
+}
+
+@keyframes rs-splash-in {
+    0% { transform: scale(3) rotate(-8deg); opacity: 0; }
+    100% { transform: scale(1) rotate(-4deg); opacity: 1; }
+}
+
+@keyframes rs-splash-out {
+    to { transform: scale(0.6) rotate(-4deg); opacity: 0; }
+}
+
+/* Phase 2: results panel */
+.results-panel {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: safe center;
+    gap: 8px;
+    padding: 10px;
+    background: #111;
+    pointer-events: auto;
+    overflow-y: auto;
+}
+
+.results-screen.show-panel .results-panel {
+    display: flex;
+    animation: rs-panel-in 0.35s ease-out both;
+}
+
+@keyframes rs-panel-in {
+    from { clip-path: polygon(0 0, 0 0, 0 100%, 0 100%); }
+    to { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+}
+
+.results-stripes {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(-30deg, var(--rs-accent-dark) 0 40px, #141414 40px 80px);
+    opacity: 0.55;
+    animation: rs-stripes 6s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes rs-stripes {
+    from { background-position: 0 0; }
+    to { background-position: 160px 0; }
+}
+
+.results-header,
+.results-fighters,
+.results-rewards,
+.results-actions {
+    position: relative;
+}
+
+.results-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 40px 8px;
+    background: var(--rs-accent);
+    border: 4px solid #000;
+    box-shadow: 6px 6px 0 #000;
+    transform: skewX(-12deg);
+    animation: rs-header-in 0.4s 0.1s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+.results-header > * {
+    transform: skewX(12deg);
+}
+
+@keyframes rs-header-in {
+    from { transform: translateX(-120%) skewX(-12deg); }
+    to { transform: translateX(0) skewX(-12deg); }
+}
+
+.results-winner-label {
+    font-family: var(--font-pixel);
+    font-size: 12px;
+    color: #000;
+    letter-spacing: 3px;
+}
+
+.results-winner-name {
+    font-family: var(--font-pixel);
+    font-size: clamp(18px, 4vw, 34px);
+    color: #fff;
+    text-shadow: 3px 3px 0 #000;
+    margin: 4px 0 2px;
+    text-align: center;
+    word-break: break-word;
+}
+
+.results-subtitle {
+    font-size: 20px;
+    color: #fff;
+    text-shadow: 2px 2px 0 #000;
+}
+
+.results-fighters {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    max-width: 100%;
+}
+
+.rs-card {
+    width: 190px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 10px 12px;
+    background: #2e2e2e;
+    border: 4px solid #000;
+    border-top: 10px solid #1e90ff;
+    box-shadow: 5px 5px 0 #000;
+    animation: rs-card-in 0.4s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+.rs-card.rs-red { border-top-color: #ff4757; }
+
+.rs-card.rs-first {
+    background: #3a3214;
+    box-shadow: 5px 5px 0 #000, 0 0 0 3px var(--gold);
+}
+
+@keyframes rs-card-in {
+    from { transform: translateY(80px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.rs-place {
+    font-family: var(--font-pixel);
+    font-size: 26px;
+    color: #c6c6c6;
+    text-shadow: 3px 3px 0 #000;
+}
+
+.rs-first .rs-place {
+    color: var(--gold);
+    font-size: 32px;
+}
+
+.rs-portrait {
+    padding: 6px;
+    background: #000;
+    border: 3px solid #555;
+}
+
+.rs-first .rs-portrait {
+    border-color: var(--gold);
+}
+
+.rs-name {
+    font-size: 22px;
+    color: #fff;
+    text-align: center;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rs-you-tag {
+    font-size: 14px;
+    background: #fff;
+    color: #000;
+    padding: 0 4px;
+}
+
+.rs-wep {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 17px;
+    color: var(--text-muted);
+}
+
+.rs-stats {
+    width: 100%;
+    margin-top: 4px;
+    border-top: 2px solid #000;
+    padding-top: 4px;
+}
+
+.rs-stats div {
+    display: flex;
+    justify-content: space-between;
+    font-size: 18px;
+    color: var(--text-muted);
+}
+
+.rs-stats b {
+    color: #fff;
+    font-weight: normal;
+}
+
+/* 5v5: shrink cards so everyone fits, one row per team */
+.results-fighters.compact {
+    display: grid;
+    grid-template-columns: repeat(var(--rs-cols, 5), minmax(0, 130px));
+    gap: 8px;
+}
+
+.results-fighters.compact .rs-card {
+    width: auto;
+    gap: 2px;
+    padding: 4px 6px 6px;
+    border-top-width: 6px;
+}
+
+.results-fighters.compact .rs-portrait { padding: 3px; }
+.results-fighters.compact .rs-stats { display: flex; justify-content: space-around; }
+.results-fighters.compact .rs-stats div { flex-direction: column; align-items: center; }
+
+.results-fighters.compact .rs-place { font-size: 18px; }
+.results-fighters.compact .rs-first .rs-place { font-size: 22px; }
+.results-fighters.compact .rs-name { font-size: 18px; }
+.results-fighters.compact .rs-wep { display: none; }
+.results-fighters.compact .rs-stats div { font-size: 14px; line-height: 1; }
+
+.results-rewards {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.results-rewards:empty {
+    display: none;
+}
+
+.results-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    animation: rs-card-in 0.4s 0.5s both;
+}
+
+.results-actions .btn-ctrl {
+    min-width: 150px;
+}
+
+@media (max-width: 600px) {
+    .rs-card { width: 140px; }
+    .results-header { padding: 6px 20px 8px; }
+    .results-actions .btn-ctrl { min-width: 0; flex: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .results-screen *, .results-screen *::before {
+        animation-duration: 0.01s !important;
+        animation-delay: 0s !important;
+    }
+}
+
 </style>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 8 8%22 shape-rendering=%22crispEdges%22><rect width=%228%22 height=%228%22 fill=%22%235b4129%22/><rect y=%220%22 width=%228%22 height=%222%22 fill=%22%234fae3c%22/></svg>">
     <!-- Google Identity Services (GIS) Client Library -->
@@ -2988,11 +3321,16 @@ button.btn-can-buy:active,
                                 <button id="btn-host-private" class="btn-ctrl">Create Room Code</button>
                             </div>
                             <div id="private-room-panel" class="private-room-panel hidden">
-                                <div>Room Code: <b id="private-room-code-display" class="room-code-val">----</b></div>
+                                <div>Room Code: <b id="private-room-code-display" class="room-code-val selectable">----</b></div>
+                                <div class="invite-link-row">
+                                    <input type="text" id="private-room-link" class="auth-input invite-link-input" readonly aria-label="Room invite link">
+                                    <button id="btn-copy-room-link" class="btn-ctrl">Copy Link</button>
+                                </div>
+                                <div id="copy-link-status" class="copy-link-status" aria-live="polite"></div>
                                 <button id="btn-launch-private" class="btn-submit-arena">Start Private Match</button>
                             </div>
                             <div class="join-private-row">
-                                <input type="text" id="input-join-code" class="auth-input" placeholder="Enter Room Code">
+                                <input type="text" id="input-join-code" class="auth-input" placeholder="Paste Room Code or Link">
                                 <button id="btn-join-private" class="btn-ctrl btn-save-name">Join</button>
                             </div>
                         </div>
@@ -3263,6 +3601,26 @@ button.btn-can-buy:active,
                 <div class="modal-actions" style="margin-top: 20px;">
                     <button id="btn-stats-play-again" class="btn-ctrl">Play Again (Matchmake)</button>
                     <button id="btn-stats-home" class="btn-ctrl btn-home-subtle">Home Menu</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Smash-Style Results Screen ("GAME!" splash, then placements) -->
+        <div id="results-screen" class="results-screen hidden" aria-live="polite">
+            <div id="results-game-splash" class="results-game-splash">GAME!</div>
+            <div id="results-panel" class="results-panel">
+                <div class="results-stripes"></div>
+                <div class="results-header">
+                    <span class="results-winner-label">WINNER</span>
+                    <span id="results-winner-name" class="results-winner-name">---</span>
+                    <span id="results-subtitle" class="results-subtitle"></span>
+                </div>
+                <div id="results-fighters" class="results-fighters"></div>
+                <div id="results-rewards" class="results-rewards"></div>
+                <div class="results-actions">
+                    <button id="btn-results-again" class="btn-ctrl">Play Again (R)</button>
+                    <button id="btn-results-details" class="btn-ctrl">Full Stats</button>
+                    <button id="btn-results-home" class="btn-ctrl">Home (H)</button>
                 </div>
             </div>
         </div>
@@ -8154,6 +8512,10 @@ button.btn-can-buy:active,
           window.addEventListener("keydown", (e) => {
               sound.ensureContext();
   
+              // Never treat typing in a text field (room codes, names, pasted links) as game input
+              const t = e.target;
+              if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  
               const gameKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", "KeyW", "KeyS", "KeyA", "KeyD"];
               if (gameKeys.includes(e.code) && this.state !== "menu") {
                   e.preventDefault();
@@ -8468,6 +8830,7 @@ button.btn-can-buy:active,
               const f = this.allFighters[i];
               if (f.hp <= 0 && !f.isDead) {
                   f.isDead = true;
+                  f.stats.deaths = (f.stats.deaths || 0) + 1;
                   sound.playDashHit();
                   this.particles.addHitSparks(f.x + f.w / 2, f.y + f.h / 2, 22, "#e74c3c");
                   this.particles.addDust(f.x + f.w / 2, f.y + f.h / 2, 16);
@@ -8475,7 +8838,7 @@ button.btn-can-buy:active,
                   const isRedFighter = f.team === "red" || (!f.team && f !== this.player);
                   if (isRedFighter) {
                       this.scoreBlue++;
-                      this.particles.addDamageText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, true);
+                      this.particles.addFloatingText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, "#ff2244", true, 1.3);
                       const killer = this.blueTeam.find(b => b.hp > 0) || this.player;
                       if (killer && killer.stats) killer.stats.kills++;
   
@@ -8486,7 +8849,7 @@ button.btn-can-buy:active,
                       }
                   } else {
                       this.scoreRed++;
-                      this.particles.addDamageText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, true);
+                      this.particles.addFloatingText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, "#ff2244", true, 1.3);
                       const killer = this.redTeam.find(r => r.hp > 0) || this.bot;
                       if (killer && killer.stats) killer.stats.kills++;
   
@@ -8540,7 +8903,7 @@ button.btn-can-buy:active,
               if (item.timer <= 0) {
                   item.fighter.respawn(item.spawnX, item.spawnY);
                   this.particles.addDust(item.fighter.x + 12, item.fighter.y + 24, 15);
-                  this.particles.addDamageText(item.fighter.x + 12, item.fighter.y - 10, "RESPAWNED!", false);
+                  this.particles.addFloatingText(item.fighter.x + 12, item.fighter.y - 10, "RESPAWNED!", "#2ecc71");
                   this.respawnQueue.splice(i, 1);
               }
           }
@@ -8651,22 +9014,7 @@ button.btn-can-buy:active,
   
           this.renderer.drawControlsHint(this.mode === "pvp", this.matchFrames);
   
-          // Game Over Banner
-          if (this.state === "gameover") {
-              let winner = "YOU";
-              if (this.isTeamMatch) {
-                  winner = this.winnerTeam === "blue" ? "BLUE TEAM" : "RED TEAM";
-              } else {
-                  winner = this.winnerTeam === "blue" 
-                      ? (this.mode === "pvp" ? "PLAYER 1" : (this.player.name || "YOU")) 
-                      : (this.mode === "pvp" ? "PLAYER 2" : (this.bot.name || "BOT"));
-              }
-  
-              this.renderer.drawGameOver(
-                  winner, this.player.stats, this.bot.stats, this.lastRewardInfo,
-                  this.scoreBlue, this.scoreRed, this.highestJumper, this.isTiebreaker
-              );
-          }
+          // Game Over: the Smash-style results screen is an HTML overlay (see UIManager.openResultsScreen)
   
           ctx.restore();
       }
@@ -8682,13 +9030,23 @@ button.btn-can-buy:active,
               lastTime = currentTime;
   
               accumulator += frameTime;
-              while (accumulator >= FIXED_DT) {
-                  this.update();
-                  accumulator -= FIXED_DT;
-              }
-  
-              this.render();
+              // Schedule the next frame first and guard each step, so a single
+              // runtime error can never stop the loop and freeze the game.
               this.animFrameId = requestAnimationFrame(loop);
+              try {
+                  while (accumulator >= FIXED_DT) {
+                      this.update();
+                      accumulator -= FIXED_DT;
+                  }
+              } catch (err) {
+                  accumulator = 0;
+                  console.error("Game update error:", err);
+              }
+              try {
+                  this.render();
+              } catch (err) {
+                  console.error("Game render error:", err);
+              }
           };
   
           this.animFrameId = requestAnimationFrame(loop);
@@ -8772,6 +9130,8 @@ button.btn-can-buy:active,
           this.setupArmoryUI();
           this.setupSkinsUI();
           this.setupArenaUI();
+          this.setupResultsUI();
+          this.handleInviteLinkOnLoad();
           this.setupSocialUI();
           this.setupTouchButtons();
           this.detectTouchDevice();
@@ -9707,9 +10067,23 @@ button.btn-can-buy:active,
               btnHost.onclick = () => {
                   const code = arena.generateRoomCode();
                   document.getElementById("private-room-code-display").textContent = code;
+                  const linkInput = document.getElementById("private-room-link");
+                  if (linkInput) linkInput.value = this.buildRoomLink(code);
+                  const status = document.getElementById("copy-link-status");
+                  if (status) status.textContent = "";
                   document.getElementById("private-room-panel").classList.remove("hidden");
                   sound.playClick();
               };
+          }
+  
+          // Copy Invite Link button
+          const btnCopyLink = document.getElementById("btn-copy-room-link");
+          const linkInput = document.getElementById("private-room-link");
+          if (btnCopyLink && linkInput) {
+              btnCopyLink.onclick = () => this.copyRoomLink(linkInput);
+              // Clicking the link field selects all of it for easy manual copying
+              linkInput.addEventListener("focus", () => linkInput.select());
+              linkInput.addEventListener("click", () => linkInput.select());
           }
   
           // Launch Private Match button
@@ -9726,16 +10100,68 @@ button.btn-can-buy:active,
           const joinInput = document.getElementById("input-join-code");
           if (btnJoin && joinInput) {
               btnJoin.onclick = () => {
-                  const code = joinInput.value.trim().toUpperCase();
-                  if (code.length < 5) {
-                      alert("Please enter a valid Room Code!");
+                  const code = this.parseRoomCode(joinInput.value);
+                  if (!code) {
+                      alert("Please enter a valid Room Code or paste an invite link!");
                       return;
                   }
+                  joinInput.value = code;
                   sound.playWin();
                   this.arenaModal.classList.add("hidden");
                   this.launchArenaMatchWithLoading(this.selectedArenaMode, this.selectedArenaWeapon);
               };
           }
+      }
+  
+      // Shareable invite link for a private room, e.g. https://site/index.html?room=MACE-ABCD-123
+      buildRoomLink(code) {
+          const base = window.location.href.split(/[?#]/)[0];
+          return `${base}?room=${encodeURIComponent(code)}`;
+      }
+  
+      // Accepts a bare room code or a full pasted invite link and returns the code (or null)
+      parseRoomCode(text) {
+          let raw = (text || "").trim();
+          if (!raw) return null;
+          const match = raw.match(/[?&#]room=([^&#\s]+)/i);
+          if (match) raw = decodeURIComponent(match[1]);
+          const code = raw.toUpperCase().replace(/\s+/g, "");
+          return /^[A-Z0-9-]{5,}$/.test(code) ? code : null;
+      }
+  
+      copyRoomLink(linkInput) {
+          const status = document.getElementById("copy-link-status");
+          const text = linkInput.value;
+          const done = (ok) => {
+              if (status) status.textContent = ok ? "Link copied! Send it to a friend." : "Select the link and press Ctrl/Cmd+C to copy.";
+              sound.playClick();
+          };
+          const fallback = () => {
+              linkInput.focus();
+              linkInput.select();
+              let ok = false;
+              try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+              done(ok);
+          };
+          if (navigator.clipboard && window.isSecureContext) {
+              navigator.clipboard.writeText(text).then(() => done(true), fallback);
+          } else {
+              fallback();
+          }
+      }
+  
+      // If the page was opened from an invite link (?room=CODE), open the arena hub with the code filled in
+      handleInviteLinkOnLoad() {
+          let code = null;
+          try {
+              code = this.parseRoomCode(window.location.search);
+          } catch (e) {
+              code = null;
+          }
+          if (!code) return;
+          const joinInput = document.getElementById("input-join-code");
+          if (joinInput) joinInput.value = code;
+          this.openArenaModal();
       }
   
       openArenaModal() {
@@ -10011,6 +10437,7 @@ button.btn-can-buy:active,
   
       triggerMatchmakingRestart() {
           sound.playClick();
+          this.hideResultsScreen();
           if (this.statsModal) this.statsModal.classList.add("hidden");
           if (this.pauseModal) this.pauseModal.classList.add("hidden");
   
@@ -10809,6 +11236,7 @@ button.btn-can-buy:active,
       }
   
       onStateChanged(state) {
+          if (state !== "gameover") this.hideResultsScreen();
           if (state === "menu") {
               if (this.menuOverlay) this.menuOverlay.classList.remove("hidden");
               if (this.pauseModal) this.pauseModal.classList.add("hidden");
@@ -10820,13 +11248,128 @@ button.btn-can-buy:active,
           } else if (state === "paused") {
               if (this.pauseModal) this.pauseModal.classList.remove("hidden");
           } else if (state === "gameover") {
-              // Automatically show detailed post-match stats promptly (snappy response, no lag)
-              setTimeout(() => {
-                  if (this.game.state === "gameover") {
-                      this.openStatsModal();
-                  }
-              }, 220);
+              this.openResultsScreen();
           }
+      }
+  
+      // ==========================================
+      // SMASH-STYLE RESULTS SCREEN
+      // ==========================================
+  
+      setupResultsUI() {
+          this.resultsScreen = document.getElementById("results-screen");
+          this.resultsTimer = null;
+  
+          const again = document.getElementById("btn-results-again");
+          if (again) again.addEventListener("click", () => this.triggerMatchmakingRestart());
+          const details = document.getElementById("btn-results-details");
+          if (details) details.addEventListener("click", () => this.openStatsModal());
+          const home = document.getElementById("btn-results-home");
+          if (home) home.addEventListener("click", () => this.handleHomeClick());
+      }
+  
+      hideResultsScreen() {
+          if (this.resultsTimer) {
+              clearTimeout(this.resultsTimer);
+              this.resultsTimer = null;
+          }
+          if (this.resultsScreen) this.resultsScreen.classList.add("hidden");
+      }
+  
+      openResultsScreen() {
+          const screen = this.resultsScreen;
+          if (!screen) {
+              this.openStatsModal();
+              return;
+          }
+          const g = this.game;
+          const isPlayerWin = g.winnerTeam === "blue";
+  
+          // Winner name in the big banner
+          let winnerName;
+          if (g.isTeamMatch) {
+              winnerName = isPlayerWin ? "BLUE TEAM" : "RED TEAM";
+          } else if (g.mode === "pvp") {
+              winnerName = isPlayerWin ? "PLAYER 1" : "PLAYER 2";
+          } else {
+              winnerName = isPlayerWin ? (g.player.name || "YOU") : (g.bot.name || "BOT");
+          }
+          const nameEl = document.getElementById("results-winner-name");
+          nameEl.textContent = winnerName;
+          screen.dataset.winner = g.winnerTeam || "blue";
+  
+          const subEl = document.getElementById("results-subtitle");
+          if (g.isTeamMatch) {
+              subEl.textContent = g.isTiebreaker
+                  ? `Sudden Death • Blue ${g.scoreBlue} - Red ${g.scoreRed}`
+                  : `${g.matchType.toUpperCase()} • Blue ${g.scoreBlue} - Red ${g.scoreRed}`;
+          } else {
+              const modeMeta = MODE_METADATA[g.mode] || {};
+              subEl.textContent = g.mode === "pvp" ? "Local 1v1 Duel" : `1v1 vs ${modeMeta.name || "Bot"}`;
+          }
+  
+          // Placement order: winning team first, then by KOs, then damage dealt
+          const fighters = (g.allFighters || [g.player, g.bot]).slice();
+          const teamOf = (f) => f.team || (f === g.player ? "blue" : "red");
+          fighters.sort((a, b) => {
+              const aw = teamOf(a) === g.winnerTeam ? 0 : 1;
+              const bw = teamOf(b) === g.winnerTeam ? 0 : 1;
+              if (aw !== bw) return aw - bw;
+              const ak = (a.stats && a.stats.kills) || 0;
+              const bk = (b.stats && b.stats.kills) || 0;
+              if (ak !== bk) return bk - ak;
+              return ((b.stats && b.stats.damageDealt) || 0) - ((a.stats && a.stats.damageDealt) || 0);
+          });
+  
+          const ordinal = (n) => n === 1 ? "1st" : n === 2 ? "2nd" : n === 3 ? "3rd" : `${n}th`;
+          const compact = fighters.length > 4;
+          const escapeHTML = (str) => String(str).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  
+          const cards = fighters.map((f, i) => {
+              const st = f.stats || {};
+              // Teams share a placement (whole winning team is 1st), solo duels rank individually
+              const place = g.isTeamMatch ? (teamOf(f) === g.winnerTeam ? 1 : 2) : i + 1;
+              const team = teamOf(f);
+              const isYou = f === g.player;
+              const wep = WEAPON_TYPES[f.weaponId] || WEAPON_TYPES.mace;
+              return `
+                  <div class="rs-card rs-${team} ${place === 1 ? "rs-first" : ""} ${isYou ? "rs-you" : ""}" style="animation-delay:${0.15 + i * 0.08}s">
+                      <div class="rs-place">${ordinal(place)}</div>
+                      <div class="rs-portrait">${headImgHTML(f.skinId || (team === "blue" ? "steve" : "alex"), compact ? 32 : 72)}</div>
+                      <div class="rs-name">${escapeHTML(f.name || "Fighter")}${isYou ? ' <span class="rs-you-tag">YOU</span>' : ""}</div>
+                      <div class="rs-wep">${weaponIconHTML(f.weaponId || "mace", 16)} ${escapeHTML(wep.name)}</div>
+                      <div class="rs-stats">
+                          <div><span>KOs</span><b>${st.kills || 0}</b></div>
+                          <div><span>Falls</span><b>${st.deaths || 0}</b></div>
+                          <div><span>Damage</span><b>${Math.round(st.damageDealt || 0)}</b></div>
+                      </div>
+                  </div>
+              `;
+          }).join("");
+  
+          const fightersEl = document.getElementById("results-fighters");
+          fightersEl.classList.toggle("compact", compact);
+          // One row per team in team matches (winners on top)
+          fightersEl.style.setProperty("--rs-cols", g.isTeamMatch ? Math.ceil(fighters.length / 2) : fighters.length);
+          fightersEl.innerHTML = cards;
+  
+          const rewardsEl = document.getElementById("results-rewards");
+          const r = g.lastRewardInfo;
+          rewardsEl.innerHTML = r ? `
+              <span class="reward-pill">+${r.goldEarned} Gold</span>
+              <span class="reward-pill xp">+${r.xpEarned} XP</span>
+              ${r.rpDelta ? `<span class="reward-pill rp">${r.rpDelta > 0 ? "+" : ""}${r.rpDelta} RP</span>` : ""}
+          ` : "";
+  
+          // Phase 1: "GAME!" splash over the arena, Phase 2: slide in the results panel
+          this.hideResultsScreen();
+          screen.classList.remove("hidden", "show-panel");
+          // Restart CSS animations
+          void screen.offsetWidth;
+          this.resultsTimer = setTimeout(() => {
+              this.resultsTimer = null;
+              if (this.game.state === "gameover") screen.classList.add("show-panel");
+          }, 1400);
       }
   
       downloadGame() {

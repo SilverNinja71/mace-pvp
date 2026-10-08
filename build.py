@@ -74,11 +74,11 @@ def bundle():
 
     # Inline CSS
     css_inlined = f"<style>\n{css}\n</style>"
-    html = re.sub(r'<link\s+rel=[\'"]stylesheet[\'"]\s+href=[\'"]css/style\.css[\'"]\s*/?>', css_inlined, html)
+    html = re.sub(r'<link\s+rel=[\'"]stylesheet[\'"]\s+href=[\'"]css/style\.css[\'"]\s*/?>', lambda m: css_inlined, html)
 
     # Inline JS bundle
     js_inlined = f"<script>\n{js_code}\n</script>"
-    html = re.sub(r'<script\s+src=[\'"]bundle\.js[\'"]\s*></script>', js_inlined, html)
+    html = re.sub(r'<script\s+src=[\'"]bundle\.js[\'"]\s*></script>', lambda m: js_inlined, html)
 
     with open(STANDALONE_HTML, "w", encoding="utf-8") as f:
         f.write(html)
