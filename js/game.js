@@ -575,6 +575,25 @@ export class Game {
         }
     }
 
+    // Difficulty multipliers only apply to the single opponent bot in solo modes.
+    // Arena teams, local PvP and online play are always even.
+    isDifficultyBot(f) {
+        return f === this.bot && !this.isTeamMatch && this.mode !== "pvp" && this.mode !== "online";
+    }
+
+    // damageMult = how hard the bot hits, damageTaken = how much damage the bot takes
+    hitDamageMult(attacker, defender) {
+        let mult = 1;
+        if (this.isDifficultyBot(attacker)) mult *= this.botParams.damageMult ?? 1;
+        if (this.isDifficultyBot(defender)) mult *= this.botParams.damageTaken ?? 1;
+        return mult;
+    }
+
+    // stunMult = how long the bot stays stunned when hit
+    hitStunMult(defender) {
+        return this.isDifficultyBot(defender) ? (this.botParams.stunMult ?? 1) : 1;
+    }
+
     update() {
         if (this.state !== "play") {
             this.particles.update();
@@ -590,10 +609,6 @@ export class Game {
 
         this.matchFrames++;
         this.handleContinuousInput();
-
-        const damageTakenMult = this.botParams.damageTaken ?? 1;
-        const stunMult = this.botParams.stunMult ?? 1;
-        const damageDealtMult = this.botParams.damageMult ?? 1;
 
         // Update all AI fighters (in-place zero allocation)
         for (let i = 0; i < this.allBots.length; i++) {
@@ -641,10 +656,9 @@ export class Game {
                 f.jumpsLeft = 2;
 
                 const opposingTeam = f.team === "red" ? this.blueTeam : (f.team === "blue" ? this.redTeam : (f.isPlayer ? this.blueTeam : this.redTeam));
-                const mult = f.isPlayer ? damageTakenMult : damageDealtMult;
                 for (let j = 0; j < opposingTeam.length; j++) {
                     const def = opposingTeam[j];
-                    this.combat.checkGroundSlam(f, def, mult, stunMult, (dmg, atk, defender) => {
+                    this.combat.checkGroundSlam(f, def, this.hitDamageMult(f, def), this.hitStunMult(def), (dmg, atk, defender) => {
                         if (defender._botAI) defender._botAI.onHit();
                         if (this.isTiebreaker) {
                             if (atk.team === "red" || (!atk.team && atk === this.player)) {
@@ -715,11 +729,11 @@ export class Game {
                 const def = this.blueTeam[j];
                 if (def.hp <= 0) continue;
 
-                this.combat.checkAirSlam(atk, def, damageTakenMult, stunMult, (dmg) => {
+                this.combat.checkAirSlam(atk, def, this.hitDamageMult(atk, def), this.hitStunMult(def), (dmg) => {
                     if (def._botAI) def._botAI.onHit();
                     if (this.isTiebreaker) this.tiebreakerRedDamage += dmg;
                 });
-                this.combat.checkDashHit(atk, def, damageTakenMult, stunMult, (dmg) => {
+                this.combat.checkDashHit(atk, def, this.hitDamageMult(atk, def), this.hitStunMult(def), (dmg) => {
                     if (def._botAI) def._botAI.onHit();
                     if (this.isTiebreaker) this.tiebreakerRedDamage += dmg;
                 });
@@ -733,11 +747,11 @@ export class Game {
                 const def = this.redTeam[j];
                 if (def.hp <= 0) continue;
 
-                this.combat.checkAirSlam(atk, def, damageDealtMult, 1.0, (dmg) => {
+                this.combat.checkAirSlam(atk, def, this.hitDamageMult(atk, def), this.hitStunMult(def), (dmg) => {
                     if (def._botAI) def._botAI.onHit();
                     if (this.isTiebreaker) this.tiebreakerBlueDamage += dmg;
                 });
-                this.combat.checkDashHit(atk, def, damageDealtMult, 1.0, (dmg) => {
+                this.combat.checkDashHit(atk, def, this.hitDamageMult(atk, def), this.hitStunMult(def), (dmg) => {
                     if (def._botAI) def._botAI.onHit();
                     if (this.isTiebreaker) this.tiebreakerBlueDamage += dmg;
                 });

@@ -3782,39 +3782,41 @@ input, textarea, .selectable {
       { x: 510, y: 275, w: 150, h: 12, name: "Right Ledge" }
   ];
   
-  // Exact Bot difficulty settings table from the original source
+  // Bot difficulty settings (originally from the ProcessingJS source, rebalanced so each
+  // level is clearly harder than the last). damageMult = how hard the bot hits,
+  // damageTaken / stunMult = how much damage and stun the bot takes.
   const BOT_SETTINGS = {
       dashAttackChance:   { practice: 1,   easy: 8,   normal: 40,  pro: 70,  god: 70 },
       dashAttackRange:    { practice: 180, easy: 250, normal: 300, pro: 450, god: 450 },
       dashAttackHeight:   { practice: 40,  easy: 50,  normal: 60,  pro: 90,  god: 90 },
-      randomDashChance:   { practice: 0.1, easy: 2,   normal: 3,   pro: 3,   god: 8 },
+      randomDashChance:   { practice: 0.1, easy: 2,   normal: 3,   pro: 3,   god: 5 },
       escapeDashChance:   { practice: 10,  easy: 40,  normal: 40,  pro: 65,  god: 65 },
-      runAwayChance:      { practice: 70,  easy: 70,  normal: 40,  pro: 15,  god: 15 },
-      dodgeChance:        { practice: 8,   easy: 50,  normal: 95,  pro: 100, god: 100 },
+      runAwayChance:      { practice: 70,  easy: 50,  normal: 40,  pro: 15,  god: 15 },
+      dodgeChance:        { practice: 8,   easy: 25,  normal: 65,  pro: 85,  god: 95 },
       dodgeRange:         { practice: 50,  easy: 50,  normal: 90,  pro: 140, god: 140 },
       slamChance:         { practice: 20,  easy: 90,  normal: 100, pro: 100, god: 100 },
       slamCooldown:       { practice: 220, easy: 100, normal: 40,  pro: 20,  god: 20 },
       slamRange:          { practice: 50,  easy: 70,  normal: 90,  pro: 120, god: 120 },
       slamLead:           { practice: 0,   easy: 0,   normal: 8,   pro: 14,  god: 14 },
       climbHeight:        { practice: 0,   easy: 0,   normal: 1,   pro: 1,   god: 1 },
-      punishChance:       { practice: 0,   easy: 0,   normal: 35,  pro: 80,  god: 80 },
-      dashDodgeChance:    { practice: 0,   easy: 0,   normal: 45,  pro: 85,  god: 85 },
-      speed:              { practice: 1.5, easy: 2,   normal: 3,   pro: 5,   god: 5 },
-      runSpeed:           { practice: 3,   easy: 4,   normal: 5.5, pro: 9,   god: 9 },
+      punishChance:       { practice: 0,   easy: 0,   normal: 20,  pro: 65,  god: 75 },
+      dashDodgeChance:    { practice: 0,   easy: 0,   normal: 35,  pro: 60,  god: 75 },
+      speed:              { practice: 1.5, easy: 2,   normal: 3,   pro: 4,   god: 4.5 },
+      runSpeed:           { practice: 3,   easy: 4,   normal: 5.5, pro: 7.5, god: 8.5 },
       jumpChance:         { practice: 40,  easy: 80,  normal: 100, pro: 100, god: 100 },
       doubleJumpChance:   { practice: 20,  easy: 70,  normal: 100, pro: 100, god: 100 },
-      damageMult:         { practice: 0.6, easy: 1,   normal: 1.65,pro: 2,   god: 2 },
+      damageMult:         { practice: 0.6, easy: 0.85,normal: 1.05,pro: 1.25,god: 1.4 },
       maxHP:              { practice: 1000,easy: 100, normal: 100, pro: 100, god: 100 },
-      damageTaken:        { practice: 1,   easy: 1,   normal: 1,   pro: 0.7, god: 0.7 },
-      stunMult:           { practice: 1,   easy: 1,   normal: 1,   pro: 0.35,god: 0.35 },
-      botDashCooldown:    { practice: 40,  easy: 40,  normal: 40,  pro: 0,   god: 0 },
-      dashAIDelay:        { practice: 80,  easy: 80,  normal: 80,  pro: 35,  god: 10 },
-      dashSpeed:          { practice: 20,  easy: 20,  normal: 20,  pro: 28,  god: 28 },
+      damageTaken:        { practice: 1,   easy: 1,   normal: 1,   pro: 0.85,god: 0.8 },
+      stunMult:           { practice: 1,   easy: 1,   normal: 1,   pro: 0.6, god: 0.5 },
+      botDashCooldown:    { practice: 40,  easy: 40,  normal: 40,  pro: 15,  god: 8 },
+      dashAIDelay:        { practice: 80,  easy: 80,  normal: 80,  pro: 50,  god: 42 },
+      dashSpeed:          { practice: 20,  easy: 20,  normal: 20,  pro: 24,  god: 26 },
       airDashRecharge:    { practice: 0,   easy: 0,   normal: 0,   pro: 0,   god: 1 },
-      invisible:          { practice: 0,   easy: 0,   normal: 0,   pro: 1,   god: 1 },
-      invisEvery:         { practice: 900, easy: 900, normal: 900, pro: 900, god: 900 },
-      invisLength:        { practice: 300, easy: 300, normal: 300, pro: 300, god: 300 },
-      regen:              { practice: 0,   easy: 0,   normal: 0,   pro: 0.02,god: 0.02 }
+      invisible:          { practice: 0,   easy: 0,   normal: 0,   pro: 0,   god: 1 },
+      invisEvery:         { practice: 900, easy: 900, normal: 900, pro: 900, god: 720 },
+      invisLength:        { practice: 300, easy: 300, normal: 300, pro: 300, god: 420 },
+      regen:              { practice: 0,   easy: 0,   normal: 0,   pro: 0,   god: 0.05 }
   };
   
   const MODE_METADATA = {
@@ -8916,6 +8918,25 @@ input, textarea, .selectable {
           }
       }
   
+      // Difficulty multipliers only apply to the single opponent bot in solo modes.
+      // Arena teams, local PvP and online play are always even.
+      isDifficultyBot(f) {
+          return f === this.bot && !this.isTeamMatch && this.mode !== "pvp" && this.mode !== "online";
+      }
+  
+      // damageMult = how hard the bot hits, damageTaken = how much damage the bot takes
+      hitDamageMult(attacker, defender) {
+          let mult = 1;
+          if (this.isDifficultyBot(attacker)) mult *= this.botParams.damageMult ?? 1;
+          if (this.isDifficultyBot(defender)) mult *= this.botParams.damageTaken ?? 1;
+          return mult;
+      }
+  
+      // stunMult = how long the bot stays stunned when hit
+      hitStunMult(defender) {
+          return this.isDifficultyBot(defender) ? (this.botParams.stunMult ?? 1) : 1;
+      }
+  
       update() {
           if (this.state !== "play") {
               this.particles.update();
@@ -8931,10 +8952,6 @@ input, textarea, .selectable {
   
           this.matchFrames++;
           this.handleContinuousInput();
-  
-          const damageTakenMult = this.botParams.damageTaken ?? 1;
-          const stunMult = this.botParams.stunMult ?? 1;
-          const damageDealtMult = this.botParams.damageMult ?? 1;
   
           // Update all AI fighters (in-place zero allocation)
           for (let i = 0; i < this.allBots.length; i++) {
@@ -8982,10 +8999,9 @@ input, textarea, .selectable {
                   f.jumpsLeft = 2;
   
                   const opposingTeam = f.team === "red" ? this.blueTeam : (f.team === "blue" ? this.redTeam : (f.isPlayer ? this.blueTeam : this.redTeam));
-                  const mult = f.isPlayer ? damageTakenMult : damageDealtMult;
                   for (let j = 0; j < opposingTeam.length; j++) {
                       const def = opposingTeam[j];
-                      this.combat.checkGroundSlam(f, def, mult, stunMult, (dmg, atk, defender) => {
+                      this.combat.checkGroundSlam(f, def, this.hitDamageMult(f, def), this.hitStunMult(def), (dmg, atk, defender) => {
                           if (defender._botAI) defender._botAI.onHit();
                           if (this.isTiebreaker) {
                               if (atk.team === "red" || (!atk.team && atk === this.player)) {
@@ -9056,11 +9072,11 @@ input, textarea, .selectable {
                   const def = this.blueTeam[j];
                   if (def.hp <= 0) continue;
   
-                  this.combat.checkAirSlam(atk, def, damageTakenMult, stunMult, (dmg) => {
+                  this.combat.checkAirSlam(atk, def, this.hitDamageMult(atk, def), this.hitStunMult(def), (dmg) => {
                       if (def._botAI) def._botAI.onHit();
                       if (this.isTiebreaker) this.tiebreakerRedDamage += dmg;
                   });
-                  this.combat.checkDashHit(atk, def, damageTakenMult, stunMult, (dmg) => {
+                  this.combat.checkDashHit(atk, def, this.hitDamageMult(atk, def), this.hitStunMult(def), (dmg) => {
                       if (def._botAI) def._botAI.onHit();
                       if (this.isTiebreaker) this.tiebreakerRedDamage += dmg;
                   });
@@ -9074,11 +9090,11 @@ input, textarea, .selectable {
                   const def = this.redTeam[j];
                   if (def.hp <= 0) continue;
   
-                  this.combat.checkAirSlam(atk, def, damageDealtMult, 1.0, (dmg) => {
+                  this.combat.checkAirSlam(atk, def, this.hitDamageMult(atk, def), this.hitStunMult(def), (dmg) => {
                       if (def._botAI) def._botAI.onHit();
                       if (this.isTiebreaker) this.tiebreakerBlueDamage += dmg;
                   });
-                  this.combat.checkDashHit(atk, def, damageDealtMult, 1.0, (dmg) => {
+                  this.combat.checkDashHit(atk, def, this.hitDamageMult(atk, def), this.hitStunMult(def), (dmg) => {
                       if (def._botAI) def._botAI.onHit();
                       if (this.isTiebreaker) this.tiebreakerBlueDamage += dmg;
                   });
