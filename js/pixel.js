@@ -313,6 +313,13 @@ function pxWeaponSprite(id) {
     return c.toDataURL();
 }
 
+// Data URL of a weapon's pixel sprite (for drawing on the canvas)
+export function weaponIconURL(id) {
+    const key = "wep:" + id;
+    if (!PX_CACHE[key]) PX_CACHE[key] = pxWeaponSprite(id);
+    return PX_CACHE[key];
+}
+
 export function weaponIconHTML(id, size = 32) {
     const key = "wep:" + id;
     if (!PX_CACHE[key]) PX_CACHE[key] = pxWeaponSprite(id);

@@ -53,6 +53,7 @@ export class AuthManager {
                 // Schema backfills
                 if (parsed.gold === undefined) parsed.gold = 300;
                 if (!parsed.equippedWeapon) parsed.equippedWeapon = "mace";
+                if (parsed.secondaryWeapon === undefined) parsed.secondaryWeapon = null;
                 if (!parsed.unlockedWeapons) parsed.unlockedWeapons = ["mace", "spear"];
                 if (!parsed.weaponUpgrades) parsed.weaponUpgrades = {};
                 if (!parsed.skinId) parsed.skinId = "steve";
@@ -90,6 +91,7 @@ export class AuthManager {
             xp: 0,
             gold: 300, // 300 starter gold
             equippedWeapon: "mace",
+            secondaryWeapon: null, // second loadout slot (swap with Q in matches)
             unlockedWeapons: ["mace", "spear"],
             weaponUpgrades: {},
             skinId: "steve",
@@ -112,6 +114,8 @@ export class AuthManager {
                 slamsLanded: 0,
                 dashesLanded: 0,
                 maxSlamDamage: 0,
+                kills: 0,
+                damageDealt: 0,
                 currentStreak: 0,
                 bestStreak: 0
             }
@@ -256,13 +260,27 @@ export class AuthManager {
         return { success: false, error: "Weapon already unlocked." };
     }
 
-    equipWeapon(weaponId) {
-        if (this.user.unlockedWeapons.includes(weaponId)) {
-            this.user.equippedWeapon = weaponId;
-            this.saveUser();
-            return true;
+    // slot 1 = primary weapon, slot 2 = secondary. Equipping a weapon that's in the
+    // other slot swaps the two.
+    equipWeapon(weaponId, slot = 1) {
+        if (!this.user.unlockedWeapons.includes(weaponId)) return false;
+        const u = this.user;
+        if (slot === 2) {
+            if (u.equippedWeapon === weaponId) u.equippedWeapon = u.secondaryWeapon || u.equippedWeapon;
+            u.secondaryWeapon = weaponId;
+            if (u.equippedWeapon === u.secondaryWeapon) u.secondaryWeapon = null;
+        } else {
+            if (u.secondaryWeapon === weaponId) u.secondaryWeapon = u.equippedWeapon;
+            u.equippedWeapon = weaponId;
+            if (u.secondaryWeapon === u.equippedWeapon) u.secondaryWeapon = null;
         }
-        return false;
+        this.saveUser();
+        return true;
+    }
+
+    clearSecondaryWeapon() {
+        this.user.secondaryWeapon = null;
+        this.saveUser();
     }
 
     upgradeWeapon(upgradeId, cost, maxLevel = 5) {
@@ -564,13 +582,7 @@ export class AuthManager {
             xpEarned = 25;
         }
 
-        if (matchStats) {
-            s.slamsLanded += (matchStats.slamsLanded || 0);
-            s.dashesLanded += (matchStats.dashesLanded || 0);
-            if (matchStats.maxSlamDamage > s.maxSlamDamage) {
-                s.maxSlamDamage = matchStats.maxSlamDamage;
-            }
-        }
+        this.addMatchStatsToCareer(matchStats);
 
         this.addGold(goldEarned);
         this.addXP(xpEarned);
@@ -580,9 +592,23 @@ export class AuthManager {
     }
 
     // Ranked Arena Match Outcome (Scales heavily as rank increases)
-    recordArenaMatchResult(isWin, matchType = "1v1") {
+    // Adds one match's combat numbers to the lifetime career record
+    addMatchStatsToCareer(matchStats) {
+        if (!matchStats) return;
+        const s = this.user.stats;
+        s.slamsLanded = (s.slamsLanded || 0) + (matchStats.slamsLanded || 0);
+        s.dashesLanded = (s.dashesLanded || 0) + (matchStats.dashesLanded || 0);
+        s.kills = (s.kills || 0) + (matchStats.kills || 0);
+        s.damageDealt = (s.damageDealt || 0) + (matchStats.damageDealt || 0);
+        if ((matchStats.maxSlamDamage || 0) > (s.maxSlamDamage || 0)) {
+            s.maxSlamDamage = matchStats.maxSlamDamage;
+        }
+    }
+
+    recordArenaMatchResult(isWin, matchType = "1v1", matchStats = null) {
         const s = this.user.stats;
         s.matches++;
+        this.addMatchStatsToCareer(matchStats);
 
         const curRP = this.user.arenaRP || 250;
         let rpDelta = 0;

@@ -16,13 +16,13 @@
   
   const ARENA_CONFIG = {
       width: 800,
-      height: 400,
+      height: 440,             // Taller view so the ground layers are visible
       groundY: 390
   };
   
   const CORE_PHYSICS = {
       gravity: 0.35,
-      jumpPower: -8.5,
+      jumpPower: -7.2,         // Lower jumps (was -8.5) so double jumps stay on screen
       coyoteTime: 12,
       groundY: 390,
   
@@ -48,7 +48,7 @@
   };
   
   const PLATFORMS_CONFIG = [
-      { x: 0,   y: 390, w: 800, h: 30, name: "Main Floor" },
+      { x: 0,   y: 390, w: 800, h: 50, name: "Main Floor" },
       { x: 140, y: 275, w: 150, h: 12, name: "Left Ledge" },
       { x: 510, y: 275, w: 150, h: 12, name: "Right Ledge" }
   ];
@@ -81,7 +81,7 @@
       damageTaken:        { practice: 1,   easy: 1,   normal: 1,   pro: 0.85,god: 0.8 },
       stunMult:           { practice: 1,   easy: 1,   normal: 1,   pro: 0.6, god: 0.5 },
       botDashCooldown:    { practice: 40,  easy: 40,  normal: 40,  pro: 15,  god: 8 },
-      dashAIDelay:        { practice: 80,  easy: 80,  normal: 80,  pro: 50,  god: 42 },
+      dashAIDelay:        { practice: 80,  easy: 80,  normal: 80,  pro: 56,  god: 42 },
       dashSpeed:          { practice: 20,  easy: 20,  normal: 20,  pro: 24,  god: 26 },
       airDashRecharge:    { practice: 0,   easy: 0,   normal: 0,   pro: 0,   god: 1 },
       invisible:          { practice: 0,   easy: 0,   normal: 0,   pro: 0,   god: 1 },
@@ -503,6 +503,13 @@
           rect(11, 0, 2, 1, "#3a3d42"); rect(11, 7, 2, 1, "#3a3d42");
       }
       return c.toDataURL();
+  }
+  
+  // Data URL of a weapon's pixel sprite (for drawing on the canvas)
+  function weaponIconURL(id) {
+      const key = "wep:" + id;
+      if (!PX_CACHE[key]) PX_CACHE[key] = pxWeaponSprite(id);
+      return PX_CACHE[key];
   }
   
   function weaponIconHTML(id, size = 32) {
@@ -1243,9 +1250,10 @@
                       a.y >= f.y && a.y <= f.y + f.h &&
                       f.hitCooldown <= 0
                   ) {
-                      // Hit fighter!
+                      // Hit fighter! (stats count only the HP actually removed)
+                      const dealt = Math.min(a.damage, Math.max(0, f.hp));
                       f.hp -= a.damage;
-                      f.stats.damageTaken += a.damage;
+                      f.stats.damageTaken += dealt;
                       f.hitCooldown = 20;
                       f.stun = 25;
                       f.xVel = a.facing * 7 * (a.knockbackMult || 1.0);
@@ -1255,7 +1263,7 @@
                       if (shooter) f.lastHitBy = shooter;
                       if (shooter) {
                           shooter.stats.arrowsHit++;
-                          shooter.stats.damageDealt += a.damage;
+                          shooter.stats.damageDealt += dealt;
                       }
   
                       if (onHitCallback) {
@@ -1602,6 +1610,7 @@
                   // Schema backfills
                   if (parsed.gold === undefined) parsed.gold = 300;
                   if (!parsed.equippedWeapon) parsed.equippedWeapon = "mace";
+                  if (parsed.secondaryWeapon === undefined) parsed.secondaryWeapon = null;
                   if (!parsed.unlockedWeapons) parsed.unlockedWeapons = ["mace", "spear"];
                   if (!parsed.weaponUpgrades) parsed.weaponUpgrades = {};
                   if (!parsed.skinId) parsed.skinId = "steve";
@@ -1639,6 +1648,7 @@
               xp: 0,
               gold: 300, // 300 starter gold
               equippedWeapon: "mace",
+              secondaryWeapon: null, // second loadout slot (swap with Q in matches)
               unlockedWeapons: ["mace", "spear"],
               weaponUpgrades: {},
               skinId: "steve",
@@ -1661,6 +1671,8 @@
                   slamsLanded: 0,
                   dashesLanded: 0,
                   maxSlamDamage: 0,
+                  kills: 0,
+                  damageDealt: 0,
                   currentStreak: 0,
                   bestStreak: 0
               }
@@ -1805,13 +1817,27 @@
           return { success: false, error: "Weapon already unlocked." };
       }
   
-      equipWeapon(weaponId) {
-          if (this.user.unlockedWeapons.includes(weaponId)) {
-              this.user.equippedWeapon = weaponId;
-              this.saveUser();
-              return true;
+      // slot 1 = primary weapon, slot 2 = secondary. Equipping a weapon that's in the
+      // other slot swaps the two.
+      equipWeapon(weaponId, slot = 1) {
+          if (!this.user.unlockedWeapons.includes(weaponId)) return false;
+          const u = this.user;
+          if (slot === 2) {
+              if (u.equippedWeapon === weaponId) u.equippedWeapon = u.secondaryWeapon || u.equippedWeapon;
+              u.secondaryWeapon = weaponId;
+              if (u.equippedWeapon === u.secondaryWeapon) u.secondaryWeapon = null;
+          } else {
+              if (u.secondaryWeapon === weaponId) u.secondaryWeapon = u.equippedWeapon;
+              u.equippedWeapon = weaponId;
+              if (u.secondaryWeapon === u.equippedWeapon) u.secondaryWeapon = null;
           }
-          return false;
+          this.saveUser();
+          return true;
+      }
+  
+      clearSecondaryWeapon() {
+          this.user.secondaryWeapon = null;
+          this.saveUser();
       }
   
       upgradeWeapon(upgradeId, cost, maxLevel = 5) {
@@ -2113,13 +2139,7 @@
               xpEarned = 25;
           }
   
-          if (matchStats) {
-              s.slamsLanded += (matchStats.slamsLanded || 0);
-              s.dashesLanded += (matchStats.dashesLanded || 0);
-              if (matchStats.maxSlamDamage > s.maxSlamDamage) {
-                  s.maxSlamDamage = matchStats.maxSlamDamage;
-              }
-          }
+          this.addMatchStatsToCareer(matchStats);
   
           this.addGold(goldEarned);
           this.addXP(xpEarned);
@@ -2129,9 +2149,23 @@
       }
   
       // Ranked Arena Match Outcome (Scales heavily as rank increases)
-      recordArenaMatchResult(isWin, matchType = "1v1") {
+      // Adds one match's combat numbers to the lifetime career record
+      addMatchStatsToCareer(matchStats) {
+          if (!matchStats) return;
+          const s = this.user.stats;
+          s.slamsLanded = (s.slamsLanded || 0) + (matchStats.slamsLanded || 0);
+          s.dashesLanded = (s.dashesLanded || 0) + (matchStats.dashesLanded || 0);
+          s.kills = (s.kills || 0) + (matchStats.kills || 0);
+          s.damageDealt = (s.damageDealt || 0) + (matchStats.damageDealt || 0);
+          if ((matchStats.maxSlamDamage || 0) > (s.maxSlamDamage || 0)) {
+              s.maxSlamDamage = matchStats.maxSlamDamage;
+          }
+      }
+  
+      recordArenaMatchResult(isWin, matchType = "1v1", matchStats = null) {
           const s = this.user.stats;
           s.matches++;
+          this.addMatchStatsToCareer(matchStats);
   
           const curRP = this.user.arenaRP || 250;
           let rpDelta = 0;
@@ -2653,6 +2687,27 @@
           this.weaponStats = getComputedWeaponStats(weaponId, upgradeLevels);
       }
   
+      // Two-weapon loadout: primary + optional secondary, swapped with swapWeapon()
+      setLoadout(primary, secondary = null, upgradeLevels = {}) {
+          this.loadout = secondary && secondary !== primary ? [primary, secondary] : [primary];
+          this.loadoutUpgrades = upgradeLevels;
+          this.activeSlot = 0;
+          this.swapCooldown = 0;
+          this.setWeapon(primary, upgradeLevels);
+      }
+  
+      swapWeapon() {
+          if (!this.loadout || this.loadout.length < 2) return false;
+          if (this.swapCooldown > 0 || this.dashing || this.slamming || this.hp <= 0) return false;
+          this.activeSlot = 1 - this.activeSlot;
+          this.setWeapon(this.loadout[this.activeSlot], this.loadoutUpgrades || {});
+          this.swapCooldown = 20; // ~1/3 second between swaps
+          this.squashX = 1.15;
+          this.squashY = 0.9;
+          sound.playClick();
+          return true;
+      }
+  
       setSkin(skinId) {
           this.skinId = skinId;
       }
@@ -2799,6 +2854,7 @@
                       aimed ? aim : null
                   );
   
+                  this.stats.arrowsAttempted++;
                   sound.playDash(); // bow shoot twang
                   this.squashX = 1.2;
                   this.squashY = 0.85;
@@ -2902,10 +2958,13 @@
           if (this.hp <= 0) return;
   
           // Update stat tracking (altitude)
-          const altitude = Math.max(0, ARENA_CONFIG.groundY - this.y);
+          // Height of the fighter's feet above the floor
+          const altitude = Math.max(0, ARENA_CONFIG.groundY - (this.y + this.h));
           if (altitude > this.stats.maxHeight) {
               this.stats.maxHeight = altitude;
           }
+  
+          if (this.swapCooldown > 0) this.swapCooldown--;
   
           // Arrow cooldown countdown
           if (this.arrowCooldown > 0) {
@@ -3021,6 +3080,12 @@
           // Stepped off ledge
           if (wasGrounded && !landed && this.yVel >= 0) {
               this.coyoteTimer = CORE_PHYSICS.coyoteTime;
+          }
+  
+          // Ceiling: bump your head instead of flying off the top of the screen
+          if (this.y < 0) {
+              this.y = 0;
+              if (this.yVel < 0) this.yVel = 0;
           }
   
           // Arena horizontal boundaries
@@ -3392,6 +3457,15 @@
       }
   
       // Resolves direct mid-air mace slam
+      // Applies damage and returns how much HP was actually removed (no overkill in stats)
+      applyDamage(attacker, defender, amount) {
+          const dealt = Math.min(amount, Math.max(0, defender.hp));
+          defender.hp -= amount;
+          defender.stats.damageTaken += dealt;
+          defender.lastHitBy = attacker;
+          return dealt;
+      }
+  
       checkAirSlam(attacker, defender, damageMultiplier, stunMultiplier, onDefenderHit = null) {
           if (!attacker.slamming || attacker.dashing) return false;
           if (defender.hp <= 0 || defender.hitCooldown > 0) return false;
@@ -3421,9 +3495,7 @@
               }
   
               const finalDamage = slamDamage * effDmgMult;
-              defender.hp -= finalDamage;
-              defender.stats.damageTaken += finalDamage;
-              defender.lastHitBy = attacker;
+              const dealt = this.applyDamage(attacker, defender, finalDamage);
               defender.hitCooldown = 25;
               defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier);
   
@@ -3446,7 +3518,7 @@
               defender.squashY = 0.7;
   
               // Stats
-              attacker.stats.damageDealt += finalDamage;
+              attacker.stats.damageDealt += dealt;
               attacker.stats.slamsLanded++;
               if (finalDamage > attacker.stats.maxSlamDamage) {
                   attacker.stats.maxSlamDamage = finalDamage;
@@ -3498,9 +3570,7 @@
               defender.hitCooldown <= 0
           ) {
               const finalDamage = CORE_PHYSICS.slamGroundDamage * damageMultiplier;
-              defender.hp -= finalDamage;
-              defender.stats.damageTaken += finalDamage;
-              defender.lastHitBy = attacker;
+              const dealt = this.applyDamage(attacker, defender, finalDamage);
               defender.hitCooldown = 20;
               defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier);
   
@@ -3508,8 +3578,12 @@
               defender.dashing = false;
               defender.dashAttack = false;
   
-              attacker.stats.damageDealt += finalDamage;
-              attacker.stats.slamsLanded++;
+              attacker.stats.damageDealt += dealt;
+              // One slam that hits several enemies still counts as one landed slam
+              if (!attacker.groundSlamCounted) {
+                  attacker.stats.slamsLanded++;
+                  attacker.groundSlamCounted = true;
+              }
   
               if (onDefenderHit) onDefenderHit(finalDamage, attacker, defender);
   
@@ -3543,9 +3617,7 @@
               attacker.y + attacker.h > defender.y
           ) {
               const finalDamage = baseDmg * damageMultiplier;
-              defender.hp -= finalDamage;
-              defender.stats.damageTaken += finalDamage;
-              defender.lastHitBy = attacker;
+              const dealt = this.applyDamage(attacker, defender, finalDamage);
               defender.hitCooldown = 22;
               defender.stun = Math.round((CORE_PHYSICS.hitStun + stunBonus) * stunMultiplier);
   
@@ -3564,7 +3636,7 @@
                   attacker.dashReady = true;
               }
   
-              attacker.stats.damageDealt += finalDamage;
+              attacker.stats.damageDealt += dealt;
               attacker.stats.dashesLanded++;
   
               if (onDefenderHit) onDefenderHit(finalDamage, attacker, defender);
@@ -3684,46 +3756,191 @@
               ctx.fillStyle = glow;
               ctx.fillRect(342, 75, 16, 15);
           } else {
-              // Overworld: Flat Minecraft sky (no gradient)
-              ctx.fillStyle = "#79a6ff";
-              ctx.fillRect(0, 0, this.width, this.height);
+              // Overworld: static layers are painted once and cached
+              if (!this.overworldLayer) this.overworldLayer = this.buildOverworldLayer();
+              ctx.drawImage(this.overworldLayer, 0, 0, this.width, this.height);
   
-              // Distant Minecraft mountain peaks in far background (capped at y = 295, well above ground floor y = 390)
-              ctx.fillStyle = "#527a60";
-              const mountains = [
-                  [0, 255, 110],
-                  [90, 230, 130],
-                  [200, 215, 150],
-                  [330, 245, 120],
-                  [430, 225, 140],
-                  [550, 240, 130],
-                  [660, 230, 140]
-              ];
-              for (const [mx, my, mw] of mountains) {
-                  ctx.fillRect(mx, my, mw, 295 - my);
-              }
-              // Mountain peak highlights
-              ctx.fillStyle = "#699878";
-              for (const [mx, my, mw] of mountains) {
-                  ctx.fillRect(mx + 10, my, mw - 20, 4);
-                  ctx.fillRect(mx + 25, my - 6, mw - 50, 6);
-              }
-  
-              // Drifting blocky clouds
-              ctx.fillStyle = "#ffffff";
+              // Drifting blocky clouds (two-tone, pixel-snapped)
               for (const cloud of this.clouds) {
                   cloud.x += cloud.speed;
                   if (cloud.x > this.width + 100) cloud.x = -150;
   
                   const cx = Math.round(cloud.x / 8) * 8;
                   const cy = Math.round(cloud.y / 8) * 8;
+                  ctx.fillStyle = "#ffffff";
                   ctx.fillRect(cx, cy, cloud.w, 16);
                   ctx.fillRect(cx + 16, cy - 8, Math.round(cloud.w * 0.6 / 8) * 8, 8);
                   ctx.fillStyle = "#dfe9ff";
-                  ctx.fillRect(cx, cy + 16, cloud.w, 4);
-                  ctx.fillStyle = "#ffffff";
+                  ctx.fillRect(cx, cy + 16, cloud.w, 6);
               }
           }
+      }
+  
+      // Paints the Overworld backdrop (sky bands, sun, mountains, hills, trees) to an offscreen canvas
+      buildOverworldLayer() {
+          const c = document.createElement("canvas");
+          c.width = this.width;
+          c.height = this.height;
+          const g = c.getContext("2d");
+          const W = this.width;
+          const ground = ARENA_CONFIG.groundY;
+  
+          // Sky in flat bands (lighter toward the horizon), no gradients
+          const bands = ["#5b8dff", "#6597ff", "#70a1ff", "#7cabff", "#89b5ff", "#97c0ff"];
+          const bandH = Math.ceil(ground / bands.length);
+          bands.forEach((col, i) => {
+              g.fillStyle = col;
+              g.fillRect(0, i * bandH, W, bandH + 1);
+          });
+  
+          // Square Minecraft sun with a soft halo ring
+          g.fillStyle = "#fff6b3";
+          g.fillRect(636, 36, 56, 56);
+          g.fillStyle = "#fffde6";
+          g.fillRect(648, 48, 32, 32);
+  
+          // Far mountains (blue-grey), stepped like blocks
+          const far = [[0, 210], [60, 190], [120, 175], [170, 195], [230, 160], [290, 180], [350, 200],
+              [400, 170], [460, 150], [520, 175], [580, 195], [640, 165], [700, 185], [760, 200]];
+          g.fillStyle = "#8aa3c8";
+          far.forEach(([x, y], i) => {
+              const w = (far[i + 1] ? far[i + 1][0] : W) - x;
+              g.fillRect(x, y, w, ground - y);
+          });
+          g.fillStyle = "#e8eef8"; // snow caps
+          far.forEach(([x, y], i) => {
+              const w = (far[i + 1] ? far[i + 1][0] : W) - x;
+              if (y < 185) g.fillRect(x, y, w, 8);
+          });
+  
+          // Near hills (green), stepped 8px blocks, reaching all the way down to the floor
+          g.fillStyle = "#4f8a3c";
+          for (let x = 0; x < W; x += 8) {
+              const h = 250 + Math.round((Math.sin(x * 0.011) * 22 + Math.sin(x * 0.031 + 1.7) * 10) / 8) * 8;
+              g.fillRect(x, h, 8, ground - h);
+          }
+          g.fillStyle = "#5d9c46"; // sunlit top edge
+          for (let x = 0; x < W; x += 8) {
+              const h = 250 + Math.round((Math.sin(x * 0.011) * 22 + Math.sin(x * 0.031 + 1.7) * 10) / 8) * 8;
+              g.fillRect(x, h, 8, 4);
+          }
+  
+          // Rows of pixel oak trees in the mid-ground
+          const tree = (x, base, s) => {
+              g.fillStyle = "#6b4a2b";
+              g.fillRect(x + 3 * s, base - 6 * s, 2 * s, 6 * s);
+              g.fillStyle = "#2f6b2a";
+              g.fillRect(x, base - 12 * s, 8 * s, 6 * s);
+              g.fillRect(x + 2 * s, base - 14 * s, 4 * s, 2 * s);
+              g.fillStyle = "#3d8436";
+              g.fillRect(x + s, base - 12 * s, 3 * s, 2 * s);
+          };
+          [[30, 330], [130, 345], [250, 325], [360, 340], [470, 330], [585, 345], [700, 335]].forEach(([x, b]) => tree(x, b, 3));
+          g.fillStyle = "#3f7330"; // darker meadow band behind the arena floor
+          g.fillRect(0, 350, W, ground - 350);
+          [[80, 386], [200, 388], [420, 386], [540, 388], [660, 386], [760, 388]].forEach(([x, b]) => tree(x, b, 4));
+  
+          return c;
+      }
+  
+      // Grass block top, dirt middle, stone with ores at the bottom (16px Minecraft blocks)
+      drawGrassFloor(ctx, p) {
+          const B = 16;
+          const dirtEnd = p.y + 30;
+          for (let bx = p.x; bx < p.x + p.w; bx += B) {
+              const n = (bx / B) | 0;
+              // Dirt
+              ctx.fillStyle = "#866043";
+              ctx.fillRect(bx, p.y, B, dirtEnd - p.y);
+              ctx.fillStyle = "#6f4e35";
+              ctx.fillRect(bx + ((n * 5) % 11), p.y + 12, 3, 3);
+              ctx.fillRect(bx + ((n * 7 + 4) % 12), p.y + 20, 2, 2);
+              ctx.fillStyle = "#9b7653";
+              ctx.fillRect(bx + ((n * 3 + 8) % 13), p.y + 16, 2, 2);
+              // Stone
+              ctx.fillStyle = "#7f7f7f";
+              ctx.fillRect(bx, dirtEnd, B, p.y + p.h - dirtEnd);
+              ctx.fillStyle = "#6a6a6a";
+              ctx.fillRect(bx + ((n * 5 + 2) % 12), dirtEnd + 4, 4, 2);
+              ctx.fillRect(bx + ((n * 3) % 10), dirtEnd + 11, 3, 2);
+              if (n % 7 === 3) { // coal ore
+                  ctx.fillStyle = "#2b2b2b";
+                  ctx.fillRect(bx + 4, dirtEnd + 6, 3, 3);
+                  ctx.fillRect(bx + 9, dirtEnd + 10, 2, 2);
+              } else if (n % 13 === 8) { // iron ore
+                  ctx.fillStyle = "#d8af93";
+                  ctx.fillRect(bx + 5, dirtEnd + 5, 3, 2);
+                  ctx.fillRect(bx + 10, dirtEnd + 11, 2, 2);
+              }
+              ctx.fillStyle = "rgba(0, 0, 0, 0.18)"; // block seams
+              ctx.fillRect(bx, p.y, 1, p.h);
+          }
+          // Grass top with ragged edge
+          ctx.fillStyle = "#5da83e";
+          ctx.fillRect(p.x, p.y, p.w, 5);
+          ctx.fillStyle = "#7cc958";
+          ctx.fillRect(p.x, p.y, p.w, 2);
+          ctx.fillStyle = "#5da83e";
+          for (let gx = p.x; gx < p.x + p.w; gx += 4) {
+              if (((gx / 4) | 0) % 3 !== 0) ctx.fillRect(gx, p.y + 5, 4, ((gx / 4) | 0) % 2 ? 3 : 2);
+          }
+          // Darker band where dirt meets stone
+          ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+          ctx.fillRect(p.x, dirtEnd, p.w, 2);
+      }
+  
+      // Floating oak-plank ledge with a grass carpet and hanging vines
+      drawOakLedge(ctx, p) {
+          // Soft shadow under the ledge
+          ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
+          ctx.fillRect(p.x + 4, p.y + p.h, p.w - 8, 4);
+          // Planks
+          ctx.fillStyle = "#a4844f";
+          ctx.fillRect(p.x, p.y, p.w, p.h);
+          ctx.fillStyle = "#8b6d3d";
+          ctx.fillRect(p.x, p.y + Math.floor(p.h / 2), p.w, 1);
+          for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+              const off = (((bx - p.x) / 16) | 0) % 2 ? 8 : 0;
+              ctx.fillRect(bx + off, p.y, 1, Math.floor(p.h / 2));
+              ctx.fillRect(bx + 8 - off, p.y + Math.floor(p.h / 2), 1, p.h - Math.floor(p.h / 2));
+          }
+          ctx.fillStyle = "#6e5430";
+          ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
+          // Grass carpet
+          ctx.fillStyle = "#5da83e";
+          ctx.fillRect(p.x, p.y, p.w, 4);
+          ctx.fillStyle = "#7cc958";
+          ctx.fillRect(p.x, p.y, p.w, 1);
+          // Hanging vines
+          ctx.fillStyle = "#3f7d2a";
+          for (let vx = p.x + 10; vx < p.x + p.w - 6; vx += 23) {
+              const len = 6 + ((vx * 7) % 10);
+              ctx.fillRect(vx, p.y + p.h, 2, len);
+              ctx.fillRect(vx + 2, p.y + p.h + len - 3, 2, 3);
+          }
+      }
+  
+      // Shadow on the surface beneath a fighter (shrinks as they rise)
+      drawFighterShadow(f) {
+          if (f.hp <= 0) return;
+          const feet = f.y + f.h;
+          let surface = ARENA_CONFIG.groundY;
+          for (const p of PLATFORMS_CONFIG) {
+              if (p.y >= feet - 1 && p.y < surface && f.x + f.w > p.x && f.x < p.x + p.w) surface = p.y;
+          }
+          const gap = Math.max(0, surface - feet);
+          const scale = Math.max(0.3, 1 - gap / 220);
+          const w = Math.round((f.w + 6) * scale);
+          const ctx = this.ctx;
+          ctx.fillStyle = `rgba(0, 0, 0, ${0.32 * scale})`;
+          ctx.fillRect(Math.round(f.x + f.w / 2 - w / 2), surface - 2, w, 3);
+      }
+  
+      // Full-screen white flash for heavy hits and KOs
+      drawFlash(alpha) {
+          if (alpha <= 0) return;
+          this.ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(0.6, alpha)})`;
+          this.ctx.fillRect(-20, -20, this.width + 40, this.height + 40);
       }
   
       drawPlatforms() {
@@ -3862,50 +4079,12 @@
                   }
               } else {
                   // ==========================================
-                  // OVERWORLD: STONE / DIRT WITH LUSH GRASS
+                  // OVERWORLD: GRASS BLOCKS, DIRT, STONE & OAK LEDGES
                   // ==========================================
                   if (isFloor) {
-                      // Dirt body for main floor
-                      ctx.fillStyle = "#866043";
-                      ctx.fillRect(p.x, p.y, p.w, p.h);
-  
-                      ctx.fillStyle = "#725037";
-                      for (let bx = p.x; bx < p.x + p.w; bx += 16) {
-                          ctx.fillRect(bx + 2, p.y + 10, 4, 3);
-                          ctx.fillRect(bx + 9, p.y + 16, 4, 3);
-                      }
-                      ctx.fillStyle = "#5c3d28";
-                      for (let bx = p.x; bx < p.x + p.w; bx += 16) {
-                          ctx.fillRect(bx + 3, p.y + 11, 2, 2);
-                      }
-  
-                      // Lush Overworld Grass block top
-                      ctx.fillStyle = "#5da83e";
-                      ctx.fillRect(p.x, p.y, p.w, 6);
-                      ctx.fillStyle = "#78c253";
-                      ctx.fillRect(p.x, p.y, p.w, 2);
-                      ctx.fillStyle = "#3f7d2a";
-                      for (let gx = p.x; gx < p.x + p.w; gx += 8) {
-                          ctx.fillRect(gx, p.y + 6, 3, 3);
-                          ctx.fillRect(gx + 4, p.y + 6, 2, 2);
-                      }
+                      this.drawGrassFloor(ctx, p);
                   } else {
-                      // Smooth stone floating ledge
-                      ctx.fillStyle = "#7d7d7d";
-                      ctx.fillRect(p.x, p.y, p.w, p.h);
-                      ctx.fillStyle = "#5f5f5f";
-                      for (let bx = p.x; bx < p.x + p.w; bx += 16) {
-                          ctx.fillRect(bx, p.y, 2, p.h);
-                      }
-                      ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
-  
-                      // Stone slab top highlight
-                      ctx.fillStyle = "#a4a4a4";
-                      ctx.fillRect(p.x, p.y, p.w, 4);
-                      ctx.fillStyle = "#808080";
-                      for (let gx = p.x; gx < p.x + p.w; gx += 8) {
-                          ctx.fillRect(gx, p.y + 4, 4, 2);
-                      }
+                      this.drawOakLedge(ctx, p);
                   }
               }
           }
@@ -4380,12 +4559,66 @@
       }
   
       // Standard 1v1 HUD
+      // Minecraft-style 2-slot hotbar for the local player's loadout (bottom-left)
+      drawLoadoutHotbar(f) {
+          if (!f || !f.loadout || f.loadout.length < 2) return;
+          const ctx = this.ctx;
+          if (!this.iconCache) this.iconCache = {};
+          const size = 30;
+          const x0 = 14;
+          const y0 = this.height - size - 14;
+          ctx.save();
+          f.loadout.forEach((id, i) => {
+              const x = x0 + i * (size + 4);
+              const active = i === f.activeSlot;
+              ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+              ctx.fillRect(x, y0, size, size);
+              ctx.strokeStyle = active ? "#ffffff" : "#555555";
+              ctx.lineWidth = active ? 3 : 2;
+              ctx.strokeRect(x, y0, size, size);
+              let img = this.iconCache[id];
+              if (!img) {
+                  img = new Image();
+                  img.src = weaponIconURL(id);
+                  this.iconCache[id] = img;
+              }
+              if (img.complete) {
+                  ctx.imageSmoothingEnabled = false;
+                  ctx.globalAlpha = active ? 1 : 0.55;
+                  ctx.drawImage(img, x + 3, y0 + 3, size - 6, size - 6);
+                  ctx.globalAlpha = 1;
+              }
+          });
+          ctx.font = "16px VT323, monospace";
+          ctx.fillStyle = "#ffffff";
+          ctx.textAlign = "left";
+          ctx.textBaseline = "middle";
+          ctx.fillText("Q: swap", x0 + 2 * (size + 4) + 4, y0 + size / 2);
+          ctx.restore();
+      }
+  
       drawHUD(player, bot, botColor, modeLabel, p1Label = "YOU", p2Label = "BOT", scoreRed = 0, scoreBlue = 0, isTiebreaker = false, tiebreakerTimer = 0, redDmg = 0, blueDmg = 0, isTeamMatch = false) {
           const ctx = this.ctx;
           ctx.save();
   
-          const barW = 160;
+          const barW = 200;
           const barH = 18;
+  
+          // Name on the left (shortened to fit), HP number on the right, inside the bar
+          const barLabel = (x, label, hp, maxHp) => {
+              ctx.font = "bold 13px 'Segoe UI', system-ui, sans-serif";
+              ctx.textBaseline = "middle";
+              const hpText = `${Math.max(0, Math.ceil(hp))}/${maxHp}`;
+              ctx.textAlign = "right";
+              ctx.fillStyle = "#ffffff";
+              ctx.fillText(hpText, x + barW - 5, 27);
+              const room = barW - 14 - ctx.measureText(hpText).width;
+              let name = label;
+              ctx.textAlign = "left";
+              while (name.length > 1 && ctx.measureText(name).width > room) name = name.slice(0, -1);
+              if (name !== label) name = name.slice(0, -1) + "…";
+              ctx.fillText(name, x + 5, 27);
+          };
   
           // Player 1 HP
           ctx.fillStyle = "rgba(30, 30, 30, 0.85)";
@@ -4410,11 +4643,7 @@
           ctx.fillStyle = curCooldown <= 0 ? "#00d2d3" : "#576574";
           ctx.fillRect(20, 38, barW * p1DashRatio, 4);
   
-          ctx.fillStyle = "#ffffff";
-          ctx.font = "bold 13px 'Segoe UI', system-ui, sans-serif";
-          ctx.textAlign = "left";
-          ctx.textBaseline = "middle";
-          ctx.fillText(`${p1Label}: ${Math.max(0, Math.ceil(player.hp))} / ${player.maxHp} HP`, 24, 27);
+          barLabel(20, p1Label, player.hp, player.maxHp);
   
           // Bot / Player 2 HP
           const bX = this.width - 20 - barW;
@@ -4437,8 +4666,7 @@
           ctx.fillStyle = bot.dashReady && bot.dashCooldown <= 0 ? "#00d2d3" : "#576574";
           ctx.fillRect(bX, 38, barW * bDashRatio, 4);
   
-          ctx.fillStyle = "#ffffff";
-          ctx.fillText(`${p2Label}: ${Math.max(0, Math.ceil(bot.hp))} / ${bot.maxHp} HP`, bX + 6, 27);
+          barLabel(bX, p2Label, bot.hp, bot.maxHp);
   
           // Center Scoreboard (First to 11 in team arena, or 1v1 duel banner)
           ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
@@ -4655,7 +4883,7 @@
           if (isPvP) {
               ctx.fillText("P1: WASD = MOVE/JUMP | SPACE = DASH/ATTACK | S = SLAM   ••   P2: ARROWS | ENTER = ATTACK | DOWN = SLAM", this.width / 2, bannerY + bannerH / 2);
           } else {
-              ctx.fillText("WASD / ARROWS = MOVE • SPACE = DASH / WEAPON ATTACK • S / DOWN = MACE SLAM • ESC = PAUSE", this.width / 2, bannerY + bannerH / 2);
+              ctx.fillText("WASD / ARROWS = MOVE • SPACE / CLICK = ATTACK • S / DOWN = SLAM • Q = SWAP WEAPON • ESC = PAUSE", this.width / 2, bannerY + bannerH / 2);
           }
   
           ctx.restore();
@@ -4727,6 +4955,8 @@
           // Key states
           this.keys = {};
   
+          this.flash = 0; // white screen flash strength (heavy hits / KOs)
+  
           // Mouse position in arena coordinates (for aiming the bow)
           this.mouse = { x: 0, y: 0, active: false };
   
@@ -4738,7 +4968,7 @@
           auth.onUserChanged((user) => {
               this.playerName = user.username;
               this.player.name = user.username;
-              this.player.setWeapon(user.equippedWeapon || "mace", user.weaponUpgrades || {});
+              this.player.setLoadout(user.equippedWeapon || "mace", user.secondaryWeapon, user.weaponUpgrades || {});
               this.player.setSkin(user.skinId || "steve");
           });
   
@@ -4774,7 +5004,7 @@
   
           const isBot = (mode !== "pvp" && mode !== "arena");
           this.player.reset(150, 1, maxHp);
-          this.player.setWeapon(user.equippedWeapon || "mace", user.weaponUpgrades || {});
+          this.player.setLoadout(user.equippedWeapon || "mace", user.secondaryWeapon, user.weaponUpgrades || {});
           this.player.setSkin(user.skinId || "steve");
           this.player.setTeam("blue"); // PLAYER IS ALWAYS BLUE
           this.player.isBotGame = isBot;
@@ -4784,7 +5014,7 @@
           const botMeta = MODE_METADATA[mode] || { name: "Bot" };
           this.bot.reset(650, -1, maxHp);
           this.bot.name = (mode === "pvp") ? "Player 2" : `[BOT] ${botMeta.name}`;
-          this.bot.setWeapon(mode === "god" ? "mace" : (mode === "pro" ? "sword" : "spear"), {});
+          this.bot.setLoadout(mode === "god" ? "mace" : (mode === "pro" ? "sword" : "spear"));
           this.bot.setSkin(mode === "god" ? "enderman" : (mode === "pro" ? "diamond_knight" : "alex"));
           this.bot.setTeam("red"); // OPPONENT IS ALWAYS RED
           this.bot.isBotGame = isBot;
@@ -4829,7 +5059,7 @@
   
           const setup = (fighter, info, fallbackName) => {
               fighter.name = (info && info.name) || fallbackName;
-              fighter.setWeapon((info && info.weapon) || "mace", (info && info.upgrades) || {});
+              fighter.setLoadout((info && info.weapon) || "mace", (info && info.weapon2) || null, (info && info.upgrades) || {});
               fighter.setSkin((info && info.skin) || "steve");
               fighter.isBotGame = false;
           };
@@ -4859,7 +5089,7 @@
       packFighter(f) {
           const r = (n) => Math.round(n * 10) / 10;
           return [r(f.x), r(f.y), r(f.xVel), r(f.yVel), f.facing, r(f.hp), r(f.ghostHp),
-              r(f.squashX), r(f.squashY), f.dashing ? 1 : 0, f.slamming ? 1 : 0, f.maxHp];
+              r(f.squashX), r(f.squashY), f.dashing ? 1 : 0, f.slamming ? 1 : 0, f.maxHp, f.weaponId];
       }
   
       unpackFighter(f, d) {
@@ -4868,6 +5098,7 @@
           f.dashing = !!d[9];
           f.slamming = !!d[10];
           f.maxHp = d[11];
+          if (d[12] && d[12] !== f.weaponId) f.setWeapon(d[12], {});
           // Recreate hit effects locally from health changes
           if (f.hp < prevHp - 0.01 && prevHp > 0) {
               const dmg = prevHp - Math.max(0, f.hp);
@@ -4875,7 +5106,9 @@
               this.particles.addHitSparks(f.x + f.w / 2, f.y + f.h / 2, 10, "#e74c3c");
               this.particles.addDamageText(f.x + f.w / 2, f.y, dmg, dmg >= 30);
               this.particles.triggerShake(4, 6);
+              if (dmg >= 50) this.flash = Math.max(this.flash, 0.3);
               if (f.hp <= 0) {
+                  this.flash = 0.55;
                   this.particles.addFloatingText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, "#ff2244", true, 1.3);
               }
           }
@@ -4908,6 +5141,7 @@
                   this.bot.dash(null, true, null, this.arrowManager);
               }
               if (msg.a === "slam") this.bot.slam();
+              if (msg.a === "swap") this.bot.swapWeapon();
           } else if (msg.t === "end" && this.isOnlineGuest() && this.state === "play") {
               msg.stats.forEach((st, i) => { this.allFighters[i].stats = st; });
               this.finishMatch(msg.w === this.localFighter.team);
@@ -4934,7 +5168,9 @@
           this.blueTeam = roster.blueTeam.map((data) => {
               if (data.isPlayer) {
                   this.player.reset(data.x, data.facing, data.maxHp);
-                  this.player.setWeapon(selectedWeaponId, user.weaponUpgrades || {});
+                  // Arena pick is the primary; the loadout's other weapon is the secondary
+                  const second = user.secondaryWeapon !== selectedWeaponId ? user.secondaryWeapon : (user.equippedWeapon !== selectedWeaponId ? user.equippedWeapon : null);
+                  this.player.setLoadout(selectedWeaponId, second, user.weaponUpgrades || {});
                   this.player.setSkin(user.skinId || "steve");
                   this.player.setTeam("blue");
                   this.player.name = user.username || "Player";
@@ -5105,11 +5341,11 @@
               this.mouse.active = true;
           });
   
-          // Left-click shoots the bow toward the mouse
+          // Left-click attacks like Space (the bow fires toward the mouse)
           this.canvas.addEventListener("mousedown", (e) => {
               if (e.button !== 0 || this.state !== "play") return;
               const f = this.localFighter;
-              if (!f || f.weaponId !== "bow") return;
+              if (!f) return;
               const p = toArena(e);
               if (p) {
                   this.mouse.x = p.x;
@@ -5195,6 +5431,7 @@
                   if (e.code === "ArrowUp" || e.code === "KeyW") online.send({ t: "act", a: "jump" });
                   if (e.code === "Space") this.localAttack();
                   if (e.code === "ArrowDown" || e.code === "KeyS") online.send({ t: "act", a: "slam" });
+                  if (e.code === "KeyQ") online.send({ t: "act", a: "swap" });
                   return;
               }
   
@@ -5204,6 +5441,11 @@
               // --- Player 1 Jump ---
               if (e.code === "KeyW" || (p1Arrows && e.code === "ArrowUp")) {
                   this.player.jump();
+              }
+  
+              // --- Swap between your two loadout weapons ---
+              if (e.code === "KeyQ") {
+                  this.localFighter.swapWeapon();
               }
   
               // --- Player 1 Weapon Attack / Dash / Bow Shoot ---
@@ -5372,12 +5614,14 @@
                   f.stun = 0;
                   f.hitCooldown = 0;
                   f.jumpsLeft = 2;
+                  f.groundSlamCounted = false;
   
                   const opposingTeam = f.team === "red" ? this.blueTeam : (f.team === "blue" ? this.redTeam : (f.isPlayer ? this.blueTeam : this.redTeam));
                   for (let j = 0; j < opposingTeam.length; j++) {
                       const def = opposingTeam[j];
                       this.combat.checkGroundSlam(f, def, this.hitDamageMult(f, def), this.hitStunMult(def), (dmg, atk, defender) => {
                           if (defender._botAI) defender._botAI.onHit();
+                          if (dmg >= 50) this.flash = Math.max(this.flash, 0.3);
                           if (this.isTiebreaker) {
                               if (atk.team === "red" || (!atk.team && atk === this.player)) {
                                   this.tiebreakerRedDamage += dmg;
@@ -5449,10 +5693,12 @@
   
                   this.combat.checkAirSlam(atk, def, this.hitDamageMult(atk, def), this.hitStunMult(def), (dmg) => {
                       if (def._botAI) def._botAI.onHit();
+                      if (dmg >= 50) this.flash = Math.max(this.flash, 0.3);
                       if (this.isTiebreaker) this.tiebreakerRedDamage += dmg;
                   });
                   this.combat.checkDashHit(atk, def, this.hitDamageMult(atk, def), this.hitStunMult(def), (dmg) => {
                       if (def._botAI) def._botAI.onHit();
+                      if (dmg >= 50) this.flash = Math.max(this.flash, 0.3);
                       if (this.isTiebreaker) this.tiebreakerRedDamage += dmg;
                   });
               }
@@ -5467,10 +5713,12 @@
   
                   this.combat.checkAirSlam(atk, def, this.hitDamageMult(atk, def), this.hitStunMult(def), (dmg) => {
                       if (def._botAI) def._botAI.onHit();
+                      if (dmg >= 50) this.flash = Math.max(this.flash, 0.3);
                       if (this.isTiebreaker) this.tiebreakerBlueDamage += dmg;
                   });
                   this.combat.checkDashHit(atk, def, this.hitDamageMult(atk, def), this.hitStunMult(def), (dmg) => {
                       if (def._botAI) def._botAI.onHit();
+                      if (dmg >= 50) this.flash = Math.max(this.flash, 0.3);
                       if (this.isTiebreaker) this.tiebreakerBlueDamage += dmg;
                   });
               }
@@ -5484,6 +5732,7 @@
               const f = this.allFighters[i];
               if (f.hp <= 0 && !f.isDead) {
                   f.isDead = true;
+                  this.flash = 0.55;
                   f.stats.deaths = (f.stats.deaths || 0) + 1;
                   sound.playDashHit();
                   this.particles.addHitSparks(f.x + f.w / 2, f.y + f.h / 2, 22, "#e74c3c");
@@ -5627,7 +5876,7 @@
   
           // Scale reward economy
           if (this.isTeamMatch) {
-              this.lastRewardInfo = auth.recordArenaMatchResult(isPlayerWin, this.matchType);
+              this.lastRewardInfo = auth.recordArenaMatchResult(isPlayerWin, this.matchType, this.player.stats);
           } else {
               if (this.mode !== "pvp" && this.mode !== "online") {
                   this.lastRewardInfo = auth.recordMatchResult(isPlayerWin, this.mode, this.player.stats);
@@ -5660,6 +5909,11 @@
               ? { ...(MODE_METADATA.pvp || MODE_METADATA.normal), name: "Online Duel" }
               : (MODE_METADATA[this.mode] || MODE_METADATA.normal);
           const botColor = botMeta.color;
+  
+          // Ground shadows under fighters
+          for (let i = 0; i < this.allFighters.length; i++) {
+              this.renderer.drawFighterShadow(this.allFighters[i]);
+          }
   
           // Render all fighters
           const isMultiplayer = this.isTeamMatch || this.mode === "pvp" || this.mode === "online";
@@ -5700,6 +5954,14 @@
                   this.tiebreakerRedDamage, this.tiebreakerBlueDamage,
                   this.isTeamMatch
               );
+          }
+  
+          if (this.state === "play") this.renderer.drawLoadoutHotbar(this.localFighter);
+  
+          // Hit / KO flash, fading out
+          if (this.flash > 0) {
+              this.renderer.drawFlash(this.flash);
+              this.flash = Math.max(0, this.flash - 0.04);
           }
   
           // Bow aim line toward the mouse
@@ -5969,6 +6231,26 @@
           }
   
           // Theme / Biome Toggle (Overworld -> Nether -> End)
+          // Settings dropdown in the header
+          const settingsBtn = document.getElementById("btn-settings");
+          const settingsMenu = document.getElementById("settings-menu");
+          if (settingsBtn && settingsMenu) {
+              const setOpen = (open) => {
+                  settingsMenu.classList.toggle("hidden", !open);
+                  settingsBtn.setAttribute("aria-expanded", open ? "true" : "false");
+              };
+              settingsBtn.addEventListener("click", (e) => {
+                  e.stopPropagation();
+                  setOpen(settingsMenu.classList.contains("hidden"));
+              });
+              document.addEventListener("click", (e) => {
+                  if (!settingsMenu.contains(e.target) && e.target !== settingsBtn) setOpen(false);
+              });
+              document.addEventListener("keydown", (e) => {
+                  if (e.key === "Escape") setOpen(false);
+              });
+          }
+  
           this.themeBtn = document.getElementById("btn-theme");
           this.currentBiome = "overworld";
           if (this.themeBtn) {
@@ -6127,7 +6409,7 @@
   
       updateMuteButton(isMuted) {
           if (!this.muteBtn) return;
-          this.muteBtn.textContent = isMuted ? "Unmute" : "Sound On";
+          this.muteBtn.textContent = isMuted ? "Sound: Off" : "Sound: On";
       }
   
       // ==========================================
@@ -6328,11 +6610,27 @@
                           <span class="cs-label">Win Rate</span>
                       </div>
                       <div class="career-stat-card">
-                          <span class="cs-val">${s.slamsLanded}</span>
-                          <span class="cs-label">Mace Slams</span>
+                          <span class="cs-val">${s.matches || 0}</span>
+                          <span class="cs-label">Matches</span>
                       </div>
                       <div class="career-stat-card">
-                          <span class="cs-val" style="color:#e67e22">${s.maxSlamDamage.toFixed(0)}</span>
+                          <span class="cs-val" style="color:#ff7675">${s.kills || 0}</span>
+                          <span class="cs-label">Total KOs</span>
+                      </div>
+                      <div class="career-stat-card">
+                          <span class="cs-val">${Math.round(s.damageDealt || 0)}</span>
+                          <span class="cs-label">Damage Dealt</span>
+                      </div>
+                      <div class="career-stat-card">
+                          <span class="cs-val">${s.bestStreak || 0}</span>
+                          <span class="cs-label">Best Win Streak</span>
+                      </div>
+                      <div class="career-stat-card">
+                          <span class="cs-val">${s.slamsLanded || 0}</span>
+                          <span class="cs-label">Slams Landed</span>
+                      </div>
+                      <div class="career-stat-card">
+                          <span class="cs-val" style="color:#e67e22">${Math.round(s.maxSlamDamage || 0)}</span>
                           <span class="cs-label">Max Slam DMG</span>
                       </div>
                   </div>
@@ -6426,14 +6724,23 @@
                   const w = WEAPON_TYPES[weaponId];
                   if (weaponId === equipped) {
                       slot.classList.add("active");
+                  } else if (weaponId === user.secondaryWeapon) {
+                      slot.classList.add("secondary");
                   }
-                  slot.title = `${w.name} (${weaponId === equipped ? 'Equipped' : 'Click to Equip'})`;
+                  slot.title = `${w.name}: ${weaponId === equipped ? 'Slot 1' : (weaponId === user.secondaryWeapon ? 'Slot 2' : 'click = Slot 1, right-click = Slot 2')}`;
                   slot.innerHTML = `
                       ${weaponIconHTML(weaponId, 28)}
                       <span class="mc-slot-num">${i + 1}</span>
                   `;
                   slot.addEventListener("click", () => {
-                      auth.equipWeapon(weaponId);
+                      auth.equipWeapon(weaponId, 1);
+                      sound.playClick();
+                      this.renderHotbarSlots();
+                      this.renderWeaponsModalContent();
+                  });
+                  slot.addEventListener("contextmenu", (e) => {
+                      e.preventDefault();
+                      auth.equipWeapon(weaponId, 2);
                       sound.playClick();
                       this.renderHotbarSlots();
                       this.renderWeaponsModalContent();
@@ -6564,7 +6871,9 @@
           // Weapons Catalog
           Object.values(WEAPON_TYPES).forEach(w => {
               const isUnlocked = user.unlockedWeapons.includes(w.id);
-              const isEquipped = user.equippedWeapon === w.id;
+              const inSlot1 = user.equippedWeapon === w.id;
+              const inSlot2 = user.secondaryWeapon === w.id;
+              const isEquipped = inSlot1 || inSlot2;
   
               const card = document.createElement("div");
               card.className = `weapon-shop-card ${isEquipped ? 'equipped' : ''}`;
@@ -6579,10 +6888,14 @@
                           </div>
                       </div>
                       <div class="ws-right">
-                          ${isEquipped ? 
-                              `<span class="badge-equipped">EQUIPPED</span>` :
-                              (isUnlocked ? 
-                                  `<button class="btn-ctrl btn-equip-weap" data-id="${w.id}">Equip</button>` :
+                          ${inSlot1 ?
+                              `<span class="badge-equipped">SLOT 1</span>` :
+                            inSlot2 ?
+                              `<span class="badge-equipped badge-slot2">SLOT 2</span>
+                               <button class="btn-ctrl btn-clear-slot2" title="Remove from slot 2">Unequip</button>` :
+                              (isUnlocked ?
+                                  `<button class="btn-ctrl btn-equip-weap" data-id="${w.id}" data-slot="1" title="Main weapon">Slot 1</button>
+                                   <button class="btn-ctrl btn-equip-weap" data-id="${w.id}" data-slot="2" title="Second weapon (press Q in a match to swap)">Slot 2</button>` :
                                   `<button class="btn-ctrl btn-unlock-weap ${gold >= w.baseCost ? 'btn-can-buy' : ''}" data-id="${w.id}" data-cost="${w.baseCost}" ${gold < w.baseCost ? 'disabled' : ''}>
                                       ${gold >= w.baseCost ? '⭐ ' : ''}Unlock (${w.baseCost} G)
                                   </button>`
@@ -6603,9 +6916,18 @@
           });
   
           // Attach Equip / Unlock handlers
+          container.querySelectorAll(".btn-clear-slot2").forEach(btn => {
+              btn.onclick = () => {
+                  auth.clearSecondaryWeapon();
+                  sound.playClick();
+                  this.renderHotbarSlots();
+                  this.renderWeaponsModalContent();
+              };
+          });
+  
           container.querySelectorAll(".btn-equip-weap").forEach(btn => {
               btn.onclick = () => {
-                  auth.equipWeapon(btn.dataset.id);
+                  auth.equipWeapon(btn.dataset.id, parseInt(btn.dataset.slot) || 1);
                   sound.playClick();
                   this.renderHotbarSlots();
                   this.renderWeaponsModalContent();
@@ -6778,6 +7100,9 @@
               name: (user.username || "Player").slice(0, 20),
               skin: user.skinId || "steve",
               weapon: this.selectedArenaWeapon || user.equippedWeapon || "mace",
+              weapon2: (user.secondaryWeapon && user.secondaryWeapon !== (this.selectedArenaWeapon || user.equippedWeapon))
+                  ? user.secondaryWeapon
+                  : (user.equippedWeapon !== this.selectedArenaWeapon ? user.equippedWeapon : null),
               upgrades: user.weaponUpgrades || {}
           };
       }
@@ -7659,14 +7984,18 @@
           if (!this.statsModal) return;
   
           const p1 = this.game.player;
-          const p2 = this.game.bot;
+          // In team matches the head-to-head compares you with the best opponent
+          const p2 = this.game.isTeamMatch
+              ? this.game.redTeam.slice().sort((a, b) => (b.stats.kills - a.stats.kills) || (b.stats.damageDealt - a.stats.damageDealt))[0]
+              : this.game.bot;
           const statsBody = document.getElementById("stats-body");
           if (!statsBody) return;
   
           const highest = this.game.highestJumper || p1;
           const isTiebreaker = this.game.isTiebreaker;
-          const isPlayerWin = this.game.winnerTeam === "blue";
-          const winner = isPlayerWin ? (p1.name || "Steve") : (p2.name || "Opponent");
+          const isPlayerWin = this.game.winnerTeam === (this.game.localFighter || p1).team;
+          let winner = this.game.winnerTeam === "blue" ? (p1.name || "Steve") : (p2.name || "Opponent");
+          if (this.game.isTeamMatch) winner = this.game.winnerTeam === "blue" ? "Blue Team" : "Red Team";
           const rewardInfo = this.game.lastRewardInfo;
   
           // Calculate Combat Performance Rating (S+, S, A, B, C, D)

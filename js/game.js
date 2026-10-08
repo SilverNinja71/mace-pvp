@@ -71,6 +71,8 @@ export class Game {
         // Key states
         this.keys = {};
 
+        this.flash = 0; // white screen flash strength (heavy hits / KOs)
+
         // Mouse position in arena coordinates (for aiming the bow)
         this.mouse = { x: 0, y: 0, active: false };
 
@@ -82,7 +84,7 @@ export class Game {
         auth.onUserChanged((user) => {
             this.playerName = user.username;
             this.player.name = user.username;
-            this.player.setWeapon(user.equippedWeapon || "mace", user.weaponUpgrades || {});
+            this.player.setLoadout(user.equippedWeapon || "mace", user.secondaryWeapon, user.weaponUpgrades || {});
             this.player.setSkin(user.skinId || "steve");
         });
 
@@ -118,7 +120,7 @@ export class Game {
 
         const isBot = (mode !== "pvp" && mode !== "arena");
         this.player.reset(150, 1, maxHp);
-        this.player.setWeapon(user.equippedWeapon || "mace", user.weaponUpgrades || {});
+        this.player.setLoadout(user.equippedWeapon || "mace", user.secondaryWeapon, user.weaponUpgrades || {});
         this.player.setSkin(user.skinId || "steve");
         this.player.setTeam("blue"); // PLAYER IS ALWAYS BLUE
         this.player.isBotGame = isBot;
@@ -128,7 +130,7 @@ export class Game {
         const botMeta = MODE_METADATA[mode] || { name: "Bot" };
         this.bot.reset(650, -1, maxHp);
         this.bot.name = (mode === "pvp") ? "Player 2" : `[BOT] ${botMeta.name}`;
-        this.bot.setWeapon(mode === "god" ? "mace" : (mode === "pro" ? "sword" : "spear"), {});
+        this.bot.setLoadout(mode === "god" ? "mace" : (mode === "pro" ? "sword" : "spear"));
         this.bot.setSkin(mode === "god" ? "enderman" : (mode === "pro" ? "diamond_knight" : "alex"));
         this.bot.setTeam("red"); // OPPONENT IS ALWAYS RED
         this.bot.isBotGame = isBot;
@@ -173,7 +175,7 @@ export class Game {
 
         const setup = (fighter, info, fallbackName) => {
             fighter.name = (info && info.name) || fallbackName;
-            fighter.setWeapon((info && info.weapon) || "mace", (info && info.upgrades) || {});
+            fighter.setLoadout((info && info.weapon) || "mace", (info && info.weapon2) || null, (info && info.upgrades) || {});
             fighter.setSkin((info && info.skin) || "steve");
             fighter.isBotGame = false;
         };
@@ -203,7 +205,7 @@ export class Game {
     packFighter(f) {
         const r = (n) => Math.round(n * 10) / 10;
         return [r(f.x), r(f.y), r(f.xVel), r(f.yVel), f.facing, r(f.hp), r(f.ghostHp),
-            r(f.squashX), r(f.squashY), f.dashing ? 1 : 0, f.slamming ? 1 : 0, f.maxHp];
+            r(f.squashX), r(f.squashY), f.dashing ? 1 : 0, f.slamming ? 1 : 0, f.maxHp, f.weaponId];
     }
 
     unpackFighter(f, d) {
@@ -212,6 +214,7 @@ export class Game {
         f.dashing = !!d[9];
         f.slamming = !!d[10];
         f.maxHp = d[11];
+        if (d[12] && d[12] !== f.weaponId) f.setWeapon(d[12], {});
         // Recreate hit effects locally from health changes
         if (f.hp < prevHp - 0.01 && prevHp > 0) {
             const dmg = prevHp - Math.max(0, f.hp);
@@ -219,7 +222,9 @@ export class Game {
             this.particles.addHitSparks(f.x + f.w / 2, f.y + f.h / 2, 10, "#e74c3c");
             this.particles.addDamageText(f.x + f.w / 2, f.y, dmg, dmg >= 30);
             this.particles.triggerShake(4, 6);
+            if (dmg >= 50) this.flash = Math.max(this.flash, 0.3);
             if (f.hp <= 0) {
+                this.flash = 0.55;
                 this.particles.addFloatingText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, "#ff2244", true, 1.3);
             }
         }
@@ -252,6 +257,7 @@ export class Game {
                 this.bot.dash(null, true, null, this.arrowManager);
             }
             if (msg.a === "slam") this.bot.slam();
+            if (msg.a === "swap") this.bot.swapWeapon();
         } else if (msg.t === "end" && this.isOnlineGuest() && this.state === "play") {
             msg.stats.forEach((st, i) => { this.allFighters[i].stats = st; });
             this.finishMatch(msg.w === this.localFighter.team);
@@ -278,7 +284,9 @@ export class Game {
         this.blueTeam = roster.blueTeam.map((data) => {
             if (data.isPlayer) {
                 this.player.reset(data.x, data.facing, data.maxHp);
-                this.player.setWeapon(selectedWeaponId, user.weaponUpgrades || {});
+                // Arena pick is the primary; the loadout's other weapon is the secondary
+                const second = user.secondaryWeapon !== selectedWeaponId ? user.secondaryWeapon : (user.equippedWeapon !== selectedWeaponId ? user.equippedWeapon : null);
+                this.player.setLoadout(selectedWeaponId, second, user.weaponUpgrades || {});
                 this.player.setSkin(user.skinId || "steve");
                 this.player.setTeam("blue");
                 this.player.name = user.username || "Player";
@@ -449,11 +457,11 @@ export class Game {
             this.mouse.active = true;
         });
 
-        // Left-click shoots the bow toward the mouse
+        // Left-click attacks like Space (the bow fires toward the mouse)
         this.canvas.addEventListener("mousedown", (e) => {
             if (e.button !== 0 || this.state !== "play") return;
             const f = this.localFighter;
-            if (!f || f.weaponId !== "bow") return;
+            if (!f) return;
             const p = toArena(e);
             if (p) {
                 this.mouse.x = p.x;
@@ -539,6 +547,7 @@ export class Game {
                 if (e.code === "ArrowUp" || e.code === "KeyW") online.send({ t: "act", a: "jump" });
                 if (e.code === "Space") this.localAttack();
                 if (e.code === "ArrowDown" || e.code === "KeyS") online.send({ t: "act", a: "slam" });
+                if (e.code === "KeyQ") online.send({ t: "act", a: "swap" });
                 return;
             }
 
@@ -548,6 +557,11 @@ export class Game {
             // --- Player 1 Jump ---
             if (e.code === "KeyW" || (p1Arrows && e.code === "ArrowUp")) {
                 this.player.jump();
+            }
+
+            // --- Swap between your two loadout weapons ---
+            if (e.code === "KeyQ") {
+                this.localFighter.swapWeapon();
             }
 
             // --- Player 1 Weapon Attack / Dash / Bow Shoot ---
@@ -716,12 +730,14 @@ export class Game {
                 f.stun = 0;
                 f.hitCooldown = 0;
                 f.jumpsLeft = 2;
+                f.groundSlamCounted = false;
 
                 const opposingTeam = f.team === "red" ? this.blueTeam : (f.team === "blue" ? this.redTeam : (f.isPlayer ? this.blueTeam : this.redTeam));
                 for (let j = 0; j < opposingTeam.length; j++) {
                     const def = opposingTeam[j];
                     this.combat.checkGroundSlam(f, def, this.hitDamageMult(f, def), this.hitStunMult(def), (dmg, atk, defender) => {
                         if (defender._botAI) defender._botAI.onHit();
+                        if (dmg >= 50) this.flash = Math.max(this.flash, 0.3);
                         if (this.isTiebreaker) {
                             if (atk.team === "red" || (!atk.team && atk === this.player)) {
                                 this.tiebreakerRedDamage += dmg;
@@ -793,10 +809,12 @@ export class Game {
 
                 this.combat.checkAirSlam(atk, def, this.hitDamageMult(atk, def), this.hitStunMult(def), (dmg) => {
                     if (def._botAI) def._botAI.onHit();
+                    if (dmg >= 50) this.flash = Math.max(this.flash, 0.3);
                     if (this.isTiebreaker) this.tiebreakerRedDamage += dmg;
                 });
                 this.combat.checkDashHit(atk, def, this.hitDamageMult(atk, def), this.hitStunMult(def), (dmg) => {
                     if (def._botAI) def._botAI.onHit();
+                    if (dmg >= 50) this.flash = Math.max(this.flash, 0.3);
                     if (this.isTiebreaker) this.tiebreakerRedDamage += dmg;
                 });
             }
@@ -811,10 +829,12 @@ export class Game {
 
                 this.combat.checkAirSlam(atk, def, this.hitDamageMult(atk, def), this.hitStunMult(def), (dmg) => {
                     if (def._botAI) def._botAI.onHit();
+                    if (dmg >= 50) this.flash = Math.max(this.flash, 0.3);
                     if (this.isTiebreaker) this.tiebreakerBlueDamage += dmg;
                 });
                 this.combat.checkDashHit(atk, def, this.hitDamageMult(atk, def), this.hitStunMult(def), (dmg) => {
                     if (def._botAI) def._botAI.onHit();
+                    if (dmg >= 50) this.flash = Math.max(this.flash, 0.3);
                     if (this.isTiebreaker) this.tiebreakerBlueDamage += dmg;
                 });
             }
@@ -828,6 +848,7 @@ export class Game {
             const f = this.allFighters[i];
             if (f.hp <= 0 && !f.isDead) {
                 f.isDead = true;
+                this.flash = 0.55;
                 f.stats.deaths = (f.stats.deaths || 0) + 1;
                 sound.playDashHit();
                 this.particles.addHitSparks(f.x + f.w / 2, f.y + f.h / 2, 22, "#e74c3c");
@@ -971,7 +992,7 @@ export class Game {
 
         // Scale reward economy
         if (this.isTeamMatch) {
-            this.lastRewardInfo = auth.recordArenaMatchResult(isPlayerWin, this.matchType);
+            this.lastRewardInfo = auth.recordArenaMatchResult(isPlayerWin, this.matchType, this.player.stats);
         } else {
             if (this.mode !== "pvp" && this.mode !== "online") {
                 this.lastRewardInfo = auth.recordMatchResult(isPlayerWin, this.mode, this.player.stats);
@@ -1004,6 +1025,11 @@ export class Game {
             ? { ...(MODE_METADATA.pvp || MODE_METADATA.normal), name: "Online Duel" }
             : (MODE_METADATA[this.mode] || MODE_METADATA.normal);
         const botColor = botMeta.color;
+
+        // Ground shadows under fighters
+        for (let i = 0; i < this.allFighters.length; i++) {
+            this.renderer.drawFighterShadow(this.allFighters[i]);
+        }
 
         // Render all fighters
         const isMultiplayer = this.isTeamMatch || this.mode === "pvp" || this.mode === "online";
@@ -1044,6 +1070,14 @@ export class Game {
                 this.tiebreakerRedDamage, this.tiebreakerBlueDamage,
                 this.isTeamMatch
             );
+        }
+
+        if (this.state === "play") this.renderer.drawLoadoutHotbar(this.localFighter);
+
+        // Hit / KO flash, fading out
+        if (this.flash > 0) {
+            this.renderer.drawFlash(this.flash);
+            this.flash = Math.max(0, this.flash - 0.04);
         }
 
         // Bow aim line toward the mouse

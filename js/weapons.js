@@ -338,9 +338,10 @@ export class ArrowManager {
                     a.y >= f.y && a.y <= f.y + f.h &&
                     f.hitCooldown <= 0
                 ) {
-                    // Hit fighter!
+                    // Hit fighter! (stats count only the HP actually removed)
+                    const dealt = Math.min(a.damage, Math.max(0, f.hp));
                     f.hp -= a.damage;
-                    f.stats.damageTaken += a.damage;
+                    f.stats.damageTaken += dealt;
                     f.hitCooldown = 20;
                     f.stun = 25;
                     f.xVel = a.facing * 7 * (a.knockbackMult || 1.0);
@@ -350,7 +351,7 @@ export class ArrowManager {
                     if (shooter) f.lastHitBy = shooter;
                     if (shooter) {
                         shooter.stats.arrowsHit++;
-                        shooter.stats.damageDealt += a.damage;
+                        shooter.stats.damageDealt += dealt;
                     }
 
                     if (onHitCallback) {

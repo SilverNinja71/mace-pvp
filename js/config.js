@@ -12,13 +12,13 @@ export const GOOGLE_CLIENT_ID = "";
 
 export const ARENA_CONFIG = {
     width: 800,
-    height: 400,
+    height: 440,             // Taller view so the ground layers are visible
     groundY: 390
 };
 
 export const CORE_PHYSICS = {
     gravity: 0.35,
-    jumpPower: -8.5,
+    jumpPower: -7.2,         // Lower jumps (was -8.5) so double jumps stay on screen
     coyoteTime: 12,
     groundY: 390,
 
@@ -44,7 +44,7 @@ export const CORE_PHYSICS = {
 };
 
 export const PLATFORMS_CONFIG = [
-    { x: 0,   y: 390, w: 800, h: 30, name: "Main Floor" },
+    { x: 0,   y: 390, w: 800, h: 50, name: "Main Floor" },
     { x: 140, y: 275, w: 150, h: 12, name: "Left Ledge" },
     { x: 510, y: 275, w: 150, h: 12, name: "Right Ledge" }
 ];
@@ -77,7 +77,7 @@ export const BOT_SETTINGS = {
     damageTaken:        { practice: 1,   easy: 1,   normal: 1,   pro: 0.85,god: 0.8 },
     stunMult:           { practice: 1,   easy: 1,   normal: 1,   pro: 0.6, god: 0.5 },
     botDashCooldown:    { practice: 40,  easy: 40,  normal: 40,  pro: 15,  god: 8 },
-    dashAIDelay:        { practice: 80,  easy: 80,  normal: 80,  pro: 50,  god: 42 },
+    dashAIDelay:        { practice: 80,  easy: 80,  normal: 80,  pro: 56,  god: 42 },
     dashSpeed:          { practice: 20,  easy: 20,  normal: 20,  pro: 24,  god: 26 },
     airDashRecharge:    { practice: 0,   easy: 0,   normal: 0,   pro: 0,   god: 1 },
     invisible:          { practice: 0,   easy: 0,   normal: 0,   pro: 0,   god: 1 },

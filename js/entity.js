@@ -80,6 +80,27 @@ export class Fighter {
         this.weaponStats = getComputedWeaponStats(weaponId, upgradeLevels);
     }
 
+    // Two-weapon loadout: primary + optional secondary, swapped with swapWeapon()
+    setLoadout(primary, secondary = null, upgradeLevels = {}) {
+        this.loadout = secondary && secondary !== primary ? [primary, secondary] : [primary];
+        this.loadoutUpgrades = upgradeLevels;
+        this.activeSlot = 0;
+        this.swapCooldown = 0;
+        this.setWeapon(primary, upgradeLevels);
+    }
+
+    swapWeapon() {
+        if (!this.loadout || this.loadout.length < 2) return false;
+        if (this.swapCooldown > 0 || this.dashing || this.slamming || this.hp <= 0) return false;
+        this.activeSlot = 1 - this.activeSlot;
+        this.setWeapon(this.loadout[this.activeSlot], this.loadoutUpgrades || {});
+        this.swapCooldown = 20; // ~1/3 second between swaps
+        this.squashX = 1.15;
+        this.squashY = 0.9;
+        sound.playClick();
+        return true;
+    }
+
     setSkin(skinId) {
         this.skinId = skinId;
     }
@@ -226,6 +247,7 @@ export class Fighter {
                     aimed ? aim : null
                 );
 
+                this.stats.arrowsAttempted++;
                 sound.playDash(); // bow shoot twang
                 this.squashX = 1.2;
                 this.squashY = 0.85;
@@ -329,10 +351,13 @@ export class Fighter {
         if (this.hp <= 0) return;
 
         // Update stat tracking (altitude)
-        const altitude = Math.max(0, ARENA_CONFIG.groundY - this.y);
+        // Height of the fighter's feet above the floor
+        const altitude = Math.max(0, ARENA_CONFIG.groundY - (this.y + this.h));
         if (altitude > this.stats.maxHeight) {
             this.stats.maxHeight = altitude;
         }
+
+        if (this.swapCooldown > 0) this.swapCooldown--;
 
         // Arrow cooldown countdown
         if (this.arrowCooldown > 0) {
@@ -448,6 +473,12 @@ export class Fighter {
         // Stepped off ledge
         if (wasGrounded && !landed && this.yVel >= 0) {
             this.coyoteTimer = CORE_PHYSICS.coyoteTime;
+        }
+
+        // Ceiling: bump your head instead of flying off the top of the screen
+        if (this.y < 0) {
+            this.y = 0;
+            if (this.yVel < 0) this.yVel = 0;
         }
 
         // Arena horizontal boundaries

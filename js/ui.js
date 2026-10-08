@@ -189,6 +189,26 @@ export class UIManager {
         }
 
         // Theme / Biome Toggle (Overworld -> Nether -> End)
+        // Settings dropdown in the header
+        const settingsBtn = document.getElementById("btn-settings");
+        const settingsMenu = document.getElementById("settings-menu");
+        if (settingsBtn && settingsMenu) {
+            const setOpen = (open) => {
+                settingsMenu.classList.toggle("hidden", !open);
+                settingsBtn.setAttribute("aria-expanded", open ? "true" : "false");
+            };
+            settingsBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                setOpen(settingsMenu.classList.contains("hidden"));
+            });
+            document.addEventListener("click", (e) => {
+                if (!settingsMenu.contains(e.target) && e.target !== settingsBtn) setOpen(false);
+            });
+            document.addEventListener("keydown", (e) => {
+                if (e.key === "Escape") setOpen(false);
+            });
+        }
+
         this.themeBtn = document.getElementById("btn-theme");
         this.currentBiome = "overworld";
         if (this.themeBtn) {
@@ -347,7 +367,7 @@ export class UIManager {
 
     updateMuteButton(isMuted) {
         if (!this.muteBtn) return;
-        this.muteBtn.textContent = isMuted ? "Unmute" : "Sound On";
+        this.muteBtn.textContent = isMuted ? "Sound: Off" : "Sound: On";
     }
 
     // ==========================================
@@ -548,11 +568,27 @@ export class UIManager {
                         <span class="cs-label">Win Rate</span>
                     </div>
                     <div class="career-stat-card">
-                        <span class="cs-val">${s.slamsLanded}</span>
-                        <span class="cs-label">Mace Slams</span>
+                        <span class="cs-val">${s.matches || 0}</span>
+                        <span class="cs-label">Matches</span>
                     </div>
                     <div class="career-stat-card">
-                        <span class="cs-val" style="color:#e67e22">${s.maxSlamDamage.toFixed(0)}</span>
+                        <span class="cs-val" style="color:#ff7675">${s.kills || 0}</span>
+                        <span class="cs-label">Total KOs</span>
+                    </div>
+                    <div class="career-stat-card">
+                        <span class="cs-val">${Math.round(s.damageDealt || 0)}</span>
+                        <span class="cs-label">Damage Dealt</span>
+                    </div>
+                    <div class="career-stat-card">
+                        <span class="cs-val">${s.bestStreak || 0}</span>
+                        <span class="cs-label">Best Win Streak</span>
+                    </div>
+                    <div class="career-stat-card">
+                        <span class="cs-val">${s.slamsLanded || 0}</span>
+                        <span class="cs-label">Slams Landed</span>
+                    </div>
+                    <div class="career-stat-card">
+                        <span class="cs-val" style="color:#e67e22">${Math.round(s.maxSlamDamage || 0)}</span>
                         <span class="cs-label">Max Slam DMG</span>
                     </div>
                 </div>
@@ -646,14 +682,23 @@ export class UIManager {
                 const w = WEAPON_TYPES[weaponId];
                 if (weaponId === equipped) {
                     slot.classList.add("active");
+                } else if (weaponId === user.secondaryWeapon) {
+                    slot.classList.add("secondary");
                 }
-                slot.title = `${w.name} (${weaponId === equipped ? 'Equipped' : 'Click to Equip'})`;
+                slot.title = `${w.name}: ${weaponId === equipped ? 'Slot 1' : (weaponId === user.secondaryWeapon ? 'Slot 2' : 'click = Slot 1, right-click = Slot 2')}`;
                 slot.innerHTML = `
                     ${weaponIconHTML(weaponId, 28)}
                     <span class="mc-slot-num">${i + 1}</span>
                 `;
                 slot.addEventListener("click", () => {
-                    auth.equipWeapon(weaponId);
+                    auth.equipWeapon(weaponId, 1);
+                    sound.playClick();
+                    this.renderHotbarSlots();
+                    this.renderWeaponsModalContent();
+                });
+                slot.addEventListener("contextmenu", (e) => {
+                    e.preventDefault();
+                    auth.equipWeapon(weaponId, 2);
                     sound.playClick();
                     this.renderHotbarSlots();
                     this.renderWeaponsModalContent();
@@ -784,7 +829,9 @@ export class UIManager {
         // Weapons Catalog
         Object.values(WEAPON_TYPES).forEach(w => {
             const isUnlocked = user.unlockedWeapons.includes(w.id);
-            const isEquipped = user.equippedWeapon === w.id;
+            const inSlot1 = user.equippedWeapon === w.id;
+            const inSlot2 = user.secondaryWeapon === w.id;
+            const isEquipped = inSlot1 || inSlot2;
 
             const card = document.createElement("div");
             card.className = `weapon-shop-card ${isEquipped ? 'equipped' : ''}`;
@@ -799,10 +846,14 @@ export class UIManager {
                         </div>
                     </div>
                     <div class="ws-right">
-                        ${isEquipped ? 
-                            `<span class="badge-equipped">EQUIPPED</span>` :
-                            (isUnlocked ? 
-                                `<button class="btn-ctrl btn-equip-weap" data-id="${w.id}">Equip</button>` :
+                        ${inSlot1 ?
+                            `<span class="badge-equipped">SLOT 1</span>` :
+                          inSlot2 ?
+                            `<span class="badge-equipped badge-slot2">SLOT 2</span>
+                             <button class="btn-ctrl btn-clear-slot2" title="Remove from slot 2">Unequip</button>` :
+                            (isUnlocked ?
+                                `<button class="btn-ctrl btn-equip-weap" data-id="${w.id}" data-slot="1" title="Main weapon">Slot 1</button>
+                                 <button class="btn-ctrl btn-equip-weap" data-id="${w.id}" data-slot="2" title="Second weapon (press Q in a match to swap)">Slot 2</button>` :
                                 `<button class="btn-ctrl btn-unlock-weap ${gold >= w.baseCost ? 'btn-can-buy' : ''}" data-id="${w.id}" data-cost="${w.baseCost}" ${gold < w.baseCost ? 'disabled' : ''}>
                                     ${gold >= w.baseCost ? '⭐ ' : ''}Unlock (${w.baseCost} G)
                                 </button>`
@@ -823,9 +874,18 @@ export class UIManager {
         });
 
         // Attach Equip / Unlock handlers
+        container.querySelectorAll(".btn-clear-slot2").forEach(btn => {
+            btn.onclick = () => {
+                auth.clearSecondaryWeapon();
+                sound.playClick();
+                this.renderHotbarSlots();
+                this.renderWeaponsModalContent();
+            };
+        });
+
         container.querySelectorAll(".btn-equip-weap").forEach(btn => {
             btn.onclick = () => {
-                auth.equipWeapon(btn.dataset.id);
+                auth.equipWeapon(btn.dataset.id, parseInt(btn.dataset.slot) || 1);
                 sound.playClick();
                 this.renderHotbarSlots();
                 this.renderWeaponsModalContent();
@@ -998,6 +1058,9 @@ export class UIManager {
             name: (user.username || "Player").slice(0, 20),
             skin: user.skinId || "steve",
             weapon: this.selectedArenaWeapon || user.equippedWeapon || "mace",
+            weapon2: (user.secondaryWeapon && user.secondaryWeapon !== (this.selectedArenaWeapon || user.equippedWeapon))
+                ? user.secondaryWeapon
+                : (user.equippedWeapon !== this.selectedArenaWeapon ? user.equippedWeapon : null),
             upgrades: user.weaponUpgrades || {}
         };
     }
@@ -1879,14 +1942,18 @@ export class UIManager {
         if (!this.statsModal) return;
 
         const p1 = this.game.player;
-        const p2 = this.game.bot;
+        // In team matches the head-to-head compares you with the best opponent
+        const p2 = this.game.isTeamMatch
+            ? this.game.redTeam.slice().sort((a, b) => (b.stats.kills - a.stats.kills) || (b.stats.damageDealt - a.stats.damageDealt))[0]
+            : this.game.bot;
         const statsBody = document.getElementById("stats-body");
         if (!statsBody) return;
 
         const highest = this.game.highestJumper || p1;
         const isTiebreaker = this.game.isTiebreaker;
-        const isPlayerWin = this.game.winnerTeam === "blue";
-        const winner = isPlayerWin ? (p1.name || "Steve") : (p2.name || "Opponent");
+        const isPlayerWin = this.game.winnerTeam === (this.game.localFighter || p1).team;
+        let winner = this.game.winnerTeam === "blue" ? (p1.name || "Steve") : (p2.name || "Opponent");
+        if (this.game.isTeamMatch) winner = this.game.winnerTeam === "blue" ? "Blue Team" : "Red Team";
         const rewardInfo = this.game.lastRewardInfo;
 
         // Calculate Combat Performance Rating (S+, S, A, B, C, D)

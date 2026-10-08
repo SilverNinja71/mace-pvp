@@ -6,6 +6,7 @@
 // ==========================================
 
 import { ARENA_CONFIG, PLATFORMS_CONFIG } from './config.js';
+import { weaponIconURL } from './pixel.js';
 
 export class Renderer {
     constructor(canvas) {
@@ -89,46 +90,191 @@ export class Renderer {
             ctx.fillStyle = glow;
             ctx.fillRect(342, 75, 16, 15);
         } else {
-            // Overworld: Flat Minecraft sky (no gradient)
-            ctx.fillStyle = "#79a6ff";
-            ctx.fillRect(0, 0, this.width, this.height);
+            // Overworld: static layers are painted once and cached
+            if (!this.overworldLayer) this.overworldLayer = this.buildOverworldLayer();
+            ctx.drawImage(this.overworldLayer, 0, 0, this.width, this.height);
 
-            // Distant Minecraft mountain peaks in far background (capped at y = 295, well above ground floor y = 390)
-            ctx.fillStyle = "#527a60";
-            const mountains = [
-                [0, 255, 110],
-                [90, 230, 130],
-                [200, 215, 150],
-                [330, 245, 120],
-                [430, 225, 140],
-                [550, 240, 130],
-                [660, 230, 140]
-            ];
-            for (const [mx, my, mw] of mountains) {
-                ctx.fillRect(mx, my, mw, 295 - my);
-            }
-            // Mountain peak highlights
-            ctx.fillStyle = "#699878";
-            for (const [mx, my, mw] of mountains) {
-                ctx.fillRect(mx + 10, my, mw - 20, 4);
-                ctx.fillRect(mx + 25, my - 6, mw - 50, 6);
-            }
-
-            // Drifting blocky clouds
-            ctx.fillStyle = "#ffffff";
+            // Drifting blocky clouds (two-tone, pixel-snapped)
             for (const cloud of this.clouds) {
                 cloud.x += cloud.speed;
                 if (cloud.x > this.width + 100) cloud.x = -150;
 
                 const cx = Math.round(cloud.x / 8) * 8;
                 const cy = Math.round(cloud.y / 8) * 8;
+                ctx.fillStyle = "#ffffff";
                 ctx.fillRect(cx, cy, cloud.w, 16);
                 ctx.fillRect(cx + 16, cy - 8, Math.round(cloud.w * 0.6 / 8) * 8, 8);
                 ctx.fillStyle = "#dfe9ff";
-                ctx.fillRect(cx, cy + 16, cloud.w, 4);
-                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(cx, cy + 16, cloud.w, 6);
             }
         }
+    }
+
+    // Paints the Overworld backdrop (sky bands, sun, mountains, hills, trees) to an offscreen canvas
+    buildOverworldLayer() {
+        const c = document.createElement("canvas");
+        c.width = this.width;
+        c.height = this.height;
+        const g = c.getContext("2d");
+        const W = this.width;
+        const ground = ARENA_CONFIG.groundY;
+
+        // Sky in flat bands (lighter toward the horizon), no gradients
+        const bands = ["#5b8dff", "#6597ff", "#70a1ff", "#7cabff", "#89b5ff", "#97c0ff"];
+        const bandH = Math.ceil(ground / bands.length);
+        bands.forEach((col, i) => {
+            g.fillStyle = col;
+            g.fillRect(0, i * bandH, W, bandH + 1);
+        });
+
+        // Square Minecraft sun with a soft halo ring
+        g.fillStyle = "#fff6b3";
+        g.fillRect(636, 36, 56, 56);
+        g.fillStyle = "#fffde6";
+        g.fillRect(648, 48, 32, 32);
+
+        // Far mountains (blue-grey), stepped like blocks
+        const far = [[0, 210], [60, 190], [120, 175], [170, 195], [230, 160], [290, 180], [350, 200],
+            [400, 170], [460, 150], [520, 175], [580, 195], [640, 165], [700, 185], [760, 200]];
+        g.fillStyle = "#8aa3c8";
+        far.forEach(([x, y], i) => {
+            const w = (far[i + 1] ? far[i + 1][0] : W) - x;
+            g.fillRect(x, y, w, ground - y);
+        });
+        g.fillStyle = "#e8eef8"; // snow caps
+        far.forEach(([x, y], i) => {
+            const w = (far[i + 1] ? far[i + 1][0] : W) - x;
+            if (y < 185) g.fillRect(x, y, w, 8);
+        });
+
+        // Near hills (green), stepped 8px blocks, reaching all the way down to the floor
+        g.fillStyle = "#4f8a3c";
+        for (let x = 0; x < W; x += 8) {
+            const h = 250 + Math.round((Math.sin(x * 0.011) * 22 + Math.sin(x * 0.031 + 1.7) * 10) / 8) * 8;
+            g.fillRect(x, h, 8, ground - h);
+        }
+        g.fillStyle = "#5d9c46"; // sunlit top edge
+        for (let x = 0; x < W; x += 8) {
+            const h = 250 + Math.round((Math.sin(x * 0.011) * 22 + Math.sin(x * 0.031 + 1.7) * 10) / 8) * 8;
+            g.fillRect(x, h, 8, 4);
+        }
+
+        // Rows of pixel oak trees in the mid-ground
+        const tree = (x, base, s) => {
+            g.fillStyle = "#6b4a2b";
+            g.fillRect(x + 3 * s, base - 6 * s, 2 * s, 6 * s);
+            g.fillStyle = "#2f6b2a";
+            g.fillRect(x, base - 12 * s, 8 * s, 6 * s);
+            g.fillRect(x + 2 * s, base - 14 * s, 4 * s, 2 * s);
+            g.fillStyle = "#3d8436";
+            g.fillRect(x + s, base - 12 * s, 3 * s, 2 * s);
+        };
+        [[30, 330], [130, 345], [250, 325], [360, 340], [470, 330], [585, 345], [700, 335]].forEach(([x, b]) => tree(x, b, 3));
+        g.fillStyle = "#3f7330"; // darker meadow band behind the arena floor
+        g.fillRect(0, 350, W, ground - 350);
+        [[80, 386], [200, 388], [420, 386], [540, 388], [660, 386], [760, 388]].forEach(([x, b]) => tree(x, b, 4));
+
+        return c;
+    }
+
+    // Grass block top, dirt middle, stone with ores at the bottom (16px Minecraft blocks)
+    drawGrassFloor(ctx, p) {
+        const B = 16;
+        const dirtEnd = p.y + 30;
+        for (let bx = p.x; bx < p.x + p.w; bx += B) {
+            const n = (bx / B) | 0;
+            // Dirt
+            ctx.fillStyle = "#866043";
+            ctx.fillRect(bx, p.y, B, dirtEnd - p.y);
+            ctx.fillStyle = "#6f4e35";
+            ctx.fillRect(bx + ((n * 5) % 11), p.y + 12, 3, 3);
+            ctx.fillRect(bx + ((n * 7 + 4) % 12), p.y + 20, 2, 2);
+            ctx.fillStyle = "#9b7653";
+            ctx.fillRect(bx + ((n * 3 + 8) % 13), p.y + 16, 2, 2);
+            // Stone
+            ctx.fillStyle = "#7f7f7f";
+            ctx.fillRect(bx, dirtEnd, B, p.y + p.h - dirtEnd);
+            ctx.fillStyle = "#6a6a6a";
+            ctx.fillRect(bx + ((n * 5 + 2) % 12), dirtEnd + 4, 4, 2);
+            ctx.fillRect(bx + ((n * 3) % 10), dirtEnd + 11, 3, 2);
+            if (n % 7 === 3) { // coal ore
+                ctx.fillStyle = "#2b2b2b";
+                ctx.fillRect(bx + 4, dirtEnd + 6, 3, 3);
+                ctx.fillRect(bx + 9, dirtEnd + 10, 2, 2);
+            } else if (n % 13 === 8) { // iron ore
+                ctx.fillStyle = "#d8af93";
+                ctx.fillRect(bx + 5, dirtEnd + 5, 3, 2);
+                ctx.fillRect(bx + 10, dirtEnd + 11, 2, 2);
+            }
+            ctx.fillStyle = "rgba(0, 0, 0, 0.18)"; // block seams
+            ctx.fillRect(bx, p.y, 1, p.h);
+        }
+        // Grass top with ragged edge
+        ctx.fillStyle = "#5da83e";
+        ctx.fillRect(p.x, p.y, p.w, 5);
+        ctx.fillStyle = "#7cc958";
+        ctx.fillRect(p.x, p.y, p.w, 2);
+        ctx.fillStyle = "#5da83e";
+        for (let gx = p.x; gx < p.x + p.w; gx += 4) {
+            if (((gx / 4) | 0) % 3 !== 0) ctx.fillRect(gx, p.y + 5, 4, ((gx / 4) | 0) % 2 ? 3 : 2);
+        }
+        // Darker band where dirt meets stone
+        ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+        ctx.fillRect(p.x, dirtEnd, p.w, 2);
+    }
+
+    // Floating oak-plank ledge with a grass carpet and hanging vines
+    drawOakLedge(ctx, p) {
+        // Soft shadow under the ledge
+        ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
+        ctx.fillRect(p.x + 4, p.y + p.h, p.w - 8, 4);
+        // Planks
+        ctx.fillStyle = "#a4844f";
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+        ctx.fillStyle = "#8b6d3d";
+        ctx.fillRect(p.x, p.y + Math.floor(p.h / 2), p.w, 1);
+        for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+            const off = (((bx - p.x) / 16) | 0) % 2 ? 8 : 0;
+            ctx.fillRect(bx + off, p.y, 1, Math.floor(p.h / 2));
+            ctx.fillRect(bx + 8 - off, p.y + Math.floor(p.h / 2), 1, p.h - Math.floor(p.h / 2));
+        }
+        ctx.fillStyle = "#6e5430";
+        ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
+        // Grass carpet
+        ctx.fillStyle = "#5da83e";
+        ctx.fillRect(p.x, p.y, p.w, 4);
+        ctx.fillStyle = "#7cc958";
+        ctx.fillRect(p.x, p.y, p.w, 1);
+        // Hanging vines
+        ctx.fillStyle = "#3f7d2a";
+        for (let vx = p.x + 10; vx < p.x + p.w - 6; vx += 23) {
+            const len = 6 + ((vx * 7) % 10);
+            ctx.fillRect(vx, p.y + p.h, 2, len);
+            ctx.fillRect(vx + 2, p.y + p.h + len - 3, 2, 3);
+        }
+    }
+
+    // Shadow on the surface beneath a fighter (shrinks as they rise)
+    drawFighterShadow(f) {
+        if (f.hp <= 0) return;
+        const feet = f.y + f.h;
+        let surface = ARENA_CONFIG.groundY;
+        for (const p of PLATFORMS_CONFIG) {
+            if (p.y >= feet - 1 && p.y < surface && f.x + f.w > p.x && f.x < p.x + p.w) surface = p.y;
+        }
+        const gap = Math.max(0, surface - feet);
+        const scale = Math.max(0.3, 1 - gap / 220);
+        const w = Math.round((f.w + 6) * scale);
+        const ctx = this.ctx;
+        ctx.fillStyle = `rgba(0, 0, 0, ${0.32 * scale})`;
+        ctx.fillRect(Math.round(f.x + f.w / 2 - w / 2), surface - 2, w, 3);
+    }
+
+    // Full-screen white flash for heavy hits and KOs
+    drawFlash(alpha) {
+        if (alpha <= 0) return;
+        this.ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(0.6, alpha)})`;
+        this.ctx.fillRect(-20, -20, this.width + 40, this.height + 40);
     }
 
     drawPlatforms() {
@@ -267,50 +413,12 @@ export class Renderer {
                 }
             } else {
                 // ==========================================
-                // OVERWORLD: STONE / DIRT WITH LUSH GRASS
+                // OVERWORLD: GRASS BLOCKS, DIRT, STONE & OAK LEDGES
                 // ==========================================
                 if (isFloor) {
-                    // Dirt body for main floor
-                    ctx.fillStyle = "#866043";
-                    ctx.fillRect(p.x, p.y, p.w, p.h);
-
-                    ctx.fillStyle = "#725037";
-                    for (let bx = p.x; bx < p.x + p.w; bx += 16) {
-                        ctx.fillRect(bx + 2, p.y + 10, 4, 3);
-                        ctx.fillRect(bx + 9, p.y + 16, 4, 3);
-                    }
-                    ctx.fillStyle = "#5c3d28";
-                    for (let bx = p.x; bx < p.x + p.w; bx += 16) {
-                        ctx.fillRect(bx + 3, p.y + 11, 2, 2);
-                    }
-
-                    // Lush Overworld Grass block top
-                    ctx.fillStyle = "#5da83e";
-                    ctx.fillRect(p.x, p.y, p.w, 6);
-                    ctx.fillStyle = "#78c253";
-                    ctx.fillRect(p.x, p.y, p.w, 2);
-                    ctx.fillStyle = "#3f7d2a";
-                    for (let gx = p.x; gx < p.x + p.w; gx += 8) {
-                        ctx.fillRect(gx, p.y + 6, 3, 3);
-                        ctx.fillRect(gx + 4, p.y + 6, 2, 2);
-                    }
+                    this.drawGrassFloor(ctx, p);
                 } else {
-                    // Smooth stone floating ledge
-                    ctx.fillStyle = "#7d7d7d";
-                    ctx.fillRect(p.x, p.y, p.w, p.h);
-                    ctx.fillStyle = "#5f5f5f";
-                    for (let bx = p.x; bx < p.x + p.w; bx += 16) {
-                        ctx.fillRect(bx, p.y, 2, p.h);
-                    }
-                    ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
-
-                    // Stone slab top highlight
-                    ctx.fillStyle = "#a4a4a4";
-                    ctx.fillRect(p.x, p.y, p.w, 4);
-                    ctx.fillStyle = "#808080";
-                    for (let gx = p.x; gx < p.x + p.w; gx += 8) {
-                        ctx.fillRect(gx, p.y + 4, 4, 2);
-                    }
+                    this.drawOakLedge(ctx, p);
                 }
             }
         }
@@ -785,12 +893,66 @@ export class Renderer {
     }
 
     // Standard 1v1 HUD
+    // Minecraft-style 2-slot hotbar for the local player's loadout (bottom-left)
+    drawLoadoutHotbar(f) {
+        if (!f || !f.loadout || f.loadout.length < 2) return;
+        const ctx = this.ctx;
+        if (!this.iconCache) this.iconCache = {};
+        const size = 30;
+        const x0 = 14;
+        const y0 = this.height - size - 14;
+        ctx.save();
+        f.loadout.forEach((id, i) => {
+            const x = x0 + i * (size + 4);
+            const active = i === f.activeSlot;
+            ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+            ctx.fillRect(x, y0, size, size);
+            ctx.strokeStyle = active ? "#ffffff" : "#555555";
+            ctx.lineWidth = active ? 3 : 2;
+            ctx.strokeRect(x, y0, size, size);
+            let img = this.iconCache[id];
+            if (!img) {
+                img = new Image();
+                img.src = weaponIconURL(id);
+                this.iconCache[id] = img;
+            }
+            if (img.complete) {
+                ctx.imageSmoothingEnabled = false;
+                ctx.globalAlpha = active ? 1 : 0.55;
+                ctx.drawImage(img, x + 3, y0 + 3, size - 6, size - 6);
+                ctx.globalAlpha = 1;
+            }
+        });
+        ctx.font = "16px VT323, monospace";
+        ctx.fillStyle = "#ffffff";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Q: swap", x0 + 2 * (size + 4) + 4, y0 + size / 2);
+        ctx.restore();
+    }
+
     drawHUD(player, bot, botColor, modeLabel, p1Label = "YOU", p2Label = "BOT", scoreRed = 0, scoreBlue = 0, isTiebreaker = false, tiebreakerTimer = 0, redDmg = 0, blueDmg = 0, isTeamMatch = false) {
         const ctx = this.ctx;
         ctx.save();
 
-        const barW = 160;
+        const barW = 200;
         const barH = 18;
+
+        // Name on the left (shortened to fit), HP number on the right, inside the bar
+        const barLabel = (x, label, hp, maxHp) => {
+            ctx.font = "bold 13px 'Segoe UI', system-ui, sans-serif";
+            ctx.textBaseline = "middle";
+            const hpText = `${Math.max(0, Math.ceil(hp))}/${maxHp}`;
+            ctx.textAlign = "right";
+            ctx.fillStyle = "#ffffff";
+            ctx.fillText(hpText, x + barW - 5, 27);
+            const room = barW - 14 - ctx.measureText(hpText).width;
+            let name = label;
+            ctx.textAlign = "left";
+            while (name.length > 1 && ctx.measureText(name).width > room) name = name.slice(0, -1);
+            if (name !== label) name = name.slice(0, -1) + "…";
+            ctx.fillText(name, x + 5, 27);
+        };
 
         // Player 1 HP
         ctx.fillStyle = "rgba(30, 30, 30, 0.85)";
@@ -815,11 +977,7 @@ export class Renderer {
         ctx.fillStyle = curCooldown <= 0 ? "#00d2d3" : "#576574";
         ctx.fillRect(20, 38, barW * p1DashRatio, 4);
 
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 13px 'Segoe UI', system-ui, sans-serif";
-        ctx.textAlign = "left";
-        ctx.textBaseline = "middle";
-        ctx.fillText(`${p1Label}: ${Math.max(0, Math.ceil(player.hp))} / ${player.maxHp} HP`, 24, 27);
+        barLabel(20, p1Label, player.hp, player.maxHp);
 
         // Bot / Player 2 HP
         const bX = this.width - 20 - barW;
@@ -842,8 +1000,7 @@ export class Renderer {
         ctx.fillStyle = bot.dashReady && bot.dashCooldown <= 0 ? "#00d2d3" : "#576574";
         ctx.fillRect(bX, 38, barW * bDashRatio, 4);
 
-        ctx.fillStyle = "#ffffff";
-        ctx.fillText(`${p2Label}: ${Math.max(0, Math.ceil(bot.hp))} / ${bot.maxHp} HP`, bX + 6, 27);
+        barLabel(bX, p2Label, bot.hp, bot.maxHp);
 
         // Center Scoreboard (First to 11 in team arena, or 1v1 duel banner)
         ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
@@ -1060,7 +1217,7 @@ export class Renderer {
         if (isPvP) {
             ctx.fillText("P1: WASD = MOVE/JUMP | SPACE = DASH/ATTACK | S = SLAM   ••   P2: ARROWS | ENTER = ATTACK | DOWN = SLAM", this.width / 2, bannerY + bannerH / 2);
         } else {
-            ctx.fillText("WASD / ARROWS = MOVE • SPACE = DASH / WEAPON ATTACK • S / DOWN = MACE SLAM • ESC = PAUSE", this.width / 2, bannerY + bannerH / 2);
+            ctx.fillText("WASD / ARROWS = MOVE • SPACE / CLICK = ATTACK • S / DOWN = SLAM • Q = SWAP WEAPON • ESC = PAUSE", this.width / 2, bannerY + bannerH / 2);
         }
 
         ctx.restore();
