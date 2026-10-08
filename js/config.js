@@ -10,6 +10,12 @@
 // Leave empty to hide Google sign-in.
 export const GOOGLE_CLIENT_ID = "";
 
+// Overall game speed (1 = original). Lower = everything moves a bit slower.
+export const GAME_SPEED = 0.85;
+
+// Walking speed for human players (bots use speed / runSpeed in BOT_SETTINGS)
+export const PLAYER_MOVE_SPEED = 4.2;
+
 export const ARENA_CONFIG = {
     width: 800,
     height: 440,             // Taller view so the ground layers are visible
@@ -68,8 +74,8 @@ export const BOT_SETTINGS = {
     climbHeight:        { practice: 0,   easy: 0,   normal: 1,   pro: 1,   god: 1 },
     punishChance:       { practice: 0,   easy: 0,   normal: 20,  pro: 65,  god: 75 },
     dashDodgeChance:    { practice: 0,   easy: 0,   normal: 35,  pro: 60,  god: 75 },
-    speed:              { practice: 1.5, easy: 2,   normal: 3,   pro: 4,   god: 4.5 },
-    runSpeed:           { practice: 3,   easy: 4,   normal: 5.5, pro: 7.5, god: 8.5 },
+    speed:              { practice: 1.2, easy: 1.6, normal: 2.4, pro: 3.2, god: 3.6 },
+    runSpeed:           { practice: 2.4, easy: 3.2, normal: 4.4, pro: 6,   god: 6.8 },
     jumpChance:         { practice: 40,  easy: 80,  normal: 100, pro: 100, god: 100 },
     doubleJumpChance:   { practice: 20,  easy: 70,  normal: 100, pro: 100, god: 100 },
     damageMult:         { practice: 0.6, easy: 0.85,normal: 1.05,pro: 1.25,god: 1.4 },

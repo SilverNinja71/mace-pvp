@@ -14,6 +14,12 @@
   // Leave empty to hide Google sign-in.
   const GOOGLE_CLIENT_ID = "";
   
+  // Overall game speed (1 = original). Lower = everything moves a bit slower.
+  const GAME_SPEED = 0.85;
+  
+  // Walking speed for human players (bots use speed / runSpeed in BOT_SETTINGS)
+  const PLAYER_MOVE_SPEED = 4.2;
+  
   const ARENA_CONFIG = {
       width: 800,
       height: 440,             // Taller view so the ground layers are visible
@@ -72,8 +78,8 @@
       climbHeight:        { practice: 0,   easy: 0,   normal: 1,   pro: 1,   god: 1 },
       punishChance:       { practice: 0,   easy: 0,   normal: 20,  pro: 65,  god: 75 },
       dashDodgeChance:    { practice: 0,   easy: 0,   normal: 35,  pro: 60,  god: 75 },
-      speed:              { practice: 1.5, easy: 2,   normal: 3,   pro: 4,   god: 4.5 },
-      runSpeed:           { practice: 3,   easy: 4,   normal: 5.5, pro: 7.5, god: 8.5 },
+      speed:              { practice: 1.2, easy: 1.6, normal: 2.4, pro: 3.2, god: 3.6 },
+      runSpeed:           { practice: 2.4, easy: 3.2, normal: 4.4, pro: 6,   god: 6.8 },
       jumpChance:         { practice: 40,  easy: 80,  normal: 100, pro: 100, god: 100 },
       doubleJumpChance:   { practice: 20,  easy: 70,  normal: 100, pro: 100, god: 100 },
       damageMult:         { practice: 0.6, easy: 0.85,normal: 1.05,pro: 1.25,god: 1.4 },
@@ -4472,6 +4478,14 @@
           }
       }
   
+      // Health bars use team colors; nearly-dead fighters blink lighter
+      teamBarColor(team, ratio) {
+          const low = ratio <= 0.25 && Math.floor(this.frameCount / 12) % 2 === 0;
+          if (team === "red") return low ? "#ffa8b0" : "#ff4757";
+          if (team === "blue") return low ? "#a8d0ff" : "#2f86ff";
+          return low ? "#a8f0c0" : "#2ecc71";
+      }
+  
       drawOverheadBar(f) {
           if (f.hp <= 0) return;
           const ctx = this.ctx;
@@ -4509,12 +4523,12 @@
   
           // Ghost HP
           const ghostRatio = Math.max(0, Math.min(1, (f.ghostHp || f.hp) / f.maxHp));
-          ctx.fillStyle = "#e74c3c";
+          ctx.fillStyle = "#e8e8e8"; // recent damage
           ctx.fillRect(barX, barY, Math.round(barW * ghostRatio), barH);
   
-          // Current HP fill
+          // Current HP fill in team color
           const ratio = Math.max(0, Math.min(1, f.hp / f.maxHp));
-          ctx.fillStyle = ratio > 0.5 ? "#2ecc71" : (ratio > 0.25 ? "#f1c40f" : "#e74c3c");
+          ctx.fillStyle = this.teamBarColor(f.team, ratio);
           ctx.fillRect(barX, barY, Math.round(barW * ratio), barH);
   
           // Exact HP text below bar
@@ -4625,11 +4639,11 @@
           ctx.fillRect(20, 18, barW, barH);
   
           const p1GhostRatio = Math.max(0, player.ghostHp / player.maxHp);
-          ctx.fillStyle = "#ff4757";
+          ctx.fillStyle = "#e8e8e8";
           ctx.fillRect(20, 18, barW * p1GhostRatio, barH);
   
           const p1Ratio = Math.max(0, player.hp / player.maxHp);
-          ctx.fillStyle = "#2ecc71";
+          ctx.fillStyle = this.teamBarColor(player.team || "blue", p1Ratio);
           ctx.fillRect(20, 18, barW * p1Ratio, barH);
   
           ctx.strokeStyle = "#000000";
@@ -4651,11 +4665,11 @@
           ctx.fillRect(bX, 18, barW, barH);
   
           const bGhostRatio = Math.max(0, bot.ghostHp / bot.maxHp);
-          ctx.fillStyle = "#ff4757";
+          ctx.fillStyle = "#e8e8e8";
           ctx.fillRect(bX, 18, barW * bGhostRatio, barH);
   
           const bRatio = Math.max(0, bot.hp / bot.maxHp);
-          ctx.fillStyle = `rgb(${botColor[0]}, ${botColor[1]}, ${botColor[2]})`;
+          ctx.fillStyle = this.teamBarColor(bot.team || "red", bRatio);
           ctx.fillRect(bX, 18, barW * bRatio, barH);
   
           ctx.strokeStyle = "#000000";
@@ -4777,9 +4791,9 @@
               ctx.fillRect(barX, barY, barW, barH);
   
               if (isAlive) {
-                  ctx.fillStyle = "#e74c3c";
+                  ctx.fillStyle = "#e8e8e8";
                   ctx.fillRect(barX, barY, barW * ghostRatio, barH);
-                  ctx.fillStyle = hpRatio > 0.5 ? "#2ecc71" : (hpRatio > 0.25 ? "#f1c40f" : "#e74c3c");
+                  ctx.fillStyle = this.teamBarColor(f.team, hpRatio);
                   ctx.fillRect(barX, barY, barW * hpRatio, barH);
                   ctx.fillStyle = "#ffffff";
                   ctx.font = "bold 9px monospace";
@@ -4833,9 +4847,9 @@
               ctx.fillRect(barX, barY, barW, barH);
   
               if (isAlive) {
-                  ctx.fillStyle = "#e74c3c";
+                  ctx.fillStyle = "#e8e8e8";
                   ctx.fillRect(barX, barY, barW * ghostRatio, barH);
-                  ctx.fillStyle = hpRatio > 0.5 ? "#2ecc71" : (hpRatio > 0.25 ? "#f1c40f" : "#e74c3c");
+                  ctx.fillStyle = this.teamBarColor(f.team, hpRatio);
                   ctx.fillRect(barX, barY, barW * hpRatio, barH);
                   ctx.fillStyle = "#ffffff";
                   ctx.font = "bold 9px monospace";
@@ -4864,10 +4878,11 @@
           ctx.save();
           ctx.globalAlpha = alpha;
   
-          const bannerW = isPvP ? 680 : 640;
+          // On the ground strip at the bottom, right of the weapon hotbar, so it never covers the HUD
+          const bannerX = 170;
+          const bannerW = this.width - bannerX - 14;
           const bannerH = 18;
-          const bannerX = (this.width - bannerW) / 2;
-          const bannerY = 48; // Upper clear sky, safely between top HUD and floating ledges at y=275
+          const bannerY = this.height - 34;
   
           ctx.fillStyle = "rgba(10, 12, 18, 0.72)";
           ctx.fillRect(bannerX, bannerY, bannerW, bannerH);
@@ -5501,7 +5516,7 @@
               const left = this.keys["KeyA"] || (this.mode !== "pvp" && this.keys["ArrowLeft"]);
               const right = this.keys["KeyD"] || (this.mode !== "pvp" && this.keys["ArrowRight"]);
   
-              const speed = 5.2; // Snappy, responsive movement
+              const speed = PLAYER_MOVE_SPEED;
               if (left && !right) {
                   this.player.xVel = -speed;
                   this.player.facing = -1;
@@ -5520,7 +5535,7 @@
                   const left = this.mode === "online" ? this.remoteInput.left : this.keys["ArrowLeft"];
                   const right = this.mode === "online" ? this.remoteInput.right : this.keys["ArrowRight"];
   
-                  const speed = 5.2; // Same as Player 1 so local duels are fair
+                  const speed = PLAYER_MOVE_SPEED; // Same as Player 1 so duels are fair
                   if (left && !right) {
                       this.bot.xVel = -speed;
                       this.bot.facing = -1;
@@ -5994,7 +6009,8 @@
       start() {
           let lastTime = performance.now();
           let accumulator = 0;
-          const FIXED_DT = 1000 / 60; // 60Hz physics timestep (16.6667ms)
+          // Physics steps per second: 60 at GAME_SPEED 1, fewer when the game is slowed down
+          const FIXED_DT = 1000 / (60 * GAME_SPEED);
   
           const step = (currentTime) => {
               let frameTime = currentTime - lastTime;
