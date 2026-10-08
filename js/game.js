@@ -4,7 +4,7 @@
 // Arrows projectile system, and 1v1 / 2v2 / 5v5 Team Arena matches
 // ==========================================
 
-import { ARENA_CONFIG, PLATFORMS_CONFIG, BOT_SETTINGS, MODE_METADATA, getBotParamsForMode } from './config.js';
+import { ARENA_CONFIG, PLATFORMS_CONFIG, BOT_SETTINGS, MODE_METADATA, getBotParamsForMode, GAME_SPEED, PLAYER_MOVE_SPEED } from './config.js';
 import { sound } from './audio.js';
 import { ParticleManager } from './particles.js';
 import { Fighter } from './entity.js';
@@ -617,7 +617,7 @@ export class Game {
             const left = this.keys["KeyA"] || (this.mode !== "pvp" && this.keys["ArrowLeft"]);
             const right = this.keys["KeyD"] || (this.mode !== "pvp" && this.keys["ArrowRight"]);
 
-            const speed = 5.2; // Snappy, responsive movement
+            const speed = PLAYER_MOVE_SPEED;
             if (left && !right) {
                 this.player.xVel = -speed;
                 this.player.facing = -1;
@@ -636,7 +636,7 @@ export class Game {
                 const left = this.mode === "online" ? this.remoteInput.left : this.keys["ArrowLeft"];
                 const right = this.mode === "online" ? this.remoteInput.right : this.keys["ArrowRight"];
 
-                const speed = 5.2; // Same as Player 1 so local duels are fair
+                const speed = PLAYER_MOVE_SPEED; // Same as Player 1 so duels are fair
                 if (left && !right) {
                     this.bot.xVel = -speed;
                     this.bot.facing = -1;
@@ -1110,7 +1110,8 @@ export class Game {
     start() {
         let lastTime = performance.now();
         let accumulator = 0;
-        const FIXED_DT = 1000 / 60; // 60Hz physics timestep (16.6667ms)
+        // Physics steps per second: 60 at GAME_SPEED 1, fewer when the game is slowed down
+        const FIXED_DT = 1000 / (60 * GAME_SPEED);
 
         const step = (currentTime) => {
             let frameTime = currentTime - lastTime;
