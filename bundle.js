@@ -5592,6 +5592,17 @@
                   this.goldDisplay.textContent = `Gold: ${user.gold || 0}`;
               }
               this.updateHomeProfile(user);
+  
+              // Dynamically refresh open inventory tab so buy buttons update to gold
+              if (this.inventoryModal && !this.inventoryModal.classList.contains("hidden")) {
+                  if (this.tabCraft && this.tabCraft.classList.contains("active")) {
+                      this.renderCraftingTabContent();
+                  } else if (this.tabSkins && this.tabSkins.classList.contains("active")) {
+                      this.renderSkinsModalContent();
+                  } else {
+                      this.renderWeaponsModalContent();
+                  }
+              }
           });
   
           const profileBanner = document.getElementById("home-profile-banner");
@@ -6037,8 +6048,8 @@
                           <div class="ws-right">
                               ${isMax ? 
                                   `<span class="badge-max">MAX ENCHANTED</span>` : 
-                                  `<button class="btn-ctrl btn-craft-upgrade" data-upg="${u.id}" data-cost="${cost}" ${gold < cost ? 'disabled' : ''}>
-                                      Enchant (${cost} G)
+                                  `<button class="btn-ctrl btn-craft-upgrade ${gold >= cost ? 'btn-can-buy' : ''}" data-upg="${u.id}" data-cost="${cost}" ${gold < cost ? 'disabled' : ''}>
+                                      ${gold >= cost ? '⭐ ' : ''}Enchant (${cost} G)
                                   </button>`
                               }
                           </div>
@@ -6092,8 +6103,8 @@
                               `<span class="badge-equipped">EQUIPPED</span>` :
                               (isUnlocked ? 
                                   `<button class="btn-ctrl btn-equip-weap" data-id="${w.id}">Equip</button>` :
-                                  `<button class="btn-ctrl btn-unlock-weap" data-id="${w.id}" data-cost="${w.baseCost}" ${gold < w.baseCost ? 'disabled' : ''}>
-                                      Unlock (${w.baseCost} G)
+                                  `<button class="btn-ctrl btn-unlock-weap ${gold >= w.baseCost ? 'btn-can-buy' : ''}" data-id="${w.id}" data-cost="${w.baseCost}" ${gold < w.baseCost ? 'disabled' : ''}>
+                                      ${gold >= w.baseCost ? '⭐ ' : ''}Unlock (${w.baseCost} G)
                                   </button>`
                               )
                           }
@@ -6160,8 +6171,8 @@
                           `<span class="badge-equipped">EQUIPPED</span>` :
                           (isUnlocked ?
                               `<button class="btn-ctrl btn-equip-skin" data-id="${face.id}">Equip</button>` :
-                              `<button class="btn-ctrl btn-unlock-skin" data-id="${face.id}" data-cost="${face.cost}" ${gold < face.cost ? 'disabled' : ''}>
-                                  ${face.cost} Gold
+                              `<button class="btn-ctrl btn-unlock-skin ${gold >= face.cost ? 'btn-can-buy' : ''}" data-id="${face.id}" data-cost="${face.cost}" ${gold < face.cost ? 'disabled' : ''}>
+                                  ${gold >= face.cost ? '⭐ ' : ''}${face.cost} Gold
                               </button>`
                           )
                       }

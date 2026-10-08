@@ -167,6 +167,68 @@ button:focus-visible {
 }
 
 /* ==========================================
+   GOLD BUY BUTTONS (When players can afford items)
+   ========================================== */
+.btn-can-buy,
+button.btn-can-buy,
+.btn-ctrl.btn-can-buy {
+    background: #f1c40f !important;
+    background: linear-gradient(180deg, #f9ca24 0%, #d4ac0d 60%, #b7791f 100%) !important;
+    color: #ffffff !important;
+    border: 3px solid #3d2600 !important;
+    text-shadow: 2px 2px 0 #5c3d00 !important;
+    box-shadow:
+        inset 3px 3px 0 #fffab0,
+        inset -3px -3px 0 #8c5b10,
+        0 4px 0 #2a1a00,
+        0 0 12px rgba(241, 196, 15, 0.65) !important;
+    cursor: pointer !important;
+    position: relative;
+    font-weight: bold;
+    animation: goldBuyGlow 2.2s infinite ease-in-out;
+}
+
+.btn-can-buy:hover,
+button.btn-can-buy:hover,
+.btn-ctrl.btn-can-buy:hover {
+    background: #f39c12 !important;
+    background: linear-gradient(180deg, #fff275 0%, #f1c40f 60%, #c27803 100%) !important;
+    color: #ffffff !important;
+    box-shadow:
+        inset 3px 3px 0 #ffffff,
+        inset -3px -3px 0 #8c5b10,
+        0 4px 0 #2a1a00,
+        0 0 18px rgba(241, 196, 15, 0.95) !important;
+}
+
+.btn-can-buy:active,
+button.btn-can-buy:active,
+.btn-ctrl.btn-can-buy:active {
+    top: 4px;
+    box-shadow:
+        inset 3px 3px 0 #8c5b10,
+        inset -3px -3px 0 #fffab0,
+        0 0 0 #2a1a00 !important;
+}
+
+@keyframes goldBuyGlow {
+    0%, 100% {
+        box-shadow:
+            inset 3px 3px 0 #fffab0,
+            inset -3px -3px 0 #8c5b10,
+            0 4px 0 #2a1a00,
+            0 0 10px rgba(241, 196, 15, 0.5);
+    }
+    50% {
+        box-shadow:
+            inset 3px 3px 0 #fffab0,
+            inset -3px -3px 0 #8c5b10,
+            0 4px 0 #2a1a00,
+            0 0 20px rgba(241, 196, 15, 0.95);
+    }
+}
+
+/* ==========================================
    HEADER (uniform button grid)
    ========================================== */
 .game-header {
