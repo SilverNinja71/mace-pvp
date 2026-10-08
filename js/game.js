@@ -14,6 +14,7 @@ import { Renderer } from './renderer.js';
 import { auth } from './auth.js';
 import { ArrowManager } from './weapons.js';
 import { arena } from './arena.js';
+import { online } from './online.js';
 
 export class Game {
     constructor(canvas, uiCallbacks = {}) {
@@ -61,6 +62,12 @@ export class Game {
         this.botParams = {};
         this.lastRewardInfo = null;
 
+        // Online (peer-to-peer) match state
+        this.onlineRole = null; // "host" | "guest" | null
+        this.localFighter = this.player; // the fighter this browser controls
+        this.remoteInput = { left: false, right: false };
+        this.sentInput = { left: false, right: false };
+
         // Key states
         this.keys = {};
 
@@ -80,8 +87,12 @@ export class Game {
         this.applyMode("normal");
     }
 
-    applyMode(mode, customOverrides = null) {
+    applyMode(mode, customOverrides = null, keepOnline = false) {
+        // Starting any offline game ends a pending or finished online session
+        if (!keepOnline && online.role) online.close();
         this.mode = mode;
+        this.onlineRole = null;
+        this.localFighter = this.player;
         this.isTeamMatch = false;
         this.matchType = "1v1";
         this.customBotParams = customOverrides;
@@ -148,12 +159,106 @@ export class Game {
         }
     }
 
+    // Online 1v1: host is always Blue (left), guest is always Red (right) on both screens
+    startOnlineMatch(role, hostInfo, guestInfo) {
+        sound.ensureContext();
+        this.applyMode("pvp", null, true);
+        this.mode = "online";
+        this.onlineRole = role;
+        this.botParams = getBotParamsForMode("pvp");
+
+        const setup = (fighter, info, fallbackName) => {
+            fighter.name = (info && info.name) || fallbackName;
+            fighter.setWeapon((info && info.weapon) || "mace", (info && info.upgrades) || {});
+            fighter.setSkin((info && info.skin) || "steve");
+            fighter.isBotGame = false;
+        };
+        setup(this.player, hostInfo, "Host");
+        setup(this.bot, guestInfo, "Guest");
+        this.player.isPlayer = role === "host";
+        this.bot.isPlayer = role === "guest";
+        this.bot._botAI = null;
+        this.allBots = [];
+        this.localFighter = role === "host" ? this.player : this.bot;
+        this.remoteInput = { left: false, right: false };
+        this.sentInput = { left: false, right: false };
+
+        this.state = "play";
+        if (this.uiCallbacks.onStateChanged) {
+            this.uiCallbacks.onStateChanged(this.state);
+        }
+    }
+
+    isOnlineGuest() {
+        return this.mode === "online" && this.onlineRole === "guest";
+    }
+
+    // ---- Online networking: snapshots (host -> guest) and inputs (guest -> host) ----
+
+    packFighter(f) {
+        const r = (n) => Math.round(n * 10) / 10;
+        return [r(f.x), r(f.y), r(f.xVel), r(f.yVel), f.facing, r(f.hp), r(f.ghostHp),
+            r(f.squashX), r(f.squashY), f.dashing ? 1 : 0, f.slamming ? 1 : 0, f.maxHp];
+    }
+
+    unpackFighter(f, d) {
+        const prevHp = f.hp;
+        [f.x, f.y, f.xVel, f.yVel, f.facing, f.hp, f.ghostHp, f.squashX, f.squashY] = d;
+        f.dashing = !!d[9];
+        f.slamming = !!d[10];
+        f.maxHp = d[11];
+        // Recreate hit effects locally from health changes
+        if (f.hp < prevHp - 0.01 && prevHp > 0) {
+            const dmg = prevHp - Math.max(0, f.hp);
+            sound.playDashHit();
+            this.particles.addHitSparks(f.x + f.w / 2, f.y + f.h / 2, 10, "#e74c3c");
+            this.particles.addDamageText(f.x + f.w / 2, f.y, dmg, dmg >= 30);
+            this.particles.triggerShake(4, 6);
+            if (f.hp <= 0) {
+                this.particles.addFloatingText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, "#ff2244", true, 1.3);
+            }
+        }
+    }
+
+    buildSnapshot() {
+        return {
+            t: "snap",
+            f: [this.packFighter(this.player), this.packFighter(this.bot)],
+            a: this.arrowManager.arrows.map(a => [Math.round(a.x), Math.round(a.y), a.vx, a.vy, a.stuck ? 1 : 0, a.facing]),
+            m: this.matchFrames
+        };
+    }
+
+    handleNetMessage(msg) {
+        if (msg.t === "snap" && this.isOnlineGuest() && this.state === "play") {
+            this.unpackFighter(this.player, msg.f[0]);
+            this.unpackFighter(this.bot, msg.f[1]);
+            this.arrowManager.arrows = msg.a.map(([x, y, vx, vy, stuck, facing]) => ({
+                x, y, vx, vy, facing, stuck: !!stuck, gravity: 0, life: 60
+            }));
+            this.matchFrames = msg.m;
+        } else if (msg.t === "input" && this.mode === "online" && this.onlineRole === "host") {
+            this.remoteInput.left = !!msg.l;
+            this.remoteInput.right = !!msg.r;
+        } else if (msg.t === "act" && this.mode === "online" && this.onlineRole === "host" && this.state === "play") {
+            if (msg.a === "jump") this.bot.jump();
+            if (msg.a === "dash") this.bot.dash(null, true, null, this.arrowManager);
+            if (msg.a === "slam") this.bot.slam();
+        } else if (msg.t === "end" && this.isOnlineGuest() && this.state === "play") {
+            msg.stats.forEach((st, i) => { this.allFighters[i].stats = st; });
+            this.finishMatch(msg.w === this.localFighter.team);
+        }
+    }
+
     // Starts a 1v1, 2v2, or 5v5 Arena Match
     startArenaTeamMatch(matchType = "2v2", selectedWeaponId = "mace") {
         sound.ensureContext();
         sound.playClick();
 
+        if (online.role) online.close();
         this.mode = "arena";
+        this.onlineRole = null;
+        this.localFighter = this.player;
         this.matchType = matchType;
         this.isTeamMatch = true;
         this.botParams = getBotParamsForMode("normal");
@@ -273,6 +378,10 @@ export class Game {
 
     goHome() {
         sound.playClick();
+        if (this.mode === "online") {
+            online.close();
+            this.onlineRole = null;
+        }
         this.state = "menu";
         if (this.uiCallbacks.onStateChanged) {
             this.uiCallbacks.onStateChanged(this.state);
@@ -280,6 +389,8 @@ export class Game {
     }
 
     togglePause() {
+        // Online matches can't be paused: the other player is still playing
+        if (this.mode === "online") return;
         if (this.state === "play") {
             this.state = "paused";
         } else if (this.state === "paused") {
@@ -361,8 +472,19 @@ export class Game {
 
             if (this.state !== "play") return;
 
+            // Online guest: send actions to the host, which runs the match
+            if (this.isOnlineGuest()) {
+                if (e.code === "ArrowUp" || e.code === "KeyW") online.send({ t: "act", a: "jump" });
+                if (e.code === "Space") online.send({ t: "act", a: "dash" });
+                if (e.code === "ArrowDown" || e.code === "KeyS") online.send({ t: "act", a: "slam" });
+                return;
+            }
+
+            // In local PvP the arrow keys belong to Player 2 only
+            const p1Arrows = this.mode !== "pvp";
+
             // --- Player 1 Jump ---
-            if (e.code === "ArrowUp" || e.code === "KeyW") {
+            if (e.code === "KeyW" || (p1Arrows && e.code === "ArrowUp")) {
                 this.player.jump();
             }
 
@@ -372,7 +494,7 @@ export class Game {
             }
 
             // --- Player 1 Slam ---
-            if (e.code === "ArrowDown" || e.code === "KeyS") {
+            if (e.code === "KeyS" || (p1Arrows && e.code === "ArrowDown")) {
                 this.player.slam();
             }
 
@@ -382,7 +504,7 @@ export class Game {
                     this.bot.jump();
                 }
                 if (e.code === "Enter" || e.code === "ShiftRight") {
-                    this.bot.dash(this.botParams.dashSpeed, true, this.botParams.botDashCooldown, this.arrowManager);
+                    this.bot.dash(null, true, null, this.arrowManager);
                 }
                 if (e.code === "ArrowDown") {
                     this.bot.slam();
@@ -403,6 +525,17 @@ export class Game {
     handleContinuousInput() {
         if (this.state !== "play") return;
 
+        // Online guest: stream left/right held state to the host
+        if (this.isOnlineGuest()) {
+            const left = !!(this.keys["KeyA"] || this.keys["ArrowLeft"]);
+            const right = !!(this.keys["KeyD"] || this.keys["ArrowRight"]);
+            if (left !== this.sentInput.left || right !== this.sentInput.right) {
+                this.sentInput = { left, right };
+                online.send({ t: "input", l: left, r: right });
+            }
+            return;
+        }
+
         // Player 1 Continuous Horizontal Movement
         if (this.player.stun <= 0 && !this.player.dashing) {
             const left = this.keys["KeyA"] || (this.mode !== "pvp" && this.keys["ArrowLeft"]);
@@ -421,13 +554,13 @@ export class Game {
             }
         }
 
-        // Player 2 Input (PVP Mode)
-        if (this.mode === "pvp") {
+        // Player 2 Input (local PvP keys, or the online guest's streamed input)
+        if (this.mode === "pvp" || this.mode === "online") {
             if (this.bot.stun <= 0 && !this.bot.dashing) {
-                const left = this.keys["ArrowLeft"];
-                const right = this.keys["ArrowRight"];
+                const left = this.mode === "online" ? this.remoteInput.left : this.keys["ArrowLeft"];
+                const right = this.mode === "online" ? this.remoteInput.right : this.keys["ArrowRight"];
 
-                const speed = 3;
+                const speed = 5.2; // Same as Player 1 so local duels are fair
                 if (left && !right) {
                     this.bot.xVel = -speed;
                     this.bot.facing = -1;
@@ -435,7 +568,7 @@ export class Game {
                     this.bot.xVel = speed;
                     this.bot.facing = 1;
                 } else {
-                    this.bot.xVel *= 0.65;
+                    this.bot.xVel *= 0.55;
                     if (Math.abs(this.bot.xVel) < 0.1) this.bot.xVel = 0;
                 }
             }
@@ -444,6 +577,13 @@ export class Game {
 
     update() {
         if (this.state !== "play") {
+            this.particles.update();
+            return;
+        }
+
+        if (this.isOnlineGuest()) {
+            // The host simulates; we only animate effects and send our input
+            this.handleContinuousInput();
             this.particles.update();
             return;
         }
@@ -621,7 +761,7 @@ export class Game {
                 if (isRedFighter) {
                     this.scoreBlue++;
                     this.particles.addFloatingText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, "#ff2244", true, 1.3);
-                    const killer = this.blueTeam.find(b => b.hp > 0) || this.player;
+                    const killer = this.findKiller(f, this.blueTeam);
                     if (killer && killer.stats) killer.stats.kills++;
 
                     // In single-player bot games & 1v1 duels, killing the bot immediately wins the match!
@@ -632,7 +772,7 @@ export class Game {
                 } else {
                     this.scoreRed++;
                     this.particles.addFloatingText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, "#ff2244", true, 1.3);
-                    const killer = this.redTeam.find(r => r.hp > 0) || this.bot;
+                    const killer = this.findKiller(f, this.redTeam);
                     if (killer && killer.stats) killer.stats.kills++;
 
                     // In single-player bot games, player death immediately ends the match!
@@ -690,6 +830,10 @@ export class Game {
             }
         }
 
+        if (this.mode === "online" && this.onlineRole === "host") {
+            online.send(this.buildSnapshot());
+        }
+
         // 3. Process Tiebreaker Timer (10 Seconds, Whoever Dealt Most Damage Wins)
         if (this.isTiebreaker) {
             this.tiebreakerTimer--;
@@ -707,9 +851,30 @@ export class Game {
         }
     }
 
+    // Whoever landed the final hit gets the KO (falls back to the nearest living opponent)
+    findKiller(victim, opposingTeam) {
+        const hitter = victim.lastHitBy;
+        victim.lastHitBy = null;
+        if (hitter && opposingTeam.includes(hitter)) return hitter;
+        let nearest = null;
+        let best = Infinity;
+        for (const o of opposingTeam) {
+            if (o.hp <= 0) continue;
+            const d = Math.abs(o.x - victim.x);
+            if (d < best) { best = d; nearest = o; }
+        }
+        return nearest;
+    }
+
     finishMatch(isPlayerWin) {
         this.state = "gameover";
-        this.winnerTeam = isPlayerWin ? "blue" : "red";
+        if (this.mode === "online") {
+            // isPlayerWin is from this browser's point of view
+            const otherTeam = this.localFighter.team === "blue" ? "red" : "blue";
+            this.winnerTeam = isPlayerWin ? this.localFighter.team : otherTeam;
+        } else {
+            this.winnerTeam = isPlayerWin ? "blue" : "red";
+        }
         if (isPlayerWin) sound.playWin(); else sound.playLoss();
 
         // Calculate missed mace slams, missed dashes, and missed arrows for all fighters
@@ -732,9 +897,14 @@ export class Game {
         if (this.isTeamMatch) {
             this.lastRewardInfo = auth.recordArenaMatchResult(isPlayerWin, this.matchType);
         } else {
-            if (this.mode !== "pvp") {
+            if (this.mode !== "pvp" && this.mode !== "online") {
                 this.lastRewardInfo = auth.recordMatchResult(isPlayerWin, this.mode, this.player.stats);
             }
+        }
+
+        if (this.mode === "online" && this.onlineRole === "host") {
+            online.send({ t: "snap", f: [this.packFighter(this.player), this.packFighter(this.bot)], a: [], m: this.matchFrames });
+            online.send({ t: "end", w: this.winnerTeam, stats: this.allFighters.map(f => f.stats) });
         }
 
         if (this.uiCallbacks.onStateChanged) {
@@ -754,11 +924,13 @@ export class Game {
         this.renderer.drawBackground();
         this.renderer.drawPlatforms();
 
-        const botMeta = MODE_METADATA[this.mode] || MODE_METADATA.normal;
+        const botMeta = this.mode === "online"
+            ? { ...(MODE_METADATA.pvp || MODE_METADATA.normal), name: "Online Duel" }
+            : (MODE_METADATA[this.mode] || MODE_METADATA.normal);
         const botColor = botMeta.color;
 
         // Render all fighters
-        const isMultiplayer = this.isTeamMatch || this.mode === "pvp";
+        const isMultiplayer = this.isTeamMatch || this.mode === "pvp" || this.mode === "online";
         for (let i = 0; i < this.allFighters.length; i++) {
             const f = this.allFighters[i];
             this.renderer.drawFighter(f, botColor, isMultiplayer);
@@ -783,8 +955,12 @@ export class Game {
                 this.tiebreakerRedDamage, this.tiebreakerBlueDamage
             );
         } else {
-            const p1Label = this.mode === "pvp" ? "PLAYER 1" : (this.playerName || "YOU");
-            const p2Label = this.mode === "pvp" ? "PLAYER 2" : (this.bot.name || "BOT");
+            let p1Label = this.mode === "pvp" ? "PLAYER 1" : (this.playerName || "YOU");
+            let p2Label = this.mode === "pvp" ? "PLAYER 2" : (this.bot.name || "BOT");
+            if (this.mode === "online") {
+                p1Label = this.player.name + (this.localFighter === this.player ? " (YOU)" : "");
+                p2Label = this.bot.name + (this.localFighter === this.bot ? " (YOU)" : "");
+            }
             this.renderer.drawHUD(
                 this.player, this.bot, botColor, botMeta.name, p1Label, p2Label,
                 this.scoreRed, this.scoreBlue,
@@ -806,15 +982,14 @@ export class Game {
         let accumulator = 0;
         const FIXED_DT = 1000 / 60; // 60Hz physics timestep (16.6667ms)
 
-        const loop = (currentTime) => {
+        const step = (currentTime) => {
             let frameTime = currentTime - lastTime;
             if (frameTime > 100) frameTime = 100; // Cap to avoid spiral of death on backgrounding
+            if (frameTime < 0) frameTime = 0;
             lastTime = currentTime;
 
             accumulator += frameTime;
-            // Schedule the next frame first and guard each step, so a single
-            // runtime error can never stop the loop and freeze the game.
-            this.animFrameId = requestAnimationFrame(loop);
+            // Guard each step, so a single runtime error can never stop the loop and freeze the game.
             try {
                 while (accumulator >= FIXED_DT) {
                     this.update();
@@ -831,10 +1006,24 @@ export class Game {
             }
         };
 
+        const loop = (currentTime) => {
+            this.animFrameId = requestAnimationFrame(loop);
+            step(currentTime);
+        };
         this.animFrameId = requestAnimationFrame(loop);
+
+        // Browsers pause requestAnimationFrame in background tabs. Keep online matches
+        // running (and in sync for the other player) when this tab is hidden.
+        this.hiddenTimer = setInterval(() => {
+            if (document.hidden && this.mode === "online") step(performance.now());
+        }, FIXED_DT);
     }
 
     stop() {
+        if (this.hiddenTimer) {
+            clearInterval(this.hiddenTimer);
+            this.hiddenTimer = null;
+        }
         if (this.animFrameId) {
             cancelAnimationFrame(this.animFrameId);
             this.animFrameId = null;

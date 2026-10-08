@@ -10,6 +10,7 @@ import { sound } from './audio.js';
 import { auth, AVATAR_PRESETS, BLOCK_FACES } from './auth.js';
 import { WEAPON_TYPES } from './weapons.js';
 import { arena, ARENA_TIERS } from './arena.js';
+import { online } from './online.js';
 import { cubeHTML, headImgHTML, presetHeadId, tierPipHTML, weaponIconHTML, applyMinecraftBackground } from './pixel.js';
 
 export class UIManager {
@@ -1015,6 +1016,7 @@ export class UIManager {
                 if (status) status.textContent = "";
                 document.getElementById("private-room-panel").classList.remove("hidden");
                 sound.playClick();
+                this.hostOnlineRoom(code);
             };
         }
 
@@ -1028,15 +1030,6 @@ export class UIManager {
             linkInput.addEventListener("click", () => linkInput.select());
         }
 
-        // Launch Private Match button
-        const btnLaunchPrivate = document.getElementById("btn-launch-private");
-        if (btnLaunchPrivate) {
-            btnLaunchPrivate.onclick = () => {
-                this.arenaModal.classList.add("hidden");
-                this.launchArenaMatchWithLoading(this.selectedArenaMode, this.selectedArenaWeapon);
-            };
-        }
-
         // Join Private Room button
         const btnJoin = document.getElementById("btn-join-private");
         const joinInput = document.getElementById("input-join-code");
@@ -1048,11 +1041,119 @@ export class UIManager {
                     return;
                 }
                 joinInput.value = code;
-                sound.playWin();
-                this.arenaModal.classList.add("hidden");
-                this.launchArenaMatchWithLoading(this.selectedArenaMode, this.selectedArenaWeapon);
+                sound.playClick();
+                this.joinOnlineRoom(code);
             };
         }
+
+        online.onMessage = (msg) => this.handleOnlineMessage(msg);
+        online.onDisconnect = (reason) => this.handleOnlineDisconnect(reason);
+    }
+
+    // ==========================================
+    // ONLINE (PEER-TO-PEER) LOBBY
+    // ==========================================
+
+    setOnlineStatus(text, isError = false) {
+        const el = document.getElementById("online-status");
+        if (!el) return;
+        el.textContent = text;
+        el.classList.toggle("error", isError);
+    }
+
+    myOnlineInfo() {
+        const user = auth.getUser();
+        return {
+            name: (user.username || "Player").slice(0, 20),
+            skin: user.skinId || "steve",
+            weapon: this.selectedArenaWeapon || user.equippedWeapon || "mace",
+            upgrades: user.weaponUpgrades || {}
+        };
+    }
+
+    hostOnlineRoom(code) {
+        this.setOnlineStatus("Opening room...");
+        online.host(code, () => {
+            // A friend connected; wait for their hello with their fighter info
+            this.setOnlineStatus("Friend connected! Starting...");
+        }, (err) => this.setOnlineStatus(err, true));
+        // Room is ready to share once the peer registers
+        if (online.peer) {
+            online.peer.on("open", () => this.setOnlineStatus("Room open. Waiting for your friend to join..."));
+        }
+    }
+
+    joinOnlineRoom(code) {
+        this.setOnlineStatus("Connecting to your friend's room...");
+        online.join(code, () => {
+            this.setOnlineStatus("Connected! Starting...");
+            online.send({ t: "hello", info: this.myOnlineInfo() });
+        }, (err) => this.setOnlineStatus(err, true));
+    }
+
+    startOnlineFromMessage(role, hostInfo, guestInfo) {
+        if (this.arenaModal) this.arenaModal.classList.add("hidden");
+        if (this.statsModal) this.statsModal.classList.add("hidden");
+        this.hideResultsScreen();
+        this.setOnlineStatus("");
+        this.game.startOnlineMatch(role, hostInfo, guestInfo);
+    }
+
+    hostStartOnlineMatch() {
+        const hostInfo = this.myOnlineInfo();
+        const guestInfo = this.onlineGuestInfo || { name: "Guest" };
+        online.send({ t: "start", host: hostInfo, guest: guestInfo });
+        this.startOnlineFromMessage("host", hostInfo, guestInfo);
+    }
+
+    handleOnlineMessage(msg) {
+        if (msg.t === "hello" && online.role === "host") {
+            this.onlineGuestInfo = msg.info || {};
+            this.hostStartOnlineMatch();
+        } else if (msg.t === "start" && online.role === "guest") {
+            this.startOnlineFromMessage("guest", msg.host, msg.guest);
+        } else if (msg.t === "rematch" && online.role === "host") {
+            this.hostStartOnlineMatch();
+        } else {
+            this.game.handleNetMessage(msg);
+        }
+    }
+
+    handleOnlineDisconnect(reason) {
+        if (this.game.mode === "online" && this.game.state !== "menu") {
+            if (this.statsModal) this.statsModal.classList.add("hidden");
+            this.game.goHome();
+            this.showToast(reason);
+        } else {
+            this.setOnlineStatus(reason, true);
+        }
+    }
+
+    onlineRematch() {
+        if (this.game.state !== "gameover") return;
+        if (online.role === "host") {
+            this.hostStartOnlineMatch();
+        } else if (online.isConnected()) {
+            online.send({ t: "rematch" });
+            const btn = document.getElementById("btn-results-again");
+            if (btn) btn.textContent = "Waiting for host...";
+        }
+    }
+
+    showToast(text) {
+        let toast = document.getElementById("game-toast");
+        if (!toast) {
+            toast = document.createElement("div");
+            toast.id = "game-toast";
+            toast.className = "game-toast";
+            toast.setAttribute("role", "status");
+            const container = document.getElementById("arena-container") || document.body;
+            container.appendChild(toast);
+        }
+        toast.textContent = text;
+        toast.classList.add("show");
+        clearTimeout(this.toastTimer);
+        this.toastTimer = setTimeout(() => toast.classList.remove("show"), 4000);
     }
 
     // Shareable invite link for a private room, e.g. https://site/index.html?room=MACE-ABCD-123
@@ -1355,7 +1456,7 @@ export class UIManager {
 
     handleHomeClick() {
         const inMatch = (this.game.state === "play" || this.game.state === "paused");
-        const isMultiplayer = this.game.isTeamMatch || this.game.mode === "pvp";
+        const isMultiplayer = this.game.isTeamMatch || this.game.mode === "pvp" || this.game.mode === "online";
 
         if (inMatch && isMultiplayer) {
             if (this.resignModal) {
@@ -1378,6 +1479,10 @@ export class UIManager {
     }
 
     triggerMatchmakingRestart() {
+        if (this.game.mode === "online") {
+            this.onlineRematch();
+            return;
+        }
         sound.playClick();
         this.hideResultsScreen();
         if (this.statsModal) this.statsModal.classList.add("hidden");
@@ -2233,6 +2338,8 @@ export class UIManager {
             winnerName = isPlayerWin ? "BLUE TEAM" : "RED TEAM";
         } else if (g.mode === "pvp") {
             winnerName = isPlayerWin ? "PLAYER 1" : "PLAYER 2";
+        } else if (g.mode === "online") {
+            winnerName = isPlayerWin ? (g.player.name || "HOST") : (g.bot.name || "GUEST");
         } else {
             winnerName = isPlayerWin ? (g.player.name || "YOU") : (g.bot.name || "BOT");
         }
@@ -2247,7 +2354,9 @@ export class UIManager {
                 : `${g.matchType.toUpperCase()} • Blue ${g.scoreBlue} - Red ${g.scoreRed}`;
         } else {
             const modeMeta = MODE_METADATA[g.mode] || {};
-            subEl.textContent = g.mode === "pvp" ? "Local 1v1 Duel" : `1v1 vs ${modeMeta.name || "Bot"}`;
+            subEl.textContent = g.mode === "pvp" ? "Local 1v1 Duel"
+                : g.mode === "online" ? (g.winnerTeam === g.localFighter.team ? "Online 1v1 • You won!" : "Online 1v1 • Good game!")
+                : `1v1 vs ${modeMeta.name || "Bot"}`;
         }
 
         // Placement order: winning team first, then by KOs, then damage dealt
@@ -2272,7 +2381,7 @@ export class UIManager {
             // Teams share a placement (whole winning team is 1st), solo duels rank individually
             const place = g.isTeamMatch ? (teamOf(f) === g.winnerTeam ? 1 : 2) : i + 1;
             const team = teamOf(f);
-            const isYou = f === g.player;
+            const isYou = f === (g.localFighter || g.player);
             const wep = WEAPON_TYPES[f.weaponId] || WEAPON_TYPES.mace;
             return `
                 <div class="rs-card rs-${team} ${place === 1 ? "rs-first" : ""} ${isYou ? "rs-you" : ""}" style="animation-delay:${0.15 + i * 0.08}s">
@@ -2288,6 +2397,9 @@ export class UIManager {
                 </div>
             `;
         }).join("");
+
+        const againBtn = document.getElementById("btn-results-again");
+        if (againBtn) againBtn.textContent = g.mode === "online" ? "Rematch (R)" : "Play Again (R)";
 
         const fightersEl = document.getElementById("results-fighters");
         fightersEl.classList.toggle("compact", compact);

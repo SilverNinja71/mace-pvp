@@ -345,6 +345,7 @@ export class ArrowManager {
                     f.yVel = -5;
 
                     const shooter = fighters.find(fl => fl.id === a.ownerId);
+                    if (shooter) f.lastHitBy = shooter;
                     if (shooter) {
                         shooter.stats.arrowsHit++;
                         shooter.stats.damageDealt += a.damage;

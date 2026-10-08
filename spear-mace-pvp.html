@@ -3041,6 +3041,40 @@ input, textarea, .selectable {
     }
 }
 
+/* Online play lobby status + toast */
+.online-status {
+    min-height: 18px;
+    margin-bottom: 6px;
+    font-size: 17px;
+    color: #55ff55;
+}
+
+.online-status.error {
+    color: #ff7675;
+}
+
+.game-toast {
+    position: absolute;
+    left: 50%;
+    top: 56px;
+    z-index: 300;
+    transform: translate(-50%, -20px);
+    padding: 8px 16px;
+    background: var(--panel);
+    border: 3px solid #000;
+    box-shadow: 4px 4px 0 #000;
+    color: #fff;
+    font-size: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.game-toast.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
 </style>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 8 8%22 shape-rendering=%22crispEdges%22><rect width=%228%22 height=%228%22 fill=%22%235b4129%22/><rect y=%220%22 width=%228%22 height=%222%22 fill=%22%234fae3c%22/></svg>">
     <!-- Google Identity Services (GIS) Client Library -->
@@ -3315,8 +3349,8 @@ input, textarea, .selectable {
                             <button id="btn-arena-find-match" class="btn-submit-arena">Find Match / Queue</button>
                         </div>
                         <div class="action-box">
-                            <h4>Private Room</h4>
-                            <p>Host or join private custom rooms with friends.</p>
+                            <h4>Play a Friend Online</h4>
+                            <p>1v1 over the internet. Create a room and send your friend the link.</p>
                             <div class="private-controls-row">
                                 <button id="btn-host-private" class="btn-ctrl">Create Room Code</button>
                             </div>
@@ -3327,8 +3361,8 @@ input, textarea, .selectable {
                                     <button id="btn-copy-room-link" class="btn-ctrl">Copy Link</button>
                                 </div>
                                 <div id="copy-link-status" class="copy-link-status" aria-live="polite"></div>
-                                <button id="btn-launch-private" class="btn-submit-arena">Start Private Match</button>
                             </div>
+                            <div id="online-status" class="online-status" aria-live="polite"></div>
                             <div class="join-private-row">
                                 <input type="text" id="input-join-code" class="auth-input" placeholder="Paste Room Code or Link">
                                 <button id="btn-join-private" class="btn-ctrl btn-save-name">Join</button>
@@ -3697,6 +3731,8 @@ input, textarea, .selectable {
     </footer>
 
     <!-- Game Script (Self-contained zero-dependency bundle) -->
+    <!-- PeerJS: browser-to-browser connections for online play -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script>
 (function() {
   'use strict';
@@ -4941,6 +4977,7 @@ input, textarea, .selectable {
                       f.yVel = -5;
   
                       const shooter = fighters.find(fl => fl.id === a.ownerId);
+                      if (shooter) f.lastHitBy = shooter;
                       if (shooter) {
                           shooter.stats.arrowsHit++;
                           shooter.stats.damageDealt += a.damage;
@@ -5850,6 +5887,142 @@ input, textarea, .selectable {
   const auth = new AuthManager();
   
 
+  // ===== online.js =====
+  // ==========================================
+  // SPEAR-MACE PVP - Peer-to-Peer Online Play
+  // Two browsers connect directly with WebRTC (via PeerJS, loaded in index.html).
+  // The host runs the match simulation; the guest sends inputs and draws the
+  // snapshots the host streams back.
+  // ==========================================
+  
+  // Prefix keeps our room IDs from colliding with other apps on the public PeerJS server
+  const PEER_ID_PREFIX = "spear-mace-pvp-";
+  const CONNECT_TIMEOUT_MS = 12000;
+  
+  class OnlineSession {
+      constructor() {
+          this.peer = null;
+          this.conn = null;
+          this.role = null; // "host" | "guest" | null
+          this.onMessage = null; // (msg) => void
+          this.onDisconnect = null; // (reason) => void
+          this.connectTimer = null;
+      }
+  
+      isAvailable() {
+          return typeof window !== "undefined" && typeof window.Peer === "function";
+      }
+  
+      isConnected() {
+          return !!(this.conn && this.conn.open);
+      }
+  
+      // Host a room: resolves when the room is registered, calls onGuestJoined when a friend connects
+      host(roomCode, onGuestJoined, onError) {
+          this.close();
+          if (!this.isAvailable()) {
+              onError("Online play couldn't load. Check your internet connection and refresh.");
+              return;
+          }
+          this.role = "host";
+          this.peer = new window.Peer(PEER_ID_PREFIX + roomCode);
+  
+          this.peer.on("connection", (conn) => {
+              // Only one opponent per room
+              if (this.conn && this.conn.open) {
+                  conn.on("open", () => conn.close());
+                  return;
+              }
+              this.attachConnection(conn, () => onGuestJoined());
+          });
+          this.peer.on("error", (err) => onError(this.describeError(err)));
+      }
+  
+      // Join a friend's room: calls onConnected once the data channel is open
+      join(roomCode, onConnected, onError) {
+          this.close();
+          if (!this.isAvailable()) {
+              onError("Online play couldn't load. Check your internet connection and refresh.");
+              return;
+          }
+          this.role = "guest";
+          this.peer = new window.Peer();
+  
+          this.peer.on("open", () => {
+              const conn = this.peer.connect(PEER_ID_PREFIX + roomCode, { reliable: true });
+              this.attachConnection(conn, () => {
+                  clearTimeout(this.connectTimer);
+                  onConnected();
+              });
+          });
+          this.peer.on("error", (err) => {
+              clearTimeout(this.connectTimer);
+              onError(this.describeError(err));
+          });
+  
+          this.connectTimer = setTimeout(() => {
+              if (!this.isConnected()) {
+                  onError("Couldn't reach that room. Make sure your friend's room is still open, then try again.");
+                  this.close();
+              }
+          }, CONNECT_TIMEOUT_MS);
+      }
+  
+      attachConnection(conn, onOpen) {
+          this.conn = conn;
+          conn.on("open", onOpen);
+          conn.on("data", (msg) => {
+              if (this.onMessage && msg && typeof msg === "object") this.onMessage(msg);
+          });
+          conn.on("close", () => this.handleDisconnect("Your opponent left the match."));
+          conn.on("error", () => this.handleDisconnect("The connection to your opponent was lost."));
+      }
+  
+      handleDisconnect(reason) {
+          if (!this.conn) return;
+          this.conn = null;
+          if (this.onDisconnect) this.onDisconnect(reason);
+      }
+  
+      send(msg) {
+          if (this.conn && this.conn.open) {
+              try {
+                  this.conn.send(msg);
+              } catch (e) {
+                  console.warn("Online send failed:", e);
+              }
+          }
+      }
+  
+      close() {
+          clearTimeout(this.connectTimer);
+          const conn = this.conn;
+          this.conn = null; // closing on purpose: don't report it as a disconnect
+          if (conn) {
+              try { conn.close(); } catch (e) { /* already closed */ }
+          }
+          if (this.peer) {
+              try { this.peer.destroy(); } catch (e) { /* already destroyed */ }
+              this.peer = null;
+          }
+          this.role = null;
+      }
+  
+      describeError(err) {
+          const type = err && err.type;
+          if (type === "peer-unavailable") return "Room not found. Check the code, or ask your friend to create the room again.";
+          if (type === "unavailable-id") return "That room code is already in use. Create a new room.";
+          if (type === "network" || type === "server-error" || type === "socket-error" || type === "socket-closed") {
+              return "Couldn't reach the online server. Check your internet connection and try again.";
+          }
+          if (type === "browser-incompatible") return "This browser doesn't support online play. Try Chrome, Edge, Firefox or Safari.";
+          return "Online connection error. Please try again.";
+      }
+  }
+  
+  const online = new OnlineSession();
+  
+
   // ===== particles.js =====
   // ==========================================
   // SPEAR-MACE PVP - Particles & Combat FX
@@ -6209,6 +6382,7 @@ input, textarea, .selectable {
           this.squashY = 1.0;
   
           this.isDead = false;
+          this.lastHitBy = null;
           this.stats = {
               kills: 0,
               damageDealt: 0,
@@ -6934,6 +7108,7 @@ input, textarea, .selectable {
               const finalDamage = slamDamage * effDmgMult;
               defender.hp -= finalDamage;
               defender.stats.damageTaken += finalDamage;
+              defender.lastHitBy = attacker;
               defender.hitCooldown = 25;
               defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier);
   
@@ -7010,6 +7185,7 @@ input, textarea, .selectable {
               const finalDamage = CORE_PHYSICS.slamGroundDamage * damageMultiplier;
               defender.hp -= finalDamage;
               defender.stats.damageTaken += finalDamage;
+              defender.lastHitBy = attacker;
               defender.hitCooldown = 20;
               defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier);
   
@@ -7054,6 +7230,7 @@ input, textarea, .selectable {
               const finalDamage = baseDmg * damageMultiplier;
               defender.hp -= finalDamage;
               defender.stats.damageTaken += finalDamage;
+              defender.lastHitBy = attacker;
               defender.hitCooldown = 22;
               defender.stun = Math.round((CORE_PHYSICS.hitStun + stunBonus) * stunMultiplier);
   
@@ -8169,59 +8346,6 @@ input, textarea, .selectable {
           ctx.restore();
       }
   
-      drawGameOver(winnerName, statsP1, statsP2, rewardInfo = null, scoreRed = 0, scoreBlue = 0, highestJumper = null, isTiebreaker = false) {
-          const ctx = this.ctx;
-          ctx.save();
-  
-          ctx.fillStyle = "rgba(0, 0, 0, 0.78)";
-          ctx.fillRect(0, 0, this.width, this.height);
-  
-          ctx.fillStyle = "#ffffff";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-  
-          ctx.font = "bold 34px 'Segoe UI', system-ui, sans-serif";
-          ctx.fillText(`${winnerName} WINS!`, this.width / 2, this.height / 2 - 60);
-  
-          // Final Score & Tiebreaker Indicator
-          ctx.font = "bold 16px monospace";
-          ctx.fillStyle = isTiebreaker ? "#f1c40f" : "#2ecc71";
-          const scoreBanner = isTiebreaker 
-              ? `⚔️ 10-10 TIEBREAKER VICTORY (MOST DAMAGE)` 
-              : ((scoreBlue + scoreRed > 1) 
-                  ? `FINAL SCORE: ${scoreBlue} - ${scoreRed} (FIRST TO 11)`
-                  : `1v1 DUEL COMPLETED`);
-          ctx.fillText(scoreBanner, this.width / 2, this.height / 2 - 28);
-  
-          // Highest Jumper Highlight (Altitude Champion 👑)
-          if (highestJumper) {
-              ctx.font = "bold 13px monospace";
-              ctx.fillStyle = "#00d2d3";
-              const jumperName = highestJumper.name || "Fighter";
-              ctx.fillText(`👑 ALTITUDE CHAMPION: ${jumperName} (${Math.round(highestJumper.stats?.maxHeight || 0)} px peak)`, this.width / 2, this.height / 2 - 6);
-          }
-  
-          // Reward information pill (Gold & XP & RP earned)
-          if (rewardInfo) {
-              ctx.font = "bold 14px 'Segoe UI', system-ui, sans-serif";
-              ctx.fillStyle = "#f1c40f";
-              let rewText = `+${rewardInfo.goldEarned} Gold   •   +${rewardInfo.xpEarned} XP`;
-              if (rewardInfo.rpDelta) {
-                  const rpSign = rewardInfo.rpDelta > 0 ? `+${rewardInfo.rpDelta}` : `${rewardInfo.rpDelta}`;
-                  rewText += `   •   ${rpSign} RP`;
-              }
-              ctx.fillText(rewText, this.width / 2, this.height / 2 + 18);
-          }
-  
-          ctx.fillStyle = "#ffffff";
-          ctx.font = "14px 'Segoe UI', system-ui, sans-serif";
-          ctx.fillText("Press R to matchmake next game", this.width / 2, this.height / 2 + 50);
-          ctx.font = "12px 'Segoe UI', system-ui, sans-serif";
-          ctx.fillStyle = "#bdc3c7";
-          ctx.fillText("Press H for home screen", this.width / 2, this.height / 2 + 74);
-  
-          ctx.restore();
-      }
   }
   
 
@@ -8279,6 +8403,12 @@ input, textarea, .selectable {
           this.botParams = {};
           this.lastRewardInfo = null;
   
+          // Online (peer-to-peer) match state
+          this.onlineRole = null; // "host" | "guest" | null
+          this.localFighter = this.player; // the fighter this browser controls
+          this.remoteInput = { left: false, right: false };
+          this.sentInput = { left: false, right: false };
+  
           // Key states
           this.keys = {};
   
@@ -8298,8 +8428,12 @@ input, textarea, .selectable {
           this.applyMode("normal");
       }
   
-      applyMode(mode, customOverrides = null) {
+      applyMode(mode, customOverrides = null, keepOnline = false) {
+          // Starting any offline game ends a pending or finished online session
+          if (!keepOnline && online.role) online.close();
           this.mode = mode;
+          this.onlineRole = null;
+          this.localFighter = this.player;
           this.isTeamMatch = false;
           this.matchType = "1v1";
           this.customBotParams = customOverrides;
@@ -8366,12 +8500,106 @@ input, textarea, .selectable {
           }
       }
   
+      // Online 1v1: host is always Blue (left), guest is always Red (right) on both screens
+      startOnlineMatch(role, hostInfo, guestInfo) {
+          sound.ensureContext();
+          this.applyMode("pvp", null, true);
+          this.mode = "online";
+          this.onlineRole = role;
+          this.botParams = getBotParamsForMode("pvp");
+  
+          const setup = (fighter, info, fallbackName) => {
+              fighter.name = (info && info.name) || fallbackName;
+              fighter.setWeapon((info && info.weapon) || "mace", (info && info.upgrades) || {});
+              fighter.setSkin((info && info.skin) || "steve");
+              fighter.isBotGame = false;
+          };
+          setup(this.player, hostInfo, "Host");
+          setup(this.bot, guestInfo, "Guest");
+          this.player.isPlayer = role === "host";
+          this.bot.isPlayer = role === "guest";
+          this.bot._botAI = null;
+          this.allBots = [];
+          this.localFighter = role === "host" ? this.player : this.bot;
+          this.remoteInput = { left: false, right: false };
+          this.sentInput = { left: false, right: false };
+  
+          this.state = "play";
+          if (this.uiCallbacks.onStateChanged) {
+              this.uiCallbacks.onStateChanged(this.state);
+          }
+      }
+  
+      isOnlineGuest() {
+          return this.mode === "online" && this.onlineRole === "guest";
+      }
+  
+      // ---- Online networking: snapshots (host -> guest) and inputs (guest -> host) ----
+  
+      packFighter(f) {
+          const r = (n) => Math.round(n * 10) / 10;
+          return [r(f.x), r(f.y), r(f.xVel), r(f.yVel), f.facing, r(f.hp), r(f.ghostHp),
+              r(f.squashX), r(f.squashY), f.dashing ? 1 : 0, f.slamming ? 1 : 0, f.maxHp];
+      }
+  
+      unpackFighter(f, d) {
+          const prevHp = f.hp;
+          [f.x, f.y, f.xVel, f.yVel, f.facing, f.hp, f.ghostHp, f.squashX, f.squashY] = d;
+          f.dashing = !!d[9];
+          f.slamming = !!d[10];
+          f.maxHp = d[11];
+          // Recreate hit effects locally from health changes
+          if (f.hp < prevHp - 0.01 && prevHp > 0) {
+              const dmg = prevHp - Math.max(0, f.hp);
+              sound.playDashHit();
+              this.particles.addHitSparks(f.x + f.w / 2, f.y + f.h / 2, 10, "#e74c3c");
+              this.particles.addDamageText(f.x + f.w / 2, f.y, dmg, dmg >= 30);
+              this.particles.triggerShake(4, 6);
+              if (f.hp <= 0) {
+                  this.particles.addFloatingText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, "#ff2244", true, 1.3);
+              }
+          }
+      }
+  
+      buildSnapshot() {
+          return {
+              t: "snap",
+              f: [this.packFighter(this.player), this.packFighter(this.bot)],
+              a: this.arrowManager.arrows.map(a => [Math.round(a.x), Math.round(a.y), a.vx, a.vy, a.stuck ? 1 : 0, a.facing]),
+              m: this.matchFrames
+          };
+      }
+  
+      handleNetMessage(msg) {
+          if (msg.t === "snap" && this.isOnlineGuest() && this.state === "play") {
+              this.unpackFighter(this.player, msg.f[0]);
+              this.unpackFighter(this.bot, msg.f[1]);
+              this.arrowManager.arrows = msg.a.map(([x, y, vx, vy, stuck, facing]) => ({
+                  x, y, vx, vy, facing, stuck: !!stuck, gravity: 0, life: 60
+              }));
+              this.matchFrames = msg.m;
+          } else if (msg.t === "input" && this.mode === "online" && this.onlineRole === "host") {
+              this.remoteInput.left = !!msg.l;
+              this.remoteInput.right = !!msg.r;
+          } else if (msg.t === "act" && this.mode === "online" && this.onlineRole === "host" && this.state === "play") {
+              if (msg.a === "jump") this.bot.jump();
+              if (msg.a === "dash") this.bot.dash(null, true, null, this.arrowManager);
+              if (msg.a === "slam") this.bot.slam();
+          } else if (msg.t === "end" && this.isOnlineGuest() && this.state === "play") {
+              msg.stats.forEach((st, i) => { this.allFighters[i].stats = st; });
+              this.finishMatch(msg.w === this.localFighter.team);
+          }
+      }
+  
       // Starts a 1v1, 2v2, or 5v5 Arena Match
       startArenaTeamMatch(matchType = "2v2", selectedWeaponId = "mace") {
           sound.ensureContext();
           sound.playClick();
   
+          if (online.role) online.close();
           this.mode = "arena";
+          this.onlineRole = null;
+          this.localFighter = this.player;
           this.matchType = matchType;
           this.isTeamMatch = true;
           this.botParams = getBotParamsForMode("normal");
@@ -8491,6 +8719,10 @@ input, textarea, .selectable {
   
       goHome() {
           sound.playClick();
+          if (this.mode === "online") {
+              online.close();
+              this.onlineRole = null;
+          }
           this.state = "menu";
           if (this.uiCallbacks.onStateChanged) {
               this.uiCallbacks.onStateChanged(this.state);
@@ -8498,6 +8730,8 @@ input, textarea, .selectable {
       }
   
       togglePause() {
+          // Online matches can't be paused: the other player is still playing
+          if (this.mode === "online") return;
           if (this.state === "play") {
               this.state = "paused";
           } else if (this.state === "paused") {
@@ -8579,8 +8813,19 @@ input, textarea, .selectable {
   
               if (this.state !== "play") return;
   
+              // Online guest: send actions to the host, which runs the match
+              if (this.isOnlineGuest()) {
+                  if (e.code === "ArrowUp" || e.code === "KeyW") online.send({ t: "act", a: "jump" });
+                  if (e.code === "Space") online.send({ t: "act", a: "dash" });
+                  if (e.code === "ArrowDown" || e.code === "KeyS") online.send({ t: "act", a: "slam" });
+                  return;
+              }
+  
+              // In local PvP the arrow keys belong to Player 2 only
+              const p1Arrows = this.mode !== "pvp";
+  
               // --- Player 1 Jump ---
-              if (e.code === "ArrowUp" || e.code === "KeyW") {
+              if (e.code === "KeyW" || (p1Arrows && e.code === "ArrowUp")) {
                   this.player.jump();
               }
   
@@ -8590,7 +8835,7 @@ input, textarea, .selectable {
               }
   
               // --- Player 1 Slam ---
-              if (e.code === "ArrowDown" || e.code === "KeyS") {
+              if (e.code === "KeyS" || (p1Arrows && e.code === "ArrowDown")) {
                   this.player.slam();
               }
   
@@ -8600,7 +8845,7 @@ input, textarea, .selectable {
                       this.bot.jump();
                   }
                   if (e.code === "Enter" || e.code === "ShiftRight") {
-                      this.bot.dash(this.botParams.dashSpeed, true, this.botParams.botDashCooldown, this.arrowManager);
+                      this.bot.dash(null, true, null, this.arrowManager);
                   }
                   if (e.code === "ArrowDown") {
                       this.bot.slam();
@@ -8621,6 +8866,17 @@ input, textarea, .selectable {
       handleContinuousInput() {
           if (this.state !== "play") return;
   
+          // Online guest: stream left/right held state to the host
+          if (this.isOnlineGuest()) {
+              const left = !!(this.keys["KeyA"] || this.keys["ArrowLeft"]);
+              const right = !!(this.keys["KeyD"] || this.keys["ArrowRight"]);
+              if (left !== this.sentInput.left || right !== this.sentInput.right) {
+                  this.sentInput = { left, right };
+                  online.send({ t: "input", l: left, r: right });
+              }
+              return;
+          }
+  
           // Player 1 Continuous Horizontal Movement
           if (this.player.stun <= 0 && !this.player.dashing) {
               const left = this.keys["KeyA"] || (this.mode !== "pvp" && this.keys["ArrowLeft"]);
@@ -8639,13 +8895,13 @@ input, textarea, .selectable {
               }
           }
   
-          // Player 2 Input (PVP Mode)
-          if (this.mode === "pvp") {
+          // Player 2 Input (local PvP keys, or the online guest's streamed input)
+          if (this.mode === "pvp" || this.mode === "online") {
               if (this.bot.stun <= 0 && !this.bot.dashing) {
-                  const left = this.keys["ArrowLeft"];
-                  const right = this.keys["ArrowRight"];
+                  const left = this.mode === "online" ? this.remoteInput.left : this.keys["ArrowLeft"];
+                  const right = this.mode === "online" ? this.remoteInput.right : this.keys["ArrowRight"];
   
-                  const speed = 3;
+                  const speed = 5.2; // Same as Player 1 so local duels are fair
                   if (left && !right) {
                       this.bot.xVel = -speed;
                       this.bot.facing = -1;
@@ -8653,7 +8909,7 @@ input, textarea, .selectable {
                       this.bot.xVel = speed;
                       this.bot.facing = 1;
                   } else {
-                      this.bot.xVel *= 0.65;
+                      this.bot.xVel *= 0.55;
                       if (Math.abs(this.bot.xVel) < 0.1) this.bot.xVel = 0;
                   }
               }
@@ -8662,6 +8918,13 @@ input, textarea, .selectable {
   
       update() {
           if (this.state !== "play") {
+              this.particles.update();
+              return;
+          }
+  
+          if (this.isOnlineGuest()) {
+              // The host simulates; we only animate effects and send our input
+              this.handleContinuousInput();
               this.particles.update();
               return;
           }
@@ -8839,7 +9102,7 @@ input, textarea, .selectable {
                   if (isRedFighter) {
                       this.scoreBlue++;
                       this.particles.addFloatingText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, "#ff2244", true, 1.3);
-                      const killer = this.blueTeam.find(b => b.hp > 0) || this.player;
+                      const killer = this.findKiller(f, this.blueTeam);
                       if (killer && killer.stats) killer.stats.kills++;
   
                       // In single-player bot games & 1v1 duels, killing the bot immediately wins the match!
@@ -8850,7 +9113,7 @@ input, textarea, .selectable {
                   } else {
                       this.scoreRed++;
                       this.particles.addFloatingText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, "#ff2244", true, 1.3);
-                      const killer = this.redTeam.find(r => r.hp > 0) || this.bot;
+                      const killer = this.findKiller(f, this.redTeam);
                       if (killer && killer.stats) killer.stats.kills++;
   
                       // In single-player bot games, player death immediately ends the match!
@@ -8908,6 +9171,10 @@ input, textarea, .selectable {
               }
           }
   
+          if (this.mode === "online" && this.onlineRole === "host") {
+              online.send(this.buildSnapshot());
+          }
+  
           // 3. Process Tiebreaker Timer (10 Seconds, Whoever Dealt Most Damage Wins)
           if (this.isTiebreaker) {
               this.tiebreakerTimer--;
@@ -8925,9 +9192,30 @@ input, textarea, .selectable {
           }
       }
   
+      // Whoever landed the final hit gets the KO (falls back to the nearest living opponent)
+      findKiller(victim, opposingTeam) {
+          const hitter = victim.lastHitBy;
+          victim.lastHitBy = null;
+          if (hitter && opposingTeam.includes(hitter)) return hitter;
+          let nearest = null;
+          let best = Infinity;
+          for (const o of opposingTeam) {
+              if (o.hp <= 0) continue;
+              const d = Math.abs(o.x - victim.x);
+              if (d < best) { best = d; nearest = o; }
+          }
+          return nearest;
+      }
+  
       finishMatch(isPlayerWin) {
           this.state = "gameover";
-          this.winnerTeam = isPlayerWin ? "blue" : "red";
+          if (this.mode === "online") {
+              // isPlayerWin is from this browser's point of view
+              const otherTeam = this.localFighter.team === "blue" ? "red" : "blue";
+              this.winnerTeam = isPlayerWin ? this.localFighter.team : otherTeam;
+          } else {
+              this.winnerTeam = isPlayerWin ? "blue" : "red";
+          }
           if (isPlayerWin) sound.playWin(); else sound.playLoss();
   
           // Calculate missed mace slams, missed dashes, and missed arrows for all fighters
@@ -8950,9 +9238,14 @@ input, textarea, .selectable {
           if (this.isTeamMatch) {
               this.lastRewardInfo = auth.recordArenaMatchResult(isPlayerWin, this.matchType);
           } else {
-              if (this.mode !== "pvp") {
+              if (this.mode !== "pvp" && this.mode !== "online") {
                   this.lastRewardInfo = auth.recordMatchResult(isPlayerWin, this.mode, this.player.stats);
               }
+          }
+  
+          if (this.mode === "online" && this.onlineRole === "host") {
+              online.send({ t: "snap", f: [this.packFighter(this.player), this.packFighter(this.bot)], a: [], m: this.matchFrames });
+              online.send({ t: "end", w: this.winnerTeam, stats: this.allFighters.map(f => f.stats) });
           }
   
           if (this.uiCallbacks.onStateChanged) {
@@ -8972,11 +9265,13 @@ input, textarea, .selectable {
           this.renderer.drawBackground();
           this.renderer.drawPlatforms();
   
-          const botMeta = MODE_METADATA[this.mode] || MODE_METADATA.normal;
+          const botMeta = this.mode === "online"
+              ? { ...(MODE_METADATA.pvp || MODE_METADATA.normal), name: "Online Duel" }
+              : (MODE_METADATA[this.mode] || MODE_METADATA.normal);
           const botColor = botMeta.color;
   
           // Render all fighters
-          const isMultiplayer = this.isTeamMatch || this.mode === "pvp";
+          const isMultiplayer = this.isTeamMatch || this.mode === "pvp" || this.mode === "online";
           for (let i = 0; i < this.allFighters.length; i++) {
               const f = this.allFighters[i];
               this.renderer.drawFighter(f, botColor, isMultiplayer);
@@ -9001,8 +9296,12 @@ input, textarea, .selectable {
                   this.tiebreakerRedDamage, this.tiebreakerBlueDamage
               );
           } else {
-              const p1Label = this.mode === "pvp" ? "PLAYER 1" : (this.playerName || "YOU");
-              const p2Label = this.mode === "pvp" ? "PLAYER 2" : (this.bot.name || "BOT");
+              let p1Label = this.mode === "pvp" ? "PLAYER 1" : (this.playerName || "YOU");
+              let p2Label = this.mode === "pvp" ? "PLAYER 2" : (this.bot.name || "BOT");
+              if (this.mode === "online") {
+                  p1Label = this.player.name + (this.localFighter === this.player ? " (YOU)" : "");
+                  p2Label = this.bot.name + (this.localFighter === this.bot ? " (YOU)" : "");
+              }
               this.renderer.drawHUD(
                   this.player, this.bot, botColor, botMeta.name, p1Label, p2Label,
                   this.scoreRed, this.scoreBlue,
@@ -9024,15 +9323,14 @@ input, textarea, .selectable {
           let accumulator = 0;
           const FIXED_DT = 1000 / 60; // 60Hz physics timestep (16.6667ms)
   
-          const loop = (currentTime) => {
+          const step = (currentTime) => {
               let frameTime = currentTime - lastTime;
               if (frameTime > 100) frameTime = 100; // Cap to avoid spiral of death on backgrounding
+              if (frameTime < 0) frameTime = 0;
               lastTime = currentTime;
   
               accumulator += frameTime;
-              // Schedule the next frame first and guard each step, so a single
-              // runtime error can never stop the loop and freeze the game.
-              this.animFrameId = requestAnimationFrame(loop);
+              // Guard each step, so a single runtime error can never stop the loop and freeze the game.
               try {
                   while (accumulator >= FIXED_DT) {
                       this.update();
@@ -9049,10 +9347,24 @@ input, textarea, .selectable {
               }
           };
   
+          const loop = (currentTime) => {
+              this.animFrameId = requestAnimationFrame(loop);
+              step(currentTime);
+          };
           this.animFrameId = requestAnimationFrame(loop);
+  
+          // Browsers pause requestAnimationFrame in background tabs. Keep online matches
+          // running (and in sync for the other player) when this tab is hidden.
+          this.hiddenTimer = setInterval(() => {
+              if (document.hidden && this.mode === "online") step(performance.now());
+          }, FIXED_DT);
       }
   
       stop() {
+          if (this.hiddenTimer) {
+              clearInterval(this.hiddenTimer);
+              this.hiddenTimer = null;
+          }
           if (this.animFrameId) {
               cancelAnimationFrame(this.animFrameId);
               this.animFrameId = null;
@@ -10073,6 +10385,7 @@ input, textarea, .selectable {
                   if (status) status.textContent = "";
                   document.getElementById("private-room-panel").classList.remove("hidden");
                   sound.playClick();
+                  this.hostOnlineRoom(code);
               };
           }
   
@@ -10086,15 +10399,6 @@ input, textarea, .selectable {
               linkInput.addEventListener("click", () => linkInput.select());
           }
   
-          // Launch Private Match button
-          const btnLaunchPrivate = document.getElementById("btn-launch-private");
-          if (btnLaunchPrivate) {
-              btnLaunchPrivate.onclick = () => {
-                  this.arenaModal.classList.add("hidden");
-                  this.launchArenaMatchWithLoading(this.selectedArenaMode, this.selectedArenaWeapon);
-              };
-          }
-  
           // Join Private Room button
           const btnJoin = document.getElementById("btn-join-private");
           const joinInput = document.getElementById("input-join-code");
@@ -10106,11 +10410,119 @@ input, textarea, .selectable {
                       return;
                   }
                   joinInput.value = code;
-                  sound.playWin();
-                  this.arenaModal.classList.add("hidden");
-                  this.launchArenaMatchWithLoading(this.selectedArenaMode, this.selectedArenaWeapon);
+                  sound.playClick();
+                  this.joinOnlineRoom(code);
               };
           }
+  
+          online.onMessage = (msg) => this.handleOnlineMessage(msg);
+          online.onDisconnect = (reason) => this.handleOnlineDisconnect(reason);
+      }
+  
+      // ==========================================
+      // ONLINE (PEER-TO-PEER) LOBBY
+      // ==========================================
+  
+      setOnlineStatus(text, isError = false) {
+          const el = document.getElementById("online-status");
+          if (!el) return;
+          el.textContent = text;
+          el.classList.toggle("error", isError);
+      }
+  
+      myOnlineInfo() {
+          const user = auth.getUser();
+          return {
+              name: (user.username || "Player").slice(0, 20),
+              skin: user.skinId || "steve",
+              weapon: this.selectedArenaWeapon || user.equippedWeapon || "mace",
+              upgrades: user.weaponUpgrades || {}
+          };
+      }
+  
+      hostOnlineRoom(code) {
+          this.setOnlineStatus("Opening room...");
+          online.host(code, () => {
+              // A friend connected; wait for their hello with their fighter info
+              this.setOnlineStatus("Friend connected! Starting...");
+          }, (err) => this.setOnlineStatus(err, true));
+          // Room is ready to share once the peer registers
+          if (online.peer) {
+              online.peer.on("open", () => this.setOnlineStatus("Room open. Waiting for your friend to join..."));
+          }
+      }
+  
+      joinOnlineRoom(code) {
+          this.setOnlineStatus("Connecting to your friend's room...");
+          online.join(code, () => {
+              this.setOnlineStatus("Connected! Starting...");
+              online.send({ t: "hello", info: this.myOnlineInfo() });
+          }, (err) => this.setOnlineStatus(err, true));
+      }
+  
+      startOnlineFromMessage(role, hostInfo, guestInfo) {
+          if (this.arenaModal) this.arenaModal.classList.add("hidden");
+          if (this.statsModal) this.statsModal.classList.add("hidden");
+          this.hideResultsScreen();
+          this.setOnlineStatus("");
+          this.game.startOnlineMatch(role, hostInfo, guestInfo);
+      }
+  
+      hostStartOnlineMatch() {
+          const hostInfo = this.myOnlineInfo();
+          const guestInfo = this.onlineGuestInfo || { name: "Guest" };
+          online.send({ t: "start", host: hostInfo, guest: guestInfo });
+          this.startOnlineFromMessage("host", hostInfo, guestInfo);
+      }
+  
+      handleOnlineMessage(msg) {
+          if (msg.t === "hello" && online.role === "host") {
+              this.onlineGuestInfo = msg.info || {};
+              this.hostStartOnlineMatch();
+          } else if (msg.t === "start" && online.role === "guest") {
+              this.startOnlineFromMessage("guest", msg.host, msg.guest);
+          } else if (msg.t === "rematch" && online.role === "host") {
+              this.hostStartOnlineMatch();
+          } else {
+              this.game.handleNetMessage(msg);
+          }
+      }
+  
+      handleOnlineDisconnect(reason) {
+          if (this.game.mode === "online" && this.game.state !== "menu") {
+              if (this.statsModal) this.statsModal.classList.add("hidden");
+              this.game.goHome();
+              this.showToast(reason);
+          } else {
+              this.setOnlineStatus(reason, true);
+          }
+      }
+  
+      onlineRematch() {
+          if (this.game.state !== "gameover") return;
+          if (online.role === "host") {
+              this.hostStartOnlineMatch();
+          } else if (online.isConnected()) {
+              online.send({ t: "rematch" });
+              const btn = document.getElementById("btn-results-again");
+              if (btn) btn.textContent = "Waiting for host...";
+          }
+      }
+  
+      showToast(text) {
+          let toast = document.getElementById("game-toast");
+          if (!toast) {
+              toast = document.createElement("div");
+              toast.id = "game-toast";
+              toast.className = "game-toast";
+              toast.setAttribute("role", "status");
+              const container = document.getElementById("arena-container") || document.body;
+              container.appendChild(toast);
+          }
+          toast.textContent = text;
+          toast.classList.add("show");
+          clearTimeout(this.toastTimer);
+          this.toastTimer = setTimeout(() => toast.classList.remove("show"), 4000);
       }
   
       // Shareable invite link for a private room, e.g. https://site/index.html?room=MACE-ABCD-123
@@ -10413,7 +10825,7 @@ input, textarea, .selectable {
   
       handleHomeClick() {
           const inMatch = (this.game.state === "play" || this.game.state === "paused");
-          const isMultiplayer = this.game.isTeamMatch || this.game.mode === "pvp";
+          const isMultiplayer = this.game.isTeamMatch || this.game.mode === "pvp" || this.game.mode === "online";
   
           if (inMatch && isMultiplayer) {
               if (this.resignModal) {
@@ -10436,6 +10848,10 @@ input, textarea, .selectable {
       }
   
       triggerMatchmakingRestart() {
+          if (this.game.mode === "online") {
+              this.onlineRematch();
+              return;
+          }
           sound.playClick();
           this.hideResultsScreen();
           if (this.statsModal) this.statsModal.classList.add("hidden");
@@ -11291,6 +11707,8 @@ input, textarea, .selectable {
               winnerName = isPlayerWin ? "BLUE TEAM" : "RED TEAM";
           } else if (g.mode === "pvp") {
               winnerName = isPlayerWin ? "PLAYER 1" : "PLAYER 2";
+          } else if (g.mode === "online") {
+              winnerName = isPlayerWin ? (g.player.name || "HOST") : (g.bot.name || "GUEST");
           } else {
               winnerName = isPlayerWin ? (g.player.name || "YOU") : (g.bot.name || "BOT");
           }
@@ -11305,7 +11723,9 @@ input, textarea, .selectable {
                   : `${g.matchType.toUpperCase()} • Blue ${g.scoreBlue} - Red ${g.scoreRed}`;
           } else {
               const modeMeta = MODE_METADATA[g.mode] || {};
-              subEl.textContent = g.mode === "pvp" ? "Local 1v1 Duel" : `1v1 vs ${modeMeta.name || "Bot"}`;
+              subEl.textContent = g.mode === "pvp" ? "Local 1v1 Duel"
+                  : g.mode === "online" ? (g.winnerTeam === g.localFighter.team ? "Online 1v1 • You won!" : "Online 1v1 • Good game!")
+                  : `1v1 vs ${modeMeta.name || "Bot"}`;
           }
   
           // Placement order: winning team first, then by KOs, then damage dealt
@@ -11330,7 +11750,7 @@ input, textarea, .selectable {
               // Teams share a placement (whole winning team is 1st), solo duels rank individually
               const place = g.isTeamMatch ? (teamOf(f) === g.winnerTeam ? 1 : 2) : i + 1;
               const team = teamOf(f);
-              const isYou = f === g.player;
+              const isYou = f === (g.localFighter || g.player);
               const wep = WEAPON_TYPES[f.weaponId] || WEAPON_TYPES.mace;
               return `
                   <div class="rs-card rs-${team} ${place === 1 ? "rs-first" : ""} ${isYou ? "rs-you" : ""}" style="animation-delay:${0.15 + i * 0.08}s">
@@ -11346,6 +11766,9 @@ input, textarea, .selectable {
                   </div>
               `;
           }).join("");
+  
+          const againBtn = document.getElementById("btn-results-again");
+          if (againBtn) againBtn.textContent = g.mode === "online" ? "Rematch (R)" : "Play Again (R)";
   
           const fightersEl = document.getElementById("results-fighters");
           fightersEl.classList.toggle("compact", compact);

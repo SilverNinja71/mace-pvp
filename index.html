@@ -281,8 +281,8 @@
                             <button id="btn-arena-find-match" class="btn-submit-arena">Find Match / Queue</button>
                         </div>
                         <div class="action-box">
-                            <h4>Private Room</h4>
-                            <p>Host or join private custom rooms with friends.</p>
+                            <h4>Play a Friend Online</h4>
+                            <p>1v1 over the internet. Create a room and send your friend the link.</p>
                             <div class="private-controls-row">
                                 <button id="btn-host-private" class="btn-ctrl">Create Room Code</button>
                             </div>
@@ -293,8 +293,8 @@
                                     <button id="btn-copy-room-link" class="btn-ctrl">Copy Link</button>
                                 </div>
                                 <div id="copy-link-status" class="copy-link-status" aria-live="polite"></div>
-                                <button id="btn-launch-private" class="btn-submit-arena">Start Private Match</button>
                             </div>
+                            <div id="online-status" class="online-status" aria-live="polite"></div>
                             <div class="join-private-row">
                                 <input type="text" id="input-join-code" class="auth-input" placeholder="Paste Room Code or Link">
                                 <button id="btn-join-private" class="btn-ctrl btn-save-name">Join</button>
@@ -663,6 +663,8 @@
     </footer>
 
     <!-- Game Script (Self-contained zero-dependency bundle) -->
+    <!-- PeerJS: browser-to-browser connections for online play -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script src="bundle.js"></script>
 </body>
 </html>

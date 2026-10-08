@@ -44,6 +44,7 @@ export class CombatEngine {
             const finalDamage = slamDamage * effDmgMult;
             defender.hp -= finalDamage;
             defender.stats.damageTaken += finalDamage;
+            defender.lastHitBy = attacker;
             defender.hitCooldown = 25;
             defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier);
 
@@ -120,6 +121,7 @@ export class CombatEngine {
             const finalDamage = CORE_PHYSICS.slamGroundDamage * damageMultiplier;
             defender.hp -= finalDamage;
             defender.stats.damageTaken += finalDamage;
+            defender.lastHitBy = attacker;
             defender.hitCooldown = 20;
             defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier);
 
@@ -164,6 +166,7 @@ export class CombatEngine {
             const finalDamage = baseDmg * damageMultiplier;
             defender.hp -= finalDamage;
             defender.stats.damageTaken += finalDamage;
+            defender.lastHitBy = attacker;
             defender.hitCooldown = 22;
             defender.stun = Math.round((CORE_PHYSICS.hitStun + stunBonus) * stunMultiplier);
 

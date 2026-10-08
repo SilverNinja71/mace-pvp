@@ -119,6 +119,7 @@ export class Fighter {
         this.squashY = 1.0;
 
         this.isDead = false;
+        this.lastHitBy = null;
         this.stats = {
             kills: 0,
             damageDealt: 0,
