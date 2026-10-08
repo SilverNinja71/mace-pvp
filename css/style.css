@@ -3112,3 +3112,40 @@ input, textarea, .selectable {
     height: 28px;
     image-rendering: auto;
 }
+
+/* Class picker */
+.class-picker {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.class-btn {
+    font-size: 18px;
+    padding: 6px 4px;
+}
+
+.class-btn.selected {
+    outline: 3px solid #ffffff;
+    outline-offset: -3px;
+}
+
+.class-shadow.selected { background: #5b3f8f; }
+.class-lightning.selected { background: #b8961a; }
+.class-energy.selected { background: #1c8fa8; }
+
+.rs-class {
+    font-size: 15px;
+    padding: 0 6px;
+    border: 2px solid #000;
+    color: #fff;
+}
+
+.rs-class-shadow { background: #5b3f8f; }
+.rs-class-lightning { background: #b8961a; }
+.rs-class-energy { background: #1c8fa8; }
+
+@media (max-width: 520px) {
+    .class-picker { grid-template-columns: repeat(2, 1fr); }
+}

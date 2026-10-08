@@ -5,7 +5,7 @@
 // and multi-fighter 1v1, 2v2, 5v5 team arena matches
 // ==========================================
 
-import { ARENA_CONFIG, PLATFORMS_CONFIG } from './config.js';
+import { ARENA_CONFIG, PLATFORMS_CONFIG, CLASSES, GAME_SPEED } from './config.js';
 import { weaponIconURL } from './pixel.js';
 
 export class Renderer {
@@ -942,7 +942,8 @@ export class Renderer {
     // ==========================================
     // DRAW FIGHTER (Single, 2v2, or 5v5)
     // ==========================================
-    drawFighter(f, fallbackColor = [120, 40, 190], showOverheadBar = false) {
+    // alpha < 1 draws a faint ghost (an invisible Shadow seen by its own team)
+    drawFighter(f, fallbackColor = [120, 40, 190], showOverheadBar = false, alpha = 1.0) {
         if (f.hp <= 0) return;
 
         const ctx = this.ctx;
@@ -955,10 +956,11 @@ export class Renderer {
         ctx.translate(-centerX, -centerY);
 
         // Draw weapon
-        this.drawWeapons(f, 1.0);
+        this.drawWeapons(f, alpha);
 
         // Draw skin / block face
-        this.drawSkin(f, 1.0);
+        this.drawSkin(f, alpha);
+        ctx.globalAlpha = alpha;
 
         // Team highlight border and aura (Blue vs Red)
         if (f.team) {
@@ -1134,6 +1136,42 @@ export class Renderer {
     }
 
     // Standard 1v1 HUD
+    // Class name + ability status for the local player, above the weapon hotbar
+    drawClassStatus(f) {
+        if (!f || !f.classId || f.classId === "normal" || f.hp <= 0) return;
+        const ctx = this.ctx;
+        const secs = (frames) => (frames / (60 * GAME_SPEED)).toFixed(1);
+        let text = CLASSES[f.classId].name.toUpperCase();
+        let color = "#ffffff";
+        if (f.classId === "shadow") {
+            const cls = CLASSES.shadow;
+            const t = f.shadowTimer % cls.invisCycle;
+            if (f.invis) {
+                text += ` · INVISIBLE ${secs(cls.invisCycle - t)}s`;
+                color = "#c8a8ff";
+            } else {
+                text += ` · invisible in ${secs(cls.invisCycle - cls.invisTime - t)}s`;
+            }
+        } else if (f.classId === "lightning") {
+            text += " · slams add extra stun";
+            color = "#ffe14a";
+        } else if (f.classId === "energy") {
+            text += " · fast air dashes";
+            color = "#7ff0ff";
+        }
+        ctx.save();
+        ctx.font = "16px VT323, monospace";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        const y = this.height - 58;
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 3;
+        ctx.strokeText(text, 14, y);
+        ctx.fillStyle = color;
+        ctx.fillText(text, 14, y);
+        ctx.restore();
+    }
+
     // Minecraft-style 2-slot hotbar for the local player's loadout (bottom-left)
     drawLoadoutHotbar(f) {
         if (!f || !f.loadout || f.loadout.length < 2) return;

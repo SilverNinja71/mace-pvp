@@ -16,6 +16,33 @@ export const GAME_SPEED = 0.85;
 // Walking speed for human players (bots use speed / runSpeed in BOT_SETTINGS)
 export const PLAYER_MOVE_SPEED = 4.2;
 
+// Player classes (picked in the Inventory). Times are in frames (60 = 1 second at full speed).
+export const CLASSES = {
+    normal: {
+        name: "Normal",
+        desc: "No special ability. Balanced."
+    },
+    shadow: {
+        name: "Shadow",
+        desc: "Turns invisible to enemies for 4 seconds every 15 seconds and moves 25% faster while invisible.",
+        invisCycle: 15 * 60,
+        invisTime: 4 * 60,
+        invisSpeedMult: 1.25
+    },
+    lightning: {
+        name: "Lightning",
+        desc: "Mace slams stun for the normal time plus a random 18-22 extra frames.",
+        stunBonusMin: 18,
+        stunBonusMax: 22
+    },
+    energy: {
+        name: "Energy",
+        desc: "Half-second dash cooldown and you can dash again in the air, but dashes do half damage.",
+        dashCooldown: 30,
+        dashDamageMult: 0.5
+    }
+};
+
 export const ARENA_CONFIG = {
     width: 800,
     height: 440,             // Taller view so the ground layers are visible

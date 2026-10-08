@@ -86,6 +86,7 @@ export class Game {
             this.player.name = user.username;
             this.player.setLoadout(user.equippedWeapon || "mace", user.secondaryWeapon, user.weaponUpgrades || {});
             this.player.setSkin(user.skinId || "steve");
+            this.player.setClass(user.classId || "normal");
         });
 
         this.setupInputs();
@@ -122,6 +123,7 @@ export class Game {
         this.player.reset(150, 1, maxHp);
         this.player.setLoadout(user.equippedWeapon || "mace", user.secondaryWeapon, user.weaponUpgrades || {});
         this.player.setSkin(user.skinId || "steve");
+        this.player.setClass(user.classId || "normal");
         this.player.setTeam("blue"); // PLAYER IS ALWAYS BLUE
         this.player.isBotGame = isBot;
         this.player.isPlayer = true;
@@ -132,6 +134,7 @@ export class Game {
         this.bot.name = (mode === "pvp") ? "Player 2" : `[BOT] ${botMeta.name}`;
         this.bot.setLoadout(mode === "god" ? "mace" : (mode === "pro" ? "sword" : "spear"));
         this.bot.setSkin(mode === "god" ? "enderman" : (mode === "pro" ? "diamond_knight" : "alex"));
+        this.bot.setClass("normal");
         this.bot.setTeam("red"); // OPPONENT IS ALWAYS RED
         this.bot.isBotGame = isBot;
         this.bot.isBot = mode !== "pvp"; // Player 2 is a person in local PvP (no [BOT] tag)
@@ -194,6 +197,7 @@ export class Game {
             f.name = slot.name || (isBot ? "Bot" : "Player");
             f.setLoadout(slot.weapon || "mace", slot.weapon2 || null, slot.upgrades || {});
             f.setSkin(slot.skin || "steve");
+            f.setClass(slot.cls || "normal");
             f.setTeam(slot.team);
             f.isBot = isBot;
             f.isBotGame = false;
@@ -248,6 +252,14 @@ export class Game {
         }
     }
 
+    // Shadow class: invisible fighters are hidden from the other team. On a shared local
+    // PvP screen both players watch the same view, so there they show as a ghost instead.
+    isHiddenFromViewer(f) {
+        if (!f.invis || f.hp <= 0 || this.mode === "pvp") return false;
+        const viewer = this.localFighter || this.player;
+        return f.team !== viewer.team;
+    }
+
     isOnlineGuest() {
         return this.mode === "online" && this.onlineRole === "guest";
     }
@@ -257,7 +269,7 @@ export class Game {
     packFighter(f) {
         const r = (n) => Math.round(n * 10) / 10;
         return [r(f.x), r(f.y), r(f.xVel), r(f.yVel), f.facing, r(f.hp), r(f.ghostHp),
-            r(f.squashX), r(f.squashY), f.dashing ? 1 : 0, f.slamming ? 1 : 0, f.maxHp, f.weaponId];
+            r(f.squashX), r(f.squashY), f.dashing ? 1 : 0, f.slamming ? 1 : 0, f.maxHp, f.weaponId, f.invis ? 1 : 0];
     }
 
     unpackFighter(f, d) {
@@ -267,6 +279,7 @@ export class Game {
         f.slamming = !!d[10];
         f.maxHp = d[11];
         if (d[12] && d[12] !== f.weaponId) f.setWeapon(d[12], {});
+        f.invis = !!d[13];
         // Recreate hit effects locally from health changes
         if (f.hp < prevHp - 0.01 && prevHp > 0) {
             const dmg = prevHp - Math.max(0, f.hp);
@@ -350,6 +363,7 @@ export class Game {
                 const second = user.secondaryWeapon !== selectedWeaponId ? user.secondaryWeapon : (user.equippedWeapon !== selectedWeaponId ? user.equippedWeapon : null);
                 this.player.setLoadout(selectedWeaponId, second, user.weaponUpgrades || {});
                 this.player.setSkin(user.skinId || "steve");
+                this.player.setClass(user.classId || "normal");
                 this.player.setTeam("blue");
                 this.player.name = user.username || "Player";
                 this.player.isBotGame = false;
@@ -705,7 +719,7 @@ export class Game {
             const left = this.keys["KeyA"] || (this.mode !== "pvp" && this.keys["ArrowLeft"]);
             const right = this.keys["KeyD"] || (this.mode !== "pvp" && this.keys["ArrowRight"]);
 
-            const speed = PLAYER_MOVE_SPEED;
+            const speed = PLAYER_MOVE_SPEED * this.player.moveSpeedMult();
             if (left && !right) {
                 this.player.xVel = -speed;
                 this.player.facing = -1;
@@ -724,10 +738,10 @@ export class Game {
                 if (!f.netPeer || f.netPeer === "host" || f.hp <= 0 || f.stun > 0 || f.dashing) continue;
                 const input = this.remoteInputs[f.netPeer] || {};
                 if (input.left && !input.right) {
-                    f.xVel = -PLAYER_MOVE_SPEED;
+                    f.xVel = -PLAYER_MOVE_SPEED * f.moveSpeedMult();
                     f.facing = -1;
                 } else if (input.right && !input.left) {
-                    f.xVel = PLAYER_MOVE_SPEED;
+                    f.xVel = PLAYER_MOVE_SPEED * f.moveSpeedMult();
                     f.facing = 1;
                 } else {
                     f.xVel *= 0.55;
@@ -742,7 +756,7 @@ export class Game {
                 const left = this.keys["ArrowLeft"];
                 const right = this.keys["ArrowRight"];
 
-                const speed = PLAYER_MOVE_SPEED; // Same as Player 1 so duels are fair
+                const speed = PLAYER_MOVE_SPEED * this.bot.moveSpeedMult(); // Same as Player 1 so duels are fair
                 if (left && !right) {
                     this.bot.xVel = -speed;
                     this.bot.facing = -1;
@@ -802,7 +816,7 @@ export class Game {
             let minDist = Infinity;
             for (let j = 0; j < opposingTeam.length; j++) {
                 const t = opposingTeam[j];
-                if (t.hp > 0) {
+                if (t.hp > 0 && !t.invis) { // bots lose track of invisible Shadows
                     const dist = Math.abs(t.x - fighter.x);
                     if (dist < minDist) {
                         minDist = dist;
@@ -1136,14 +1150,20 @@ export class Game {
 
         // Ground shadows under fighters
         for (let i = 0; i < this.allFighters.length; i++) {
-            this.renderer.drawFighterShadow(this.allFighters[i]);
+            if (!this.isHiddenFromViewer(this.allFighters[i])) this.renderer.drawFighterShadow(this.allFighters[i]);
         }
 
         // Render all fighters
         const isMultiplayer = this.isTeamMatch || this.mode === "pvp" || this.mode === "online";
         for (let i = 0; i < this.allFighters.length; i++) {
             const f = this.allFighters[i];
-            this.renderer.drawFighter(f, botColor, isMultiplayer);
+            if (this.isHiddenFromViewer(f)) continue; // invisible Shadow on the other team
+            if (f.invis && f.hp > 0) {
+                // You and your teammates see an invisible Shadow as a faint ghost
+                this.renderer.drawFighter(f, botColor, isMultiplayer, 0.3);
+            } else {
+                this.renderer.drawFighter(f, botColor, isMultiplayer);
+            }
             const indR = f.team === "red" ? 255 : (f.team === "blue" ? 30 : 46);
             const indG = f.team === "red" ? 71 : (f.team === "blue" ? 144 : 204);
             const indB = f.team === "red" ? 87 : (f.team === "blue" ? 255 : 113);
@@ -1180,7 +1200,10 @@ export class Game {
             );
         }
 
-        if (this.state === "play") this.renderer.drawLoadoutHotbar(this.localFighter);
+        if (this.state === "play") {
+            this.renderer.drawLoadoutHotbar(this.localFighter);
+            this.renderer.drawClassStatus(this.localFighter);
+        }
 
         // Hit / KO flash, fading out
         if (this.flash > 0) {

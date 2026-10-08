@@ -5,7 +5,7 @@
 // Arena Hub (1v1, 2v2, 5v5), and National Obsidian Leaderboard
 // ==========================================
 
-import { MODE_METADATA, BOT_SETTINGS } from './config.js';
+import { MODE_METADATA, BOT_SETTINGS, CLASSES } from './config.js';
 import { sound } from './audio.js';
 import { auth, AVATAR_PRESETS, BLOCK_FACES } from './auth.js';
 import { WEAPON_TYPES } from './weapons.js';
@@ -347,7 +347,8 @@ export class UIManager {
         // Automatically close ANY opened modal when clicking outside the window (on backdrop)
         document.querySelectorAll(".modal-backdrop").forEach((backdrop) => {
             backdrop.addEventListener("click", (e) => {
-                if (e.target === backdrop || !e.target.closest(".modal-card")) {
+                // Ignore clicks on buttons that were re-rendered (removed from the page) mid-click
+                if (e.target === backdrop || (e.target.isConnected && !e.target.closest(".modal-card"))) {
                     backdrop.classList.add("hidden");
                     sound.playClick();
                 }
@@ -818,9 +819,29 @@ export class UIManager {
         }
     }
 
+    // Class picker (Normal / Shadow / Lightning / Energy) at the top of the Inventory
+    renderClassPicker() {
+        const box = document.getElementById("class-picker");
+        const desc = document.getElementById("class-desc");
+        if (!box) return;
+        const current = auth.getUser().classId || "normal";
+        box.innerHTML = Object.entries(CLASSES).map(([id, c]) =>
+            `<button type="button" class="btn-ctrl class-btn class-${id} ${id === current ? "selected" : ""}" role="radio" aria-checked="${id === current}" data-class="${id}">${c.name}</button>`
+        ).join("");
+        if (desc) desc.textContent = CLASSES[current].desc;
+        box.querySelectorAll(".class-btn").forEach(btn => {
+            btn.onclick = () => {
+                auth.setClass(btn.dataset.class);
+                sound.playClick();
+                this.renderClassPicker();
+            };
+        });
+    }
+
     renderWeaponsModalContent() {
         const container = document.getElementById("weapons-list-container");
         if (!container) return;
+        this.renderClassPicker();
 
         const user = auth.getUser();
         const gold = user.gold || 0;
@@ -1064,7 +1085,8 @@ export class UIManager {
             weapon2: (user.secondaryWeapon && user.secondaryWeapon !== (this.selectedArenaWeapon || user.equippedWeapon))
                 ? user.secondaryWeapon
                 : (user.equippedWeapon !== this.selectedArenaWeapon ? user.equippedWeapon : null),
-            upgrades: user.weaponUpgrades || {}
+            upgrades: user.weaponUpgrades || {},
+            cls: user.classId || "normal"
         };
     }
 
@@ -2410,6 +2432,7 @@ export class UIManager {
                     <div class="rs-portrait">${headImgHTML(f.skinId || (team === "blue" ? "steve" : "alex"), compact ? 32 : 72)}</div>
                     <div class="rs-name">${escapeHTML(f.name || "Fighter")}${isYou ? ' <span class="rs-you-tag">YOU</span>' : ""}</div>
                     <div class="rs-wep">${weaponIconHTML(f.weaponId || "mace", 16)} ${escapeHTML(wep.name)}</div>
+                    ${f.classId && f.classId !== "normal" ? `<div class="rs-class rs-class-${f.classId}">${CLASSES[f.classId].name}</div>` : ""}
                     <div class="rs-stats">
                         <div><span>KOs</span><b>${st.kills || 0}</b></div>
                         <div><span>Falls</span><b>${st.deaths || 0}</b></div>

@@ -54,6 +54,7 @@ export class AuthManager {
                 if (parsed.gold === undefined) parsed.gold = 300;
                 if (!parsed.equippedWeapon) parsed.equippedWeapon = "mace";
                 if (parsed.secondaryWeapon === undefined) parsed.secondaryWeapon = null;
+                if (!parsed.classId) parsed.classId = "normal";
                 if (!parsed.unlockedWeapons) parsed.unlockedWeapons = ["mace", "spear"];
                 if (!parsed.weaponUpgrades) parsed.weaponUpgrades = {};
                 if (!parsed.skinId) parsed.skinId = "steve";
@@ -92,6 +93,7 @@ export class AuthManager {
             gold: 300, // 300 starter gold
             equippedWeapon: "mace",
             secondaryWeapon: null, // second loadout slot (swap with Q in matches)
+            classId: "normal", // Normal / Shadow / Lightning / Energy
             unlockedWeapons: ["mace", "spear"],
             weaponUpgrades: {},
             skinId: "steve",
@@ -276,6 +278,11 @@ export class AuthManager {
         }
         this.saveUser();
         return true;
+    }
+
+    setClass(classId) {
+        this.user.classId = classId;
+        this.saveUser();
     }
 
     clearSecondaryWeapon() {

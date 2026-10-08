@@ -4,7 +4,7 @@
 // arrows, and weapon-specific damage & knockback
 // ==========================================
 
-import { CORE_PHYSICS } from './config.js';
+import { CORE_PHYSICS, CLASSES } from './config.js';
 import { sound } from './audio.js';
 
 export class CombatEngine {
@@ -13,6 +13,15 @@ export class CombatEngine {
     }
 
     // Resolves direct mid-air mace slam
+    // Lightning class: mace slams add 18-22 random extra stun frames (shown as a popup)
+    lightningStun(attacker, defender) {
+        if (attacker.classId !== "lightning") return 0;
+        const cls = CLASSES.lightning;
+        const extra = cls.stunBonusMin + Math.floor(Math.random() * (cls.stunBonusMax - cls.stunBonusMin + 1));
+        this.particles.addFloatingText(defender.x + defender.w / 2, defender.y - 14, `+${extra} stun`, "#ffe14a", false, 1.0);
+        return extra;
+    }
+
     // Applies damage and returns how much HP was actually removed (no overkill in stats)
     applyDamage(attacker, defender, amount) {
         const dealt = Math.min(amount, Math.max(0, defender.hp));
@@ -53,7 +62,7 @@ export class CombatEngine {
             const finalDamage = slamDamage * effDmgMult;
             const dealt = this.applyDamage(attacker, defender, finalDamage);
             defender.hitCooldown = 25;
-            defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier);
+            defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier) + this.lightningStun(attacker, defender);
 
             // Cancel defender actions & apply knockback
             defender.slamming = false;
@@ -128,7 +137,7 @@ export class CombatEngine {
             const finalDamage = CORE_PHYSICS.slamGroundDamage * damageMultiplier;
             const dealt = this.applyDamage(attacker, defender, finalDamage);
             defender.hitCooldown = 20;
-            defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier);
+            defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier) + this.lightningStun(attacker, defender);
 
             defender.slamming = false;
             defender.dashing = false;
@@ -161,7 +170,8 @@ export class CombatEngine {
         if (attacker.team && defender.team && attacker.team === defender.team) return false;
 
         const wStats = attacker.weaponStats || {};
-        const baseDmg = wStats.dashDamage || CORE_PHYSICS.dashDamage;
+        let baseDmg = wStats.dashDamage || CORE_PHYSICS.dashDamage;
+        if (attacker.classId === "energy") baseDmg *= CLASSES.energy.dashDamageMult;
         const knockMult = wStats.knockbackMult || 1.0;
         const stunBonus = wStats.stunBonus || 0;
         const rangeExtra = (wStats.range && wStats.range > 25) ? (wStats.range - 25) : 0;

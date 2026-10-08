@@ -3,7 +3,7 @@
 // Handles physics, weapons, skin customization, and multi-fighter combat
 // ==========================================
 
-import { CORE_PHYSICS, ARENA_CONFIG } from './config.js';
+import { CORE_PHYSICS, ARENA_CONFIG, CLASSES } from './config.js';
 import { sound } from './audio.js';
 import { getComputedWeaponStats } from './weapons.js';
 
@@ -31,6 +31,11 @@ export class Fighter {
         this.skinId = "steve";
         this.arrowCooldown = 0;
         this.aimAngle = null; // bow aim (radians) set from the mouse; null = shoot straight ahead
+
+        // Class (see CLASSES in config.js)
+        this.classId = "normal";
+        this.shadowTimer = 0;
+        this.invis = false;
 
         // State Flags
         this.onGround = false;
@@ -78,6 +83,17 @@ export class Fighter {
     setWeapon(weaponId, upgradeLevels = {}) {
         this.weaponId = weaponId;
         this.weaponStats = getComputedWeaponStats(weaponId, upgradeLevels);
+    }
+
+    setClass(classId) {
+        this.classId = CLASSES[classId] ? classId : "normal";
+        this.shadowTimer = 0;
+        this.invis = false;
+    }
+
+    // Walking speed multiplier from the class (Shadow is faster while invisible)
+    moveSpeedMult() {
+        return this.classId === "shadow" && this.invis ? CLASSES.shadow.invisSpeedMult : 1;
     }
 
     // Two-weapon loadout: primary + optional secondary, swapped with swapWeapon()
@@ -142,6 +158,8 @@ export class Fighter {
 
         this.isDead = false;
         this.lastHitBy = null;
+        this.shadowTimer = 0;
+        this.invis = false;
         this.stats = {
             kills: 0,
             damageDealt: 0,
@@ -222,7 +240,12 @@ export class Fighter {
         }
 
         const speed = customSpeed ?? (this.weaponStats.dashSpeed || CORE_PHYSICS.dashSpeed);
-        const cooldown = customCooldown ?? (this.weaponStats.attackCooldown || CORE_PHYSICS.dashCooldown);
+        let cooldown = customCooldown ?? (this.weaponStats.attackCooldown || CORE_PHYSICS.dashCooldown);
+        if (this.classId === "energy") {
+            // Energy: short cooldown and air dashes recharge (no one-dash-per-jump limit)
+            cooldown = Math.min(cooldown, CLASSES.energy.dashCooldown);
+            if (!this.dashing) this.dashReady = true;
+        }
         const duration = this.weaponStats.dashDistance || CORE_PHYSICS.dashTime;
 
         // If equipped with Bow, dash key shoots an arrow!
@@ -358,6 +381,15 @@ export class Fighter {
         }
 
         if (this.swapCooldown > 0) this.swapCooldown--;
+
+        // Shadow: invisible for the last 4 seconds of every 15-second cycle
+        if (this.classId === "shadow") {
+            const cls = CLASSES.shadow;
+            this.shadowTimer++;
+            this.invis = (this.shadowTimer % cls.invisCycle) >= cls.invisCycle - cls.invisTime;
+        } else {
+            this.invis = false;
+        }
 
         // Arrow cooldown countdown
         if (this.arrowCooldown > 0) {
