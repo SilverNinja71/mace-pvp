@@ -129,6 +129,7 @@ export class Game {
         this.bot.setSkin(mode === "god" ? "enderman" : (mode === "pro" ? "diamond_knight" : "alex"));
         this.bot.setTeam("red"); // OPPONENT IS ALWAYS RED
         this.bot.isBotGame = isBot;
+        this.bot.isBot = mode !== "pvp"; // Player 2 is a person in local PvP (no [BOT] tag)
 
         this.botAI.setParams(this.botParams);
         this.botAI.reset();
@@ -178,6 +179,7 @@ export class Game {
         this.player.isPlayer = role === "host";
         this.bot.isPlayer = role === "guest";
         this.bot._botAI = null;
+        this.bot.isBot = false; // the opponent is your friend, not a bot
         this.allBots = [];
         this.localFighter = role === "host" ? this.player : this.bot;
         this.remoteInput = { left: false, right: false };
