@@ -1,8 +1,8 @@
 // ==========================================
 // SPEAR-MACE PVP - Peer-to-Peer Online Play
-// Two browsers connect directly with WebRTC (via PeerJS, loaded in index.html).
-// The host runs the match simulation; the guest sends inputs and draws the
-// snapshots the host streams back.
+// Browsers connect directly with WebRTC (via PeerJS, loaded in index.html).
+// The host runs the match simulation and accepts up to 3 friends; guests
+// send inputs and draw the snapshots the host streams back.
 // ==========================================
 
 // Prefix keeps our room IDs from colliding with other apps on the public PeerJS server
@@ -12,10 +12,12 @@ const CONNECT_TIMEOUT_MS = 12000;
 class OnlineSession {
     constructor() {
         this.peer = null;
-        this.conn = null;
         this.role = null; // "host" | "guest" | null
-        this.onMessage = null; // (msg) => void
-        this.onDisconnect = null; // (reason) => void
+        this.conns = new Map(); // peerId -> DataConnection (host: guests, guest: just the host)
+        this.maxGuests = 1;
+        this.onMessage = null; // (msg, fromPeerId) => void
+        this.onDisconnect = null; // (reason, peerId) => void
+        this.onGuestJoined = null; // (peerId) => void (host only)
         this.connectTimer = null;
     }
 
@@ -24,26 +26,39 @@ class OnlineSession {
     }
 
     isConnected() {
-        return !!(this.conn && this.conn.open);
+        for (const c of this.conns.values()) if (c.open) return true;
+        return false;
     }
 
-    // Host a room: resolves when the room is registered, calls onGuestJoined when a friend connects
-    host(roomCode, onGuestJoined, onError) {
+    guestCount() {
+        let n = 0;
+        for (const c of this.conns.values()) if (c.open) n++;
+        return n;
+    }
+
+    // Host a room; onReady fires once the room code is registered
+    host(roomCode, maxGuests, onReady, onError) {
         this.close();
         if (!this.isAvailable()) {
             onError("Online play couldn't load. Check your internet connection and refresh.");
             return;
         }
         this.role = "host";
+        this.maxGuests = maxGuests;
         this.peer = new window.Peer(PEER_ID_PREFIX + roomCode);
 
+        this.peer.on("open", () => onReady());
         this.peer.on("connection", (conn) => {
-            // Only one opponent per room
-            if (this.conn && this.conn.open) {
-                conn.on("open", () => conn.close());
+            if (this.guestCount() >= this.maxGuests) {
+                conn.on("open", () => {
+                    conn.send({ t: "full" });
+                    setTimeout(() => conn.close(), 300);
+                });
                 return;
             }
-            this.attachConnection(conn, () => onGuestJoined());
+            this.attachConnection(conn, () => {
+                if (this.onGuestJoined) this.onGuestJoined(conn.peer);
+            });
         });
         this.peer.on("error", (err) => onError(this.describeError(err)));
     }
@@ -79,38 +94,48 @@ class OnlineSession {
     }
 
     attachConnection(conn, onOpen) {
-        this.conn = conn;
+        this.conns.set(conn.peer, conn);
         conn.on("open", onOpen);
         conn.on("data", (msg) => {
-            if (this.onMessage && msg && typeof msg === "object") this.onMessage(msg);
+            if (this.onMessage && msg && typeof msg === "object") this.onMessage(msg, conn.peer);
         });
-        conn.on("close", () => this.handleDisconnect("Your opponent left the match."));
-        conn.on("error", () => this.handleDisconnect("The connection to your opponent was lost."));
+        const lost = (reason) => this.handleDisconnect(conn.peer, reason);
+        conn.on("close", () => lost(this.role === "host" ? "A player left the match." : "The host left the match."));
+        conn.on("error", () => lost("The connection was lost."));
     }
 
-    handleDisconnect(reason) {
-        if (!this.conn) return;
-        this.conn = null;
-        if (this.onDisconnect) this.onDisconnect(reason);
+    handleDisconnect(peerId, reason) {
+        if (!this.conns.has(peerId)) return; // already closed on purpose
+        this.conns.delete(peerId);
+        if (this.onDisconnect) this.onDisconnect(reason, peerId);
     }
 
+    // Host: send to every guest. Guest: send to the host.
     send(msg) {
-        if (this.conn && this.conn.open) {
-            try {
-                this.conn.send(msg);
-            } catch (e) {
-                console.warn("Online send failed:", e);
-            }
+        for (const c of this.conns.values()) this.sendOn(c, msg);
+    }
+
+    sendTo(peerId, msg) {
+        const c = this.conns.get(peerId);
+        if (c) this.sendOn(c, msg);
+    }
+
+    sendOn(conn, msg) {
+        if (!conn.open) return;
+        try {
+            conn.send(msg);
+        } catch (e) {
+            console.warn("Online send failed:", e);
         }
     }
 
     close() {
         clearTimeout(this.connectTimer);
-        const conn = this.conn;
-        this.conn = null; // closing on purpose: don't report it as a disconnect
-        if (conn) {
-            try { conn.close(); } catch (e) { /* already closed */ }
-        }
+        const conns = [...this.conns.values()];
+        this.conns.clear(); // closing on purpose: don't report these as disconnects
+        conns.forEach(c => {
+            try { c.close(); } catch (e) { /* already closed */ }
+        });
         if (this.peer) {
             try { this.peer.destroy(); } catch (e) { /* already destroyed */ }
             this.peer = null;

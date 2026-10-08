@@ -77,6 +77,16 @@ def bundle():
     css_inlined = f"<style>\n{css}\n</style>"
     html = re.sub(r'<link\s+rel=[\'"]stylesheet[\'"]\s+href=[\'"]css/style\.css[\'"]\s*/?>', lambda m: css_inlined, html)
 
+    # Inline icons as data URIs so the single-file download keeps its tab icon
+    import base64
+    for fname, mime in (("favicon.svg", "image/svg+xml"), ("favicon-64.png", "image/png"), ("apple-touch-icon.png", "image/png")):
+        icon_path = os.path.join(BASE_DIR, fname)
+        if os.path.exists(icon_path):
+            with open(icon_path, "rb") as f:
+                data_uri = f"data:{mime};base64," + base64.b64encode(f.read()).decode("ascii")
+            html = html.replace(f'href="{fname}"', f'href="{data_uri}"')
+            html = html.replace(f'src="{fname}"', f'src="{data_uri}"')
+
     # Inline JS bundle
     js_inlined = f"<script>\n{js_code}\n</script>"
     html = re.sub(r'<script\s+src=[\'"]bundle\.js[\'"]\s*></script>', lambda m: js_inlined, html)

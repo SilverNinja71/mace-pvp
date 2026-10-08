@@ -210,10 +210,10 @@ export class UIManager {
         }
 
         this.themeBtn = document.getElementById("btn-theme");
-        this.currentBiome = "overworld";
+        this.currentBiome = "space";
         if (this.themeBtn) {
             this.themeBtn.addEventListener("click", () => {
-                const biomes = ["overworld", "nether", "end"];
+                const biomes = ["space", "overworld", "nether", "end"];
                 const nextIdx = (biomes.indexOf(this.currentBiome) + 1) % biomes.length;
                 this.currentBiome = biomes[nextIdx];
                 const capitalized = this.currentBiome.charAt(0).toUpperCase() + this.currentBiome.slice(1);
@@ -1037,8 +1037,11 @@ export class UIManager {
             };
         }
 
-        online.onMessage = (msg) => this.handleOnlineMessage(msg);
-        online.onDisconnect = (reason) => this.handleOnlineDisconnect(reason);
+        online.onMessage = (msg, peer) => this.handleOnlineMessage(msg, peer);
+        online.onDisconnect = (reason, peer) => this.handleOnlineDisconnect(reason, peer);
+
+        const btnOnlineStart = document.getElementById("btn-online-start");
+        if (btnOnlineStart) btnOnlineStart.onclick = () => this.hostStartOnlineMatch();
     }
 
     // ==========================================
@@ -1065,61 +1068,164 @@ export class UIManager {
         };
     }
 
+    // ---- Host lobby: up to 4 players. Join order fills Blue, Red, Blue, Red. ----
+
     hostOnlineRoom(code) {
+        let matchType = this.selectedArenaMode === "1v1" ? "1v1" : "2v2";
+        this.lobby = { matchType, players: [{ peer: "host", info: this.myOnlineInfo() }] };
+        const note = this.selectedArenaMode === "5v5" ? " (online rooms go up to 2v2)" : "";
         this.setOnlineStatus("Opening room...");
-        online.host(code, () => {
-            // A friend connected; wait for their hello with their fighter info
-            this.setOnlineStatus("Friend connected! Starting...");
+        online.host(code, matchType === "1v1" ? 1 : 3, () => {
+            this.setOnlineStatus(matchType === "1v1"
+                ? "Room open (1v1). Waiting for your friend to join..."
+                : `Room open (2v2)${note}. Invite up to 3 friends, then press Start. Empty spots become bots.`);
+            this.renderOnlineLobby();
         }, (err) => this.setOnlineStatus(err, true));
-        // Room is ready to share once the peer registers
-        if (online.peer) {
-            online.peer.on("open", () => this.setOnlineStatus("Room open. Waiting for your friend to join..."));
-        }
     }
 
     joinOnlineRoom(code) {
+        this.lobby = null;
+        this.renderOnlineLobby();
         this.setOnlineStatus("Connecting to your friend's room...");
         online.join(code, () => {
-            this.setOnlineStatus("Connected! Starting...");
+            this.setOnlineStatus("Connected! Waiting for the host...");
             online.send({ t: "hello", info: this.myOnlineInfo() });
         }, (err) => this.setOnlineStatus(err, true));
     }
 
-    startOnlineFromMessage(role, hostInfo, guestInfo) {
+    lobbyTeam(index) {
+        return index % 2 === 0 ? "blue" : "red";
+    }
+
+    // Lobby list shown to everyone; the host also gets the Start button (2v2)
+    renderOnlineLobby(players = null, matchType = null) {
+        const box = document.getElementById("online-lobby");
+        const list = document.getElementById("online-lobby-list");
+        const startBtn = document.getElementById("btn-online-start");
+        if (!box || !list) return;
+        const isHost = online.role === "host" && this.lobby;
+        const shown = players || (isHost ? this.lobby.players.map((p, i) => ({ name: p.info.name, team: this.lobbyTeam(i) })) : null);
+        const type = matchType || (this.lobby && this.lobby.matchType);
+        if (!shown || type !== "2v2") {
+            box.classList.add("hidden");
+            return;
+        }
+        box.classList.remove("hidden");
+        const escapeHTML = (str) => String(str).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+        const col = (team) => {
+            const names = shown.filter(p => p.team === team).map(p => `<li>${escapeHTML(p.name)}</li>`);
+            while (names.length < 2) names.push(`<li class="lobby-bot">Bot (empty spot)</li>`);
+            return `<div class="lobby-team lobby-${team}"><div class="lobby-team-name">${team === "blue" ? "Blue" : "Red"} Team</div><ul>${names.join("")}</ul></div>`;
+        };
+        list.innerHTML = col("blue") + col("red");
+        if (startBtn) startBtn.classList.toggle("hidden", !isHost);
+    }
+
+    broadcastLobby() {
+        if (!this.lobby) return;
+        online.send({
+            t: "lobby",
+            matchType: this.lobby.matchType,
+            players: this.lobby.players.map((p, i) => ({ name: p.info.name, team: this.lobbyTeam(i) }))
+        });
+        this.renderOnlineLobby();
+    }
+
+    // Builds the match slots (Blue first, then Red); empty 2v2 spots become bots
+    buildOnlineSetup() {
+        const lobby = this.lobby;
+        this.lobby.players[0].info = this.myOnlineInfo(); // host may have changed weapons
+        const botInfo = (n) => ({
+            name: n,
+            skin: ["alex", "zombie", "skeleton", "creeper"][Math.floor(Math.random() * 4)],
+            weapon: ["mace", "spear", "sword"][Math.floor(Math.random() * 3)],
+            weapon2: null,
+            upgrades: {}
+        });
+        const slotFor = (player, team, botName) => player
+            ? { ...player.info, team, peer: player.peer }
+            : { ...botInfo(botName), team, peer: null };
+        const p = lobby.players;
+        if (lobby.matchType === "1v1") {
+            return { matchType: "1v1", slots: [slotFor(p[0], "blue"), slotFor(p[1], "red", "Rival Bot")] };
+        }
+        return {
+            matchType: "2v2",
+            slots: [
+                slotFor(p[0], "blue"), slotFor(p[2], "blue", "Ally Bot"),
+                slotFor(p[1], "red", "Rival Bot"), slotFor(p[3], "red", "Rival Bot 2")
+            ]
+        };
+    }
+
+    startOnlineFromMessage(role, setup, you) {
         if (this.arenaModal) this.arenaModal.classList.add("hidden");
         if (this.statsModal) this.statsModal.classList.add("hidden");
         this.hideResultsScreen();
         this.setOnlineStatus("");
-        this.game.startOnlineMatch(role, hostInfo, guestInfo);
+        this.game.startOnlineMatch(role, setup, you);
     }
 
     hostStartOnlineMatch() {
-        const hostInfo = this.myOnlineInfo();
-        const guestInfo = this.onlineGuestInfo || { name: "Guest" };
-        online.send({ t: "start", host: hostInfo, guest: guestInfo });
-        this.startOnlineFromMessage("host", hostInfo, guestInfo);
+        if (!this.lobby || online.role !== "host") return;
+        if (this.lobby.matchType === "1v1" && this.lobby.players.length < 2) return;
+        const setup = this.buildOnlineSetup();
+        setup.slots.forEach((slot, i) => {
+            if (slot.peer && slot.peer !== "host") online.sendTo(slot.peer, { t: "start", setup, you: i });
+        });
+        this.startOnlineFromMessage("host", setup, 0);
     }
 
-    handleOnlineMessage(msg) {
-        if (msg.t === "hello" && online.role === "host") {
-            this.onlineGuestInfo = msg.info || {};
-            this.hostStartOnlineMatch();
+    handleOnlineMessage(msg, peer) {
+        if (msg.t === "hello" && online.role === "host" && this.lobby) {
+            if (this.lobby.players.some(p => p.peer === peer)) return;
+            this.lobby.players.push({ peer, info: msg.info || { name: "Player" } });
+            if (this.lobby.matchType === "1v1") {
+                this.setOnlineStatus("Friend connected! Starting...");
+                this.hostStartOnlineMatch();
+            } else {
+                this.setOnlineStatus(`${(msg.info && msg.info.name) || "A friend"} joined. Press Start when everyone's in.`);
+                this.broadcastLobby();
+            }
+        } else if (msg.t === "lobby" && online.role === "guest") {
+            this.setOnlineStatus("You're in! Waiting for the host to start...");
+            this.renderOnlineLobby(msg.players, msg.matchType);
+        } else if (msg.t === "full" && online.role === "guest") {
+            this.setOnlineStatus("That room is full.", true);
         } else if (msg.t === "start" && online.role === "guest") {
-            this.startOnlineFromMessage("guest", msg.host, msg.guest);
+            this.startOnlineFromMessage("guest", msg.setup, msg.you);
         } else if (msg.t === "rematch" && online.role === "host") {
-            this.hostStartOnlineMatch();
+            if (this.game.state === "gameover") this.hostStartOnlineMatch();
         } else {
-            this.game.handleNetMessage(msg);
+            this.game.handleNetMessage(msg, peer);
         }
     }
 
-    handleOnlineDisconnect(reason) {
-        if (this.game.mode === "online" && this.game.state !== "menu") {
+    handleOnlineDisconnect(reason, peer) {
+        const inMatch = this.game.mode === "online" && this.game.state !== "menu";
+        if (online.role === "host" && this.lobby) {
+            const leaving = this.lobby.players.find(p => p.peer === peer);
+            this.lobby.players = this.lobby.players.filter(p => p.peer !== peer);
+            const name = leaving ? leaving.info.name : "A player";
+            if (inMatch && this.game.isTeamMatch) {
+                // 2v2 keeps going: a bot takes over their fighter
+                this.game.replaceWithBot(peer);
+                this.showToast(`${name} left. A bot took over.`);
+                return;
+            }
+            if (!inMatch) {
+                this.setOnlineStatus(`${name} left the room.`);
+                this.broadcastLobby();
+                return;
+            }
+        }
+        if (inMatch) {
             if (this.statsModal) this.statsModal.classList.add("hidden");
             this.game.goHome();
             this.showToast(reason);
         } else {
             this.setOnlineStatus(reason, true);
+            this.renderOnlineLobby();
         }
     }
 
@@ -1237,57 +1343,11 @@ export class UIManager {
         }
     }
 
+    // Ranked arena vs bots: go straight to the VS screen (there is no online queue)
     startMatchmakingQueue(matchType, weaponId) {
-        if (!this.queueModal) return;
-        this.arenaModal.classList.add("hidden");
-        this.queueModal.classList.remove("hidden");
+        if (this.arenaModal) this.arenaModal.classList.add("hidden");
         sound.playClick();
-
-        const timerEl = document.getElementById("queue-timer-text");
-        const statusEl = document.getElementById("queue-status-text");
-        const countEl = document.getElementById("queue-count-text");
-
-        let seconds = 0;
-        let count = 1;
-        const total = matchType === "5v5" ? 10 : (matchType === "2v2" ? 4 : 2);
-
-        if (statusEl) statusEl.textContent = `Finding players for ${matchType.toUpperCase()}...`;
-        if (countEl) countEl.textContent = `1 / ${total} Players`;
-
-        clearInterval(this.queueInterval);
-        this.queueInterval = setInterval(() => {
-            seconds++;
-            if (timerEl) timerEl.textContent = `0:${seconds < 10 ? '0' : ''}${seconds}`;
-
-            // Simulated matchmaking connections
-            if (seconds === 1) {
-                count = Math.min(total, Math.ceil(total * 0.5));
-                if (countEl) countEl.textContent = `${count} / ${total} Players`;
-            } else if (seconds === 2) {
-                count = Math.min(total, total - 1);
-                if (countEl) countEl.textContent = `${count} / ${total} Players`;
-            } else if (seconds >= 3) {
-                clearInterval(this.queueInterval);
-                if (countEl) countEl.textContent = `${total} / ${total} Players`;
-                if (statusEl) statusEl.textContent = `MATCH FOUND! Entering Arena...`;
-                sound.playWin();
-
-                setTimeout(() => {
-                    this.queueModal.classList.add("hidden");
-                    this.launchArenaMatchWithLoading(matchType, weaponId);
-                }, 800);
-            }
-        }, 800);
-
-        // Cancel queue
-        const cancelBtn = document.getElementById("btn-cancel-queue");
-        if (cancelBtn) {
-            cancelBtn.onclick = () => {
-                clearInterval(this.queueInterval);
-                this.queueModal.classList.add("hidden");
-                this.openArenaModal();
-            };
-        }
+        this.launchArenaMatchWithLoading(matchType, weaponId);
     }
 
     // ==========================================
@@ -1317,8 +1377,8 @@ export class UIManager {
             container.innerHTML = `
                 <div style="text-align:center; padding:28px 10px; color:var(--text-muted); font-size:13px; border:2px dashed #444; border-radius:4px; margin:10px 0;">
                     <div style="font-size:26px; margin-bottom:6px;">🛡️</div>
-                    <b style="color:#fff;">Verified Real Players Leaderboard</b><br>
-                    <span>All AI bots have been purged. Play Ranked Arena to climb and claim Rank #1!</span>
+                    <b style="color:#fff;">No ranked players on this device yet</b><br>
+                    <span>Play Ranked vs Bots in the Arena to earn RP. Only profiles that have played on this device appear here.</span>
                 </div>
             `;
             return;
@@ -1482,41 +1542,11 @@ export class UIManager {
         if (this.statsModal) this.statsModal.classList.add("hidden");
         if (this.pauseModal) this.pauseModal.classList.add("hidden");
 
-        const modal = this.matchmakingModal || document.getElementById("matchmaking-modal");
-        const statusText = document.getElementById("matchmaking-status-text");
-        const countSpan = document.getElementById("matchmaking-countdown");
-
-        if (modal) modal.classList.remove("hidden");
-        if (statusText) statusText.textContent = "Searching regional servers for opponent...";
-
-        let timeLeft = 2.5;
-        if (countSpan) countSpan.textContent = `${timeLeft.toFixed(1)}s`;
-
-        if (this.matchmakingInterval) clearInterval(this.matchmakingInterval);
-
-        this.matchmakingInterval = setInterval(() => {
-            timeLeft -= 0.1;
-            if (timeLeft <= 0) {
-                clearInterval(this.matchmakingInterval);
-                this.matchmakingInterval = null;
-                if (modal) modal.classList.add("hidden");
-                sound.playDoubleJump();
-                if (this.game.isTeamMatch) {
-                    this.launchArenaMatchWithLoading(this.game.matchType, this.game.player.weaponId);
-                } else {
-                    this.launchMatchWithLoading(this.game.mode);
-                }
-            } else {
-                if (countSpan) countSpan.textContent = `${timeLeft.toFixed(1)}s`;
-                if (statusText) {
-                    if (timeLeft < 0.7) {
-                        statusText.textContent = "Opponent matched! Loading arena...";
-                    } else if (timeLeft < 1.6) {
-                        statusText.textContent = "Syncing network & combat physics...";
-                    }
-                }
-            }
-        }, 100);
+        if (this.game.isTeamMatch) {
+            this.launchArenaMatchWithLoading(this.game.matchType, this.game.player.weaponId);
+        } else {
+            this.launchMatchWithLoading(this.game.mode);
+        }
     }
 
     cancelMatchmaking() {
@@ -2251,26 +2281,19 @@ export class UIManager {
             btn.addEventListener("mouseup", end);
         };
 
-        bindButton("touch-left", 
-            () => { this.game.keys["ArrowLeft"] = true; },
-            () => { this.game.keys["ArrowLeft"] = false; }
+        // A / D are Player 1's keys in every mode (arrows belong to Player 2 in local PvP)
+        bindButton("touch-left",
+            () => { this.game.keys["KeyA"] = true; },
+            () => { this.game.keys["KeyA"] = false; }
         );
-        bindButton("touch-right", 
-            () => { this.game.keys["ArrowRight"] = true; },
-            () => { this.game.keys["ArrowRight"] = false; }
+        bindButton("touch-right",
+            () => { this.game.keys["KeyD"] = true; },
+            () => { this.game.keys["KeyD"] = false; }
         );
-        bindButton("touch-jump", 
-            () => { this.game.player.jump(); },
-            () => {}
-        );
-        bindButton("touch-dash", 
-            () => { this.game.player.dash(null, true, null, this.game.arrowManager); },
-            () => {}
-        );
-        bindButton("touch-slam", 
-            () => { this.game.player.slam(); },
-            () => {}
-        );
+        bindButton("touch-jump", () => this.game.localAction("jump"), () => {});
+        bindButton("touch-dash", () => this.game.localAttack(), () => {});
+        bindButton("touch-slam", () => this.game.localAction("slam"), () => {});
+        bindButton("touch-swap", () => this.game.localAction("swap"), () => {});
     }
 
     detectTouchDevice() {

@@ -39,9 +39,9 @@ img, canvas, .px-head, .px-icon, .cube-face {
 }
 
 body {
-    background-color: #4a3322;
+    background-color: var(--page-bg, #0a0f2c);
     background-image: var(--dirt);
-    background-size: 64px 64px;
+    background-size: var(--tile-size, 64px) var(--tile-size, 64px);
     image-rendering: pixelated;
     color: var(--text-primary);
     font-family: var(--font-body);
@@ -242,7 +242,7 @@ button.btn-can-buy:active,
     position: sticky;
     top: 0;
     z-index: 80;
-    background: rgba(30, 20, 15, 0.94);
+    background: var(--header-bg, rgba(8, 12, 34, 0.94));
     backdrop-filter: blur(4px);
     border-bottom: 3px solid #000;
 }
@@ -493,9 +493,9 @@ button.btn-can-buy:active,
 .overlay {
     position: absolute;
     inset: 0;
-    background-color: #4a3322;
+    background-color: var(--page-bg, #0a0f2c);
     background-image: var(--dirt);
-    background-size: 64px 64px;
+    background-size: var(--tile-size, 64px) var(--tile-size, 64px);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -3057,3 +3057,58 @@ input, textarea, .selectable {
 }
 
 .loadout-hint b { color: #fff; font-weight: normal; }
+
+/* Touch controls: six buttons must fit a phone screen */
+@media (max-width: 520px) {
+    .touch-controls { padding: 0 4px; }
+    .touch-cluster { gap: 6px; }
+    .touch-btn { width: 52px; height: 52px; font-size: 15px; }
+}
+
+/* Online 2v2 lobby */
+.online-lobby {
+    margin-bottom: 8px;
+}
+
+.online-lobby.hidden { display: none; }
+
+.online-lobby-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.lobby-team {
+    background: rgba(0, 0, 0, 0.35);
+    border: 2px solid #000;
+    border-top: 5px solid #2f86ff;
+    padding: 4px 8px;
+}
+
+.lobby-team.lobby-red { border-top-color: #ff4757; }
+
+.lobby-team-name {
+    font-size: 16px;
+    color: var(--text-muted);
+}
+
+.lobby-team ul {
+    list-style: none;
+    font-size: 18px;
+    color: #fff;
+}
+
+.lobby-team .lobby-bot { color: #888; }
+
+.game-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.game-title-logo {
+    width: 28px;
+    height: 28px;
+    image-rendering: auto;
+}

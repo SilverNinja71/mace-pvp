@@ -233,7 +233,48 @@
   // DIRT BACKGROUND WITH TOP GRASS (Minecraft dirt block)
   // Clean pixel art without noisy random specks
   // ------------------------------------------
-  function applyMinecraftBackground(theme = "overworld") {
+  // Page colors per theme (background behind the tile and the header bar)
+  const PAGE_THEMES = {
+      space: { bg: "#0a0f2c", header: "rgba(8, 12, 34, 0.94)", tileSize: "128px" },
+      overworld: { bg: "#4a3322", header: "rgba(30, 20, 15, 0.94)", tileSize: "64px" },
+      nether: { bg: "#3a0c10", header: "rgba(30, 8, 10, 0.94)", tileSize: "64px" },
+      end: { bg: "#1a1424", header: "rgba(14, 10, 22, 0.94)", tileSize: "64px" }
+  };
+  
+  // Starry deep-space tile matching the cube globe logo
+  function spaceTile() {
+      const c = pxCanvas(64, 64);
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = "#0b1233";
+      ctx.fillRect(0, 0, 64, 64);
+      // stars of a few brightness levels
+      const stars = [
+          [6, 8, "#ffffff"], [21, 3, "#9fb4ff"], [37, 17, "#ffffff"], [52, 28, "#6f86d6"],
+          [11, 25, "#6f86d6"], [29, 33, "#cfe0ff"], [58, 45, "#ffffff"], [44, 56, "#9fb4ff"],
+          [17, 49, "#ffffff"], [3, 60, "#6f86d6"], [48, 11, "#6f86d6"], [33, 61, "#cfe0ff"]
+      ];
+      for (const [x, y, col] of stars) {
+          ctx.fillStyle = col;
+          ctx.fillRect(x, y, 1, 1);
+      }
+      // two "big" twinkle stars
+      ctx.fillStyle = "#e8f0ff";
+      ctx.fillRect(25, 12, 1, 3); ctx.fillRect(24, 13, 3, 1);
+      ctx.fillRect(55, 37, 1, 3); ctx.fillRect(54, 38, 3, 1);
+      return c;
+  }
+  
+  function applyMinecraftBackground(theme = "space") {
+      const page = PAGE_THEMES[theme] || PAGE_THEMES.overworld;
+      const rootStyle = document.documentElement.style;
+      rootStyle.setProperty("--page-bg", page.bg);
+      rootStyle.setProperty("--header-bg", page.header);
+      rootStyle.setProperty("--tile-size", page.tileSize);
+      if (theme === "space") {
+          rootStyle.setProperty("--dirt", `url(${spaceTile().toDataURL()})`);
+          return;
+      }
+  
       const c = pxCanvas(16, 16);
       const ctx = c.getContext("2d");
       
@@ -2240,9 +2281,9 @@
   // ===== online.js =====
   // ==========================================
   // SPEAR-MACE PVP - Peer-to-Peer Online Play
-  // Two browsers connect directly with WebRTC (via PeerJS, loaded in index.html).
-  // The host runs the match simulation; the guest sends inputs and draws the
-  // snapshots the host streams back.
+  // Browsers connect directly with WebRTC (via PeerJS, loaded in index.html).
+  // The host runs the match simulation and accepts up to 3 friends; guests
+  // send inputs and draw the snapshots the host streams back.
   // ==========================================
   
   // Prefix keeps our room IDs from colliding with other apps on the public PeerJS server
@@ -2252,10 +2293,12 @@
   class OnlineSession {
       constructor() {
           this.peer = null;
-          this.conn = null;
           this.role = null; // "host" | "guest" | null
-          this.onMessage = null; // (msg) => void
-          this.onDisconnect = null; // (reason) => void
+          this.conns = new Map(); // peerId -> DataConnection (host: guests, guest: just the host)
+          this.maxGuests = 1;
+          this.onMessage = null; // (msg, fromPeerId) => void
+          this.onDisconnect = null; // (reason, peerId) => void
+          this.onGuestJoined = null; // (peerId) => void (host only)
           this.connectTimer = null;
       }
   
@@ -2264,26 +2307,39 @@
       }
   
       isConnected() {
-          return !!(this.conn && this.conn.open);
+          for (const c of this.conns.values()) if (c.open) return true;
+          return false;
       }
   
-      // Host a room: resolves when the room is registered, calls onGuestJoined when a friend connects
-      host(roomCode, onGuestJoined, onError) {
+      guestCount() {
+          let n = 0;
+          for (const c of this.conns.values()) if (c.open) n++;
+          return n;
+      }
+  
+      // Host a room; onReady fires once the room code is registered
+      host(roomCode, maxGuests, onReady, onError) {
           this.close();
           if (!this.isAvailable()) {
               onError("Online play couldn't load. Check your internet connection and refresh.");
               return;
           }
           this.role = "host";
+          this.maxGuests = maxGuests;
           this.peer = new window.Peer(PEER_ID_PREFIX + roomCode);
   
+          this.peer.on("open", () => onReady());
           this.peer.on("connection", (conn) => {
-              // Only one opponent per room
-              if (this.conn && this.conn.open) {
-                  conn.on("open", () => conn.close());
+              if (this.guestCount() >= this.maxGuests) {
+                  conn.on("open", () => {
+                      conn.send({ t: "full" });
+                      setTimeout(() => conn.close(), 300);
+                  });
                   return;
               }
-              this.attachConnection(conn, () => onGuestJoined());
+              this.attachConnection(conn, () => {
+                  if (this.onGuestJoined) this.onGuestJoined(conn.peer);
+              });
           });
           this.peer.on("error", (err) => onError(this.describeError(err)));
       }
@@ -2319,38 +2375,48 @@
       }
   
       attachConnection(conn, onOpen) {
-          this.conn = conn;
+          this.conns.set(conn.peer, conn);
           conn.on("open", onOpen);
           conn.on("data", (msg) => {
-              if (this.onMessage && msg && typeof msg === "object") this.onMessage(msg);
+              if (this.onMessage && msg && typeof msg === "object") this.onMessage(msg, conn.peer);
           });
-          conn.on("close", () => this.handleDisconnect("Your opponent left the match."));
-          conn.on("error", () => this.handleDisconnect("The connection to your opponent was lost."));
+          const lost = (reason) => this.handleDisconnect(conn.peer, reason);
+          conn.on("close", () => lost(this.role === "host" ? "A player left the match." : "The host left the match."));
+          conn.on("error", () => lost("The connection was lost."));
       }
   
-      handleDisconnect(reason) {
-          if (!this.conn) return;
-          this.conn = null;
-          if (this.onDisconnect) this.onDisconnect(reason);
+      handleDisconnect(peerId, reason) {
+          if (!this.conns.has(peerId)) return; // already closed on purpose
+          this.conns.delete(peerId);
+          if (this.onDisconnect) this.onDisconnect(reason, peerId);
       }
   
+      // Host: send to every guest. Guest: send to the host.
       send(msg) {
-          if (this.conn && this.conn.open) {
-              try {
-                  this.conn.send(msg);
-              } catch (e) {
-                  console.warn("Online send failed:", e);
-              }
+          for (const c of this.conns.values()) this.sendOn(c, msg);
+      }
+  
+      sendTo(peerId, msg) {
+          const c = this.conns.get(peerId);
+          if (c) this.sendOn(c, msg);
+      }
+  
+      sendOn(conn, msg) {
+          if (!conn.open) return;
+          try {
+              conn.send(msg);
+          } catch (e) {
+              console.warn("Online send failed:", e);
           }
       }
   
       close() {
           clearTimeout(this.connectTimer);
-          const conn = this.conn;
-          this.conn = null; // closing on purpose: don't report it as a disconnect
-          if (conn) {
-              try { conn.close(); } catch (e) { /* already closed */ }
-          }
+          const conns = [...this.conns.values()];
+          this.conns.clear(); // closing on purpose: don't report these as disconnects
+          conns.forEach(c => {
+              try { c.close(); } catch (e) { /* already closed */ }
+          });
           if (this.peer) {
               try { this.peer.destroy(); } catch (e) { /* already destroyed */ }
               this.peer = null;
@@ -3711,57 +3777,71 @@
       }
   
       setBiome(biome) {
-          this.biome = biome || "overworld";
+          this.biome = biome || "space";
       }
   
       drawBackground() {
           const ctx = this.ctx;
           this.frameCount++;
-          const biome = this.biome || "overworld";
+          const biome = this.biome || "space";
   
-          if (biome === "nether") {
-              // Nether: Deep crimson-orange fog and netherrack peaks
-              ctx.fillStyle = "#330808";
-              ctx.fillRect(0, 0, this.width, this.height);
+          if (biome === "space") {
+              if (!this.spaceLayer) this.spaceLayer = this.buildSpaceLayer();
+              ctx.drawImage(this.spaceLayer, 0, 0, this.width, this.height);
   
-              // Lava river glow at horizon
-              ctx.fillStyle = "#cf4417";
-              ctx.fillRect(0, 310, this.width, this.height - 310);
-  
-              // Netherrack pillars & jagged stalagmites (capped at platform floor level y = 390)
-              ctx.fillStyle = "#5c1818";
-              const pillars = [[0, 260], [100, 220], [220, 270], [340, 230], [460, 280], [580, 210], [700, 250]];
-              for (const [px, py] of pillars) {
-                  ctx.fillRect(px, py, 90, 390 - py);
+              // Twinkling stars
+              for (let i = 0; i < 36; i++) {
+                  if ((Math.floor(this.frameCount / 18) + i * 7) % 6 === 0) continue;
+                  ctx.fillStyle = i % 5 === 0 ? "#ffffff" : (i % 2 ? "#9fb4ff" : "#cfe0ff");
+                  const sz = i % 7 === 0 ? 3 : 2;
+                  ctx.fillRect((i * 131 + 37) % this.width, (i * 71 + 13) % 330, sz, sz);
               }
+              // Occasional shooting star
+              const t = this.frameCount % 600;
+              if (t < 40) {
+                  const sx = 120 + t * 9;
+                  const sy = 40 + t * 3;
+                  for (let k = 0; k < 6; k++) {
+                      ctx.fillStyle = `rgba(255, 255, 255, ${0.9 - k * 0.15})`;
+                      ctx.fillRect(Math.round(sx - k * 9), Math.round(sy - k * 3), 4, 2);
+                  }
+              }
+          } else if (biome === "nether") {
+              if (!this.netherLayer) this.netherLayer = this.buildNetherLayer();
+              ctx.drawImage(this.netherLayer, 0, 0, this.width, this.height);
   
-              // Floating ash particles
-              ctx.fillStyle = "#ff7b25";
-              for (let i = 0; i < 15; i++) {
-                  const ax = (Math.sin(this.frameCount * 0.02 + i * 1.5) * 400 + 400 + i * 27) % this.width;
-                  const ay = (this.frameCount * 0.4 + i * 31) % 360;
-                  ctx.fillRect(ax, ay, 3, 3);
+              // Lava surface shimmer (moving bright pixels)
+              ctx.fillStyle = "#ffb43a";
+              for (let i = 0; i < 24; i++) {
+                  const lx = (i * 37 + this.frameCount * (0.3 + (i % 3) * 0.15)) % this.width;
+                  ctx.fillRect(Math.round(lx), 352 + (i % 4) * 8, 6, 2);
+              }
+              // Rising embers
+              for (let i = 0; i < 18; i++) {
+                  const ax = (i * 47 + Math.sin(this.frameCount * 0.02 + i) * 20 + this.width) % this.width;
+                  const ay = 380 - ((this.frameCount * (0.35 + (i % 4) * 0.1) + i * 53) % 380);
+                  ctx.fillStyle = i % 3 ? "#ff7b25" : "#ffd36b";
+                  ctx.fillRect(Math.round(ax), Math.round(ay), 2, 2);
               }
           } else if (biome === "end") {
-              // The End: Void darkness with obsidian pillars
-              ctx.fillStyle = "#0c0714";
-              ctx.fillRect(0, 0, this.width, this.height);
+              if (!this.endLayer) this.endLayer = this.buildEndLayer();
+              ctx.drawImage(this.endLayer, 0, 0, this.width, this.height);
   
-              // Distant purple void clouds
-              ctx.fillStyle = "#221338";
-              ctx.fillRect(0, 280, this.width, this.height - 280);
-  
-              // Tall Obsidian Spikes (stop cleanly at main floor y = 390)
-              ctx.fillStyle = "#15151e";
-              ctx.fillRect(80, 140, 50, 250);
-              ctx.fillRect(320, 90, 60, 300);
-              ctx.fillRect(600, 160, 55, 230);
-  
-              // Ender crystal glow at top of middle pillar
-              const glow = (Math.sin(this.frameCount * 0.1) > 0) ? "#e066ff" : "#b030d0";
-              ctx.fillStyle = glow;
-              ctx.fillRect(342, 75, 16, 15);
-          } else {
+              // Twinkling stars
+              for (let i = 0; i < 40; i++) {
+                  if ((Math.floor(this.frameCount / 20) + i) % 5 === 0) continue;
+                  ctx.fillStyle = i % 4 ? "#d8c8ff" : "#ffffff";
+                  ctx.fillRect((i * 97) % this.width, (i * 53) % 200, 2, 2);
+              }
+              // End crystals pulsing on the obsidian pillars
+              const pulse = Math.sin(this.frameCount * 0.08) > 0;
+              for (const [cx, cy] of [[112, 128], [345, 78], [628, 148]]) {
+                  ctx.fillStyle = pulse ? "#ff8cff" : "#c04ad8";
+                  ctx.fillRect(cx - 7, cy - 7, 14, 14);
+                  ctx.fillStyle = "#ffffff";
+                  ctx.fillRect(cx - 2, cy - 2, 4, 4);
+              }
+                  } else {
               // Overworld: static layers are painted once and cached
               if (!this.overworldLayer) this.overworldLayer = this.buildOverworldLayer();
               ctx.drawImage(this.overworldLayer, 0, 0, this.width, this.height);
@@ -3780,6 +3860,222 @@
                   ctx.fillRect(cx, cy + 16, cloud.w, 6);
               }
           }
+      }
+  
+      // Draws an isometric pixel cube from 8x8 face maps (top vertex at cx, ty; half = half-width)
+      drawIsoCube(g, cx, ty, half, faces, palette, shades) {
+          const k = 0.577 * half;
+          const mats = {
+              top: [half, -k, half, k, cx - half, ty + k],
+              left: [half, k, 0, 2 * k, cx - half, ty + k],
+              right: [half, -k, 0, 2 * k, cx, ty + 2 * k]
+          };
+          const shade = (hex, f) => {
+              const n = parseInt(hex.slice(1), 16);
+              const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => Math.max(0, Math.min(255, Math.round(v * f))));
+              return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+          };
+          for (const side of ["left", "right", "top"]) {
+              const grid = faces[side];
+              g.save();
+              g.transform(...mats[side]);
+              for (let r = 0; r < 8; r++) {
+                  for (let c = 0; c < 8; c++) {
+                      g.fillStyle = shade(palette[grid[r][c]], shades[side]);
+                      g.fillRect(c / 8, r / 8, 1 / 8 + 0.004, 1 / 8 + 0.004);
+                  }
+              }
+              g.restore();
+          }
+          // bright front edges
+          g.strokeStyle = "rgba(232, 254, 255, 0.85)";
+          g.lineWidth = Math.max(1.5, half / 26);
+          g.beginPath();
+          g.moveTo(cx - half, ty + k);
+          g.lineTo(cx, ty + 2 * k);
+          g.lineTo(cx + half, ty + k);
+          g.stroke();
+      }
+  
+      // Space backdrop matching the logo: starfield, cube globe planet with atmosphere, cube moon
+      buildSpaceLayer() {
+          const c = document.createElement("canvas");
+          c.width = this.width;
+          c.height = this.height;
+          const g = c.getContext("2d");
+          const W = this.width;
+  
+          const bands = ["#060a1f", "#08102a", "#0b1535", "#0e1a42", "#121f4f", "#16255c"];
+          const bandH = Math.ceil(this.height / bands.length);
+          bands.forEach((col, i) => { g.fillStyle = col; g.fillRect(0, i * bandH, W, bandH + 1); });
+  
+          // Pixel nebula clouds
+          const neb = [[40, 60, 120, 18, "#1d2a6a"], [70, 78, 80, 12, "#24327a"], [430, 300, 160, 16, "#1a2660"],
+              [470, 316, 90, 10, "#22307a"], [250, 40, 90, 10, "#1a2660"]];
+          for (const [x, y, w, h, col] of neb) { g.fillStyle = col; g.fillRect(x, y, w, h); }
+  
+          // Static stars
+          for (let i = 0; i < 70; i++) {
+              g.fillStyle = i % 3 === 0 ? "#6f86d6" : (i % 3 === 1 ? "#9fb4ff" : "#ffffff");
+              g.fillRect((i * 97 + 11) % W, (i * 53 + 29) % 360, 1 + (i % 4 === 0 ? 1 : 0), 1 + (i % 4 === 0 ? 1 : 0));
+          }
+  
+          // Atmosphere glow behind the planet
+          const pcx = 610, pty = 74, half = 62;
+          const glow = g.createRadialGradient(pcx, pty + 72, 10, pcx, pty + 72, 150);
+          glow.addColorStop(0, "rgba(95, 208, 255, 0.45)");
+          glow.addColorStop(0.5, "rgba(58, 157, 255, 0.15)");
+          glow.addColorStop(1, "rgba(58, 157, 255, 0)");
+          g.fillStyle = glow;
+          g.fillRect(pcx - 160, pty - 80, 320, 320);
+  
+          // Cube globe planet (same maps as the logo)
+          const palette = { w: "#2f7de1", W: "#1f5fc0", l: "#5bbf3a", f: "#3a8f2a", s: "#e8d27a", m: "#9696a0", i: "#ecf4ff", c: "#ffffff" };
+          const faces = {
+              top: ["Wwwllwww", "wcclllfw", "wcllffll", "wwlllsww", "wwwswcWw", "Wwwwwclw", "lwcwlffl", "llwwwllw"],
+              left: ["wwlllwwW", "wllfflcc", "wwllswww", "Wwwwwwll", "lcwwwlfl", "llwWwwll", "slwwwwww", "iiiiwiii"],
+              right: ["wwwwllww", "Wwwlffll", "llwccllw", "flwwwwwW", "llwwwmlw", "scwwlllw", "wwWwwlww", "iiwiiiii"]
+          };
+          this.drawIsoCube(g, pcx, pty, half, faces, palette, { top: 1.12, left: 0.88, right: 0.62 });
+  
+          // Cube moon
+          const moonFaces = {
+              top: Array(8).fill("gggggggg").map((r, i) => (i === 2 ? "ggdggggg" : i === 5 ? "gggggdgg" : r)),
+              left: Array(8).fill("gggggggg").map((r, i) => (i === 3 ? "gdgggggg" : r)),
+              right: Array(8).fill("gggggggg").map((r, i) => (i === 4 ? "ggggdggg" : r))
+          };
+          this.drawIsoCube(g, 712, 52, 16, moonFaces, { g: "#e3e0d5", d: "#b8b4a8" }, { top: 1.05, left: 0.82, right: 0.62 });
+  
+          // Faint distant planet-cube on the left
+          g.globalAlpha = 0.55;
+          const redFaces = { top: Array(8).fill("rrrRrrrr"), left: Array(8).fill("rRrrrrRr"), right: Array(8).fill("rrrrRrrr") };
+          this.drawIsoCube(g, 92, 120, 20, redFaces, { r: "#c2553a", R: "#9a3f2a" }, { top: 1.1, left: 0.85, right: 0.6 });
+          g.globalAlpha = 1;
+          return c;
+      }
+  
+      // Moon-rock floor: pale grey blocks with craters
+      drawMoonFloor(ctx, p) {
+          const B = 16;
+          for (let bx = p.x; bx < p.x + p.w; bx += B) {
+              const n = (bx / B) | 0;
+              ctx.fillStyle = n % 2 ? "#c9c6bb" : "#c2bfb3";
+              ctx.fillRect(bx, p.y, B, p.h);
+              ctx.fillStyle = "#a9a598";
+              ctx.fillRect(bx + ((n * 5) % 10) + 2, p.y + 12, 5, 4);
+              ctx.fillRect(bx + ((n * 7 + 3) % 11), p.y + 30, 4, 3);
+              ctx.fillStyle = "#918d80";
+              ctx.fillRect(bx + ((n * 5) % 10) + 3, p.y + 13, 3, 2);
+              ctx.fillStyle = "#dedbd0";
+              ctx.fillRect(bx + ((n * 3 + 9) % 13), p.y + 22, 2, 2);
+              ctx.fillStyle = "rgba(0, 0, 0, 0.12)";
+              ctx.fillRect(bx, p.y, 1, p.h);
+          }
+          // Lighter dusty top edge
+          ctx.fillStyle = "#e6e3d8";
+          ctx.fillRect(p.x, p.y, p.w, 3);
+          ctx.fillStyle = "#b3afa2";
+          ctx.fillRect(p.x, p.y + 3, p.w, 1);
+      }
+  
+      // Glowing crystal ledge (sea-lantern style)
+      drawCrystalLedge(ctx, p) {
+          ctx.fillStyle = "rgba(95, 208, 255, 0.18)";
+          ctx.fillRect(p.x - 4, p.y - 3, p.w + 8, p.h + 10);
+          ctx.fillStyle = "#3e9fd6";
+          ctx.fillRect(p.x, p.y, p.w, p.h);
+          for (let bx = p.x; bx < p.x + p.w; bx += 12) {
+              ctx.fillStyle = ((bx - p.x) / 12) % 2 ? "#5fc4ee" : "#4cb3e4";
+              ctx.fillRect(bx + 1, p.y + 2, 10, p.h - 4);
+              ctx.fillStyle = "#c8f4ff";
+              ctx.fillRect(bx + 3, p.y + 4, 2, 2);
+          }
+          ctx.fillStyle = "#e8fbff";
+          ctx.fillRect(p.x, p.y, p.w, 2);
+          ctx.fillStyle = "#245e8c";
+          ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
+      }
+  
+      // Nether backdrop: crimson cave ceiling, glowstone, netherrack cliffs, lava sea
+      buildNetherLayer() {
+          const c = document.createElement("canvas");
+          c.width = this.width;
+          c.height = this.height;
+          const g = c.getContext("2d");
+          const W = this.width;
+          const ground = ARENA_CONFIG.groundY;
+  
+          const bands = ["#2a0606", "#350909", "#410c0b", "#4f110e", "#5f1711", "#712015"];
+          const bandH = Math.ceil(ground / bands.length);
+          bands.forEach((col, i) => { g.fillStyle = col; g.fillRect(0, i * bandH, W, bandH + 1); });
+  
+          // Jagged cave ceiling with hanging netherrack
+          g.fillStyle = "#3b0b0b";
+          for (let x = 0; x < W; x += 8) {
+              const h = 24 + Math.round((Math.sin(x * 0.02) * 14 + Math.sin(x * 0.07 + 2) * 8) / 8) * 8;
+              g.fillRect(x, 0, 8, h);
+          }
+          // Glowstone clusters on the ceiling
+          for (const [gx, gy] of [[90, 30], [300, 22], [520, 34], [700, 26]]) {
+              g.fillStyle = "#c79a3c"; g.fillRect(gx, gy, 24, 16);
+              g.fillStyle = "#ffe08a"; g.fillRect(gx + 4, gy + 4, 8, 6); g.fillRect(gx + 14, gy + 8, 6, 5);
+          }
+          // Far cliffs
+          g.fillStyle = "#5a1414";
+          for (let x = 0; x < W; x += 8) {
+              const h = 210 + Math.round((Math.sin(x * 0.013 + 1) * 30 + Math.sin(x * 0.041) * 12) / 8) * 8;
+              g.fillRect(x, h, 8, ground - h);
+          }
+          // Near cliffs with crimson nylium tops
+          g.fillStyle = "#7a1e1e";
+          for (let x = 0; x < W; x += 8) {
+              const h = 270 + Math.round((Math.sin(x * 0.019 + 3) * 22 + Math.sin(x * 0.05) * 8) / 8) * 8;
+              g.fillRect(x, h, 8, ground - h);
+              g.fillStyle = "#b02a3e"; g.fillRect(x, h, 8, 3); g.fillStyle = "#7a1e1e";
+          }
+          // Lava sea in front of the cliffs
+          g.fillStyle = "#e05a12";
+          g.fillRect(0, 346, W, ground - 346);
+          g.fillStyle = "#f58a1f";
+          g.fillRect(0, 346, W, 4);
+          // Lavafalls pouring from the cliffs
+          for (const lx of [160, 430, 690]) {
+              g.fillStyle = "#e86a14"; g.fillRect(lx, 230, 10, 120);
+              g.fillStyle = "#ffb43a"; g.fillRect(lx + 3, 230, 3, 120);
+          }
+          return c;
+      }
+  
+      // End backdrop: void sky, distant end islands, obsidian pillars
+      buildEndLayer() {
+          const c = document.createElement("canvas");
+          c.width = this.width;
+          c.height = this.height;
+          const g = c.getContext("2d");
+          const W = this.width;
+          const ground = ARENA_CONFIG.groundY;
+  
+          const bands = ["#07040d", "#0b0614", "#10081c", "#160b25", "#1d0f30", "#24133b"];
+          const bandH = Math.ceil(ground / bands.length);
+          bands.forEach((col, i) => { g.fillStyle = col; g.fillRect(0, i * bandH, W, bandH + 1); });
+  
+          // Distant floating end islands
+          for (const [ix, iy, iw] of [[40, 230, 120], [520, 200, 150], [300, 260, 90], [690, 250, 90]]) {
+              g.fillStyle = "#a9a46e"; g.fillRect(ix, iy, iw, 10);
+              g.fillStyle = "#8a8550"; g.fillRect(ix + 8, iy + 10, iw - 16, 8); g.fillRect(ix + 20, iy + 18, iw - 40, 6);
+          }
+          // Obsidian pillars with iron-bar cages at the top
+          for (const [px, py, pw] of [[90, 140, 44], [320, 90, 50], [605, 160, 46]]) {
+              g.fillStyle = "#15111f"; g.fillRect(px, py, pw, ground - py);
+              g.fillStyle = "#231b33";
+              for (let y = py + 6; y < ground; y += 16) g.fillRect(px + 4, y, pw - 8, 2);
+              g.fillStyle = "#3a3346"; g.fillRect(px + pw / 2 - 1, py - 18, 2, 18);
+              g.fillRect(px + 4, py - 18, 2, 18); g.fillRect(px + pw - 6, py - 18, 2, 18);
+          }
+          // Void haze near the floor
+          g.fillStyle = "#2c1748";
+          g.fillRect(0, 352, W, ground - 352);
+          return c;
       }
   
       // Paints the Overworld backdrop (sky bands, sun, mountains, hills, trees) to an offscreen canvas
@@ -3951,12 +4247,15 @@
   
       drawPlatforms() {
           const ctx = this.ctx;
-          const biome = this.biome || "overworld";
+          const biome = this.biome || "space";
   
           for (const p of PLATFORMS_CONFIG) {
               const isFloor = p.y >= 380;
   
-              if (biome === "nether") {
+              if (biome === "space") {
+                  if (isFloor) this.drawMoonFloor(ctx, p);
+                  else this.drawCrystalLedge(ctx, p);
+              } else if (biome === "nether") {
                   // ==========================================
                   // NETHER: AUTHENTIC NETHERRACK BLOCKS
                   // ==========================================
@@ -4607,6 +4906,9 @@
           ctx.fillStyle = "#ffffff";
           ctx.textAlign = "left";
           ctx.textBaseline = "middle";
+          ctx.strokeStyle = "#000000";
+          ctx.lineWidth = 3;
+          ctx.strokeText("Q: swap", x0 + 2 * (size + 4) + 4, y0 + size / 2);
           ctx.fillText("Q: swap", x0 + 2 * (size + 4) + 4, y0 + size / 2);
           ctx.restore();
       }
@@ -4964,7 +5266,7 @@
           // Online (peer-to-peer) match state
           this.onlineRole = null; // "host" | "guest" | null
           this.localFighter = this.player; // the fighter this browser controls
-          this.remoteInput = { left: false, right: false };
+          this.remoteInputs = {}; // online host: peerId -> { left, right }
           this.sentInput = { left: false, right: false };
   
           // Key states
@@ -5064,34 +5366,86 @@
           }
       }
   
-      // Online 1v1: host is always Blue (left), guest is always Red (right) on both screens
-      startOnlineMatch(role, hostInfo, guestInfo) {
+      // Online match from the host's setup: { matchType: "1v1" | "2v2", slots: [...] }.
+      // Each slot is { name, skin, weapon, weapon2, upgrades, team, peer } where peer is
+      // "host", a guest's peer id, or null for a bot. Slots list Blue first, then Red,
+      // and every browser builds the fighters in that same order.
+      startOnlineMatch(role, setup, localSlot) {
           sound.ensureContext();
           this.applyMode("pvp", null, true);
           this.mode = "online";
           this.onlineRole = role;
-          this.botParams = getBotParamsForMode("pvp");
+          this.onlineSetup = setup;
+          this.botParams = getBotParamsForMode("normal");
   
-          const setup = (fighter, info, fallbackName) => {
-              fighter.name = (info && info.name) || fallbackName;
-              fighter.setLoadout((info && info.weapon) || "mace", (info && info.weapon2) || null, (info && info.upgrades) || {});
-              fighter.setSkin((info && info.skin) || "steve");
-              fighter.isBotGame = false;
+          const slots = setup.slots;
+          const makeFighter = (slot, i) => {
+              const isBot = !slot.peer;
+              let f;
+              if (i === 0) {
+                  f = this.player;
+              } else if (setup.matchType === "1v1") {
+                  f = this.bot;
+              } else {
+                  f = new Fighter(isBot, `o${i}`, slot.name);
+              }
+              const blue = slot.team === "blue";
+              const sameTeamIndex = slots.slice(0, i).filter(s => s.team === slot.team).length;
+              f.reset(blue ? 150 + sameTeamIndex * 60 : 650 - sameTeamIndex * 60, blue ? 1 : -1, 100);
+              f.name = slot.name || (isBot ? "Bot" : "Player");
+              f.setLoadout(slot.weapon || "mace", slot.weapon2 || null, slot.upgrades || {});
+              f.setSkin(slot.skin || "steve");
+              f.setTeam(slot.team);
+              f.isBot = isBot;
+              f.isBotGame = false;
+              f.isPlayer = i === localSlot;
+              f.netPeer = slot.peer;
+              f._botAI = null;
+              return f;
           };
-          setup(this.player, hostInfo, "Host");
-          setup(this.bot, guestInfo, "Guest");
-          this.player.isPlayer = role === "host";
-          this.bot.isPlayer = role === "guest";
-          this.bot._botAI = null;
-          this.bot.isBot = false; // the opponent is your friend, not a bot
+          const fighters = slots.map(makeFighter);
+  
+          this.isTeamMatch = setup.matchType !== "1v1";
+          this.matchType = setup.matchType;
+          this.blueTeam = fighters.filter(f => f.team === "blue");
+          this.redTeam = fighters.filter(f => f.team === "red");
+          this.allFighters = fighters;
+          this.localFighter = fighters[localSlot] || this.player;
+  
+          // Only the host runs bot brains
           this.allBots = [];
-          this.localFighter = role === "host" ? this.player : this.bot;
-          this.remoteInput = { left: false, right: false };
+          if (role === "host") {
+              fighters.forEach(f => {
+                  if (!f.isBot) return;
+                  const ai = new BotAI(f);
+                  ai.setParams(this.botParams);
+                  f._botAI = ai;
+                  this.allBots.push({ fighter: f, ai });
+              });
+          }
+  
+          this.remoteInputs = {};
           this.sentInput = { left: false, right: false };
   
           this.state = "play";
           if (this.uiCallbacks.onStateChanged) {
               this.uiCallbacks.onStateChanged(this.state);
+          }
+      }
+  
+      // Host: a guest dropped out mid-match, so a bot takes over their fighter
+      replaceWithBot(peerId) {
+          const f = this.allFighters.find(x => x.netPeer === peerId);
+          if (!f) return;
+          f.netPeer = null;
+          f.isBot = true;
+          const ai = new BotAI(f);
+          ai.setParams(this.botParams);
+          f._botAI = ai;
+          this.allBots.push({ fighter: f, ai });
+          if (this.onlineSetup) {
+              const slot = this.onlineSetup.slots[this.allFighters.indexOf(f)];
+              if (slot) slot.peer = null;
           }
       }
   
@@ -5132,31 +5486,41 @@
       buildSnapshot() {
           return {
               t: "snap",
-              f: [this.packFighter(this.player), this.packFighter(this.bot)],
+              f: this.allFighters.map(f => this.packFighter(f)),
               a: this.arrowManager.arrows.map(a => [Math.round(a.x), Math.round(a.y), a.vx, a.vy, a.stuck ? 1 : 0, a.facing]),
-              m: this.matchFrames
+              m: this.matchFrames,
+              sc: [this.scoreBlue, this.scoreRed, this.isTiebreaker ? 1 : 0, this.tiebreakerTimer,
+                  Math.round(this.tiebreakerBlueDamage), Math.round(this.tiebreakerRedDamage)]
           };
       }
   
-      handleNetMessage(msg) {
+      handleNetMessage(msg, fromPeer = null) {
+          const isHost = this.mode === "online" && this.onlineRole === "host";
           if (msg.t === "snap" && this.isOnlineGuest() && this.state === "play") {
-              this.unpackFighter(this.player, msg.f[0]);
-              this.unpackFighter(this.bot, msg.f[1]);
+              msg.f.forEach((d, i) => { if (this.allFighters[i]) this.unpackFighter(this.allFighters[i], d); });
               this.arrowManager.arrows = msg.a.map(([x, y, vx, vy, stuck, facing]) => ({
                   x, y, vx, vy, facing, stuck: !!stuck, gravity: 0, life: 60
               }));
               this.matchFrames = msg.m;
-          } else if (msg.t === "input" && this.mode === "online" && this.onlineRole === "host") {
-              this.remoteInput.left = !!msg.l;
-              this.remoteInput.right = !!msg.r;
-          } else if (msg.t === "act" && this.mode === "online" && this.onlineRole === "host" && this.state === "play") {
-              if (msg.a === "jump") this.bot.jump();
-              if (msg.a === "dash") {
-                  this.bot.aimAngle = typeof msg.aim === "number" ? msg.aim : null;
-                  this.bot.dash(null, true, null, this.arrowManager);
+              if (msg.sc) {
+                  [this.scoreBlue, this.scoreRed] = msg.sc;
+                  this.isTiebreaker = !!msg.sc[2];
+                  this.tiebreakerTimer = msg.sc[3];
+                  this.tiebreakerBlueDamage = msg.sc[4];
+                  this.tiebreakerRedDamage = msg.sc[5];
               }
-              if (msg.a === "slam") this.bot.slam();
-              if (msg.a === "swap") this.bot.swapWeapon();
+          } else if (msg.t === "input" && isHost) {
+              this.remoteInputs[fromPeer] = { left: !!msg.l, right: !!msg.r };
+          } else if (msg.t === "act" && isHost && this.state === "play") {
+              const f = this.allFighters.find(x => x.netPeer === fromPeer);
+              if (!f || f.hp <= 0) return;
+              if (msg.a === "jump") f.jump();
+              if (msg.a === "dash") {
+                  f.aimAngle = typeof msg.aim === "number" ? msg.aim : null;
+                  f.dash(null, true, null, this.arrowManager);
+              }
+              if (msg.a === "slam") f.slam();
+              if (msg.a === "swap") f.swapWeapon();
           } else if (msg.t === "end" && this.isOnlineGuest() && this.state === "play") {
               msg.stats.forEach((st, i) => { this.allFighters[i].stats = st; });
               this.finishMatch(msg.w === this.localFighter.team);
@@ -5326,6 +5690,19 @@
           return Math.atan2(this.mouse.y - (f.y + f.h / 2), this.mouse.x - (f.x + f.w / 2));
       }
   
+      // Jump / slam / swap for whoever this browser controls (touch buttons use these too)
+      localAction(action) {
+          if (this.state !== "play") return;
+          if (this.isOnlineGuest()) {
+              online.send({ t: "act", a: action });
+              return;
+          }
+          const f = this.localFighter;
+          if (action === "jump") f.jump();
+          if (action === "slam") f.slam();
+          if (action === "swap") f.swapWeapon();
+      }
+  
       // Space / left-click attack for the local fighter (bow shots go toward the mouse)
       localAttack() {
           const f = this.localFighter;
@@ -5355,6 +5732,19 @@
               this.mouse.y = p.y;
               this.mouse.active = true;
           });
+  
+          // Tapping the arena on a touch screen aims there and attacks (like a click)
+          this.canvas.addEventListener("touchstart", (e) => {
+              if (this.state !== "play" || !e.touches.length) return;
+              const p = toArena(e.touches[0]);
+              if (p) {
+                  this.mouse.x = p.x;
+                  this.mouse.y = p.y;
+                  this.mouse.active = true;
+              }
+              e.preventDefault();
+              this.localAttack();
+          }, { passive: false });
   
           // Left-click attacks like Space (the bow fires toward the mouse)
           this.canvas.addEventListener("mousedown", (e) => {
@@ -5529,11 +5919,29 @@
               }
           }
   
-          // Player 2 Input (local PvP keys, or the online guest's streamed input)
-          if (this.mode === "pvp" || this.mode === "online") {
+          // Online host: move each guest's fighter from their streamed left/right input
+          if (this.mode === "online") {
+              for (const f of this.allFighters) {
+                  if (!f.netPeer || f.netPeer === "host" || f.hp <= 0 || f.stun > 0 || f.dashing) continue;
+                  const input = this.remoteInputs[f.netPeer] || {};
+                  if (input.left && !input.right) {
+                      f.xVel = -PLAYER_MOVE_SPEED;
+                      f.facing = -1;
+                  } else if (input.right && !input.left) {
+                      f.xVel = PLAYER_MOVE_SPEED;
+                      f.facing = 1;
+                  } else {
+                      f.xVel *= 0.55;
+                      if (Math.abs(f.xVel) < 0.1) f.xVel = 0;
+                  }
+              }
+          }
+  
+          // Player 2 Input (local PvP keys)
+          if (this.mode === "pvp") {
               if (this.bot.stun <= 0 && !this.bot.dashing) {
-                  const left = this.mode === "online" ? this.remoteInput.left : this.keys["ArrowLeft"];
-                  const right = this.mode === "online" ? this.remoteInput.right : this.keys["ArrowRight"];
+                  const left = this.keys["ArrowLeft"];
+                  const right = this.keys["ArrowRight"];
   
                   const speed = PLAYER_MOVE_SPEED; // Same as Player 1 so duels are fair
                   if (left && !right) {
@@ -5890,7 +6298,9 @@
           this.highestJumper = highest;
   
           // Scale reward economy
-          if (this.isTeamMatch) {
+          if (this.mode === "online") {
+              this.lastRewardInfo = null; // friendly matches don't change gold or rank
+          } else if (this.isTeamMatch) {
               this.lastRewardInfo = auth.recordArenaMatchResult(isPlayerWin, this.matchType, this.player.stats);
           } else {
               if (this.mode !== "pvp" && this.mode !== "online") {
@@ -5899,7 +6309,7 @@
           }
   
           if (this.mode === "online" && this.onlineRole === "host") {
-              online.send({ t: "snap", f: [this.packFighter(this.player), this.packFighter(this.bot)], a: [], m: this.matchFrames });
+              online.send({ ...this.buildSnapshot(), a: [] });
               online.send({ t: "end", w: this.winnerTeam, stats: this.allFighters.map(f => f.stats) });
           }
   
@@ -6268,10 +6678,10 @@
           }
   
           this.themeBtn = document.getElementById("btn-theme");
-          this.currentBiome = "overworld";
+          this.currentBiome = "space";
           if (this.themeBtn) {
               this.themeBtn.addEventListener("click", () => {
-                  const biomes = ["overworld", "nether", "end"];
+                  const biomes = ["space", "overworld", "nether", "end"];
                   const nextIdx = (biomes.indexOf(this.currentBiome) + 1) % biomes.length;
                   this.currentBiome = biomes[nextIdx];
                   const capitalized = this.currentBiome.charAt(0).toUpperCase() + this.currentBiome.slice(1);
@@ -7095,8 +7505,11 @@
               };
           }
   
-          online.onMessage = (msg) => this.handleOnlineMessage(msg);
-          online.onDisconnect = (reason) => this.handleOnlineDisconnect(reason);
+          online.onMessage = (msg, peer) => this.handleOnlineMessage(msg, peer);
+          online.onDisconnect = (reason, peer) => this.handleOnlineDisconnect(reason, peer);
+  
+          const btnOnlineStart = document.getElementById("btn-online-start");
+          if (btnOnlineStart) btnOnlineStart.onclick = () => this.hostStartOnlineMatch();
       }
   
       // ==========================================
@@ -7123,61 +7536,164 @@
           };
       }
   
+      // ---- Host lobby: up to 4 players. Join order fills Blue, Red, Blue, Red. ----
+  
       hostOnlineRoom(code) {
+          let matchType = this.selectedArenaMode === "1v1" ? "1v1" : "2v2";
+          this.lobby = { matchType, players: [{ peer: "host", info: this.myOnlineInfo() }] };
+          const note = this.selectedArenaMode === "5v5" ? " (online rooms go up to 2v2)" : "";
           this.setOnlineStatus("Opening room...");
-          online.host(code, () => {
-              // A friend connected; wait for their hello with their fighter info
-              this.setOnlineStatus("Friend connected! Starting...");
+          online.host(code, matchType === "1v1" ? 1 : 3, () => {
+              this.setOnlineStatus(matchType === "1v1"
+                  ? "Room open (1v1). Waiting for your friend to join..."
+                  : `Room open (2v2)${note}. Invite up to 3 friends, then press Start. Empty spots become bots.`);
+              this.renderOnlineLobby();
           }, (err) => this.setOnlineStatus(err, true));
-          // Room is ready to share once the peer registers
-          if (online.peer) {
-              online.peer.on("open", () => this.setOnlineStatus("Room open. Waiting for your friend to join..."));
-          }
       }
   
       joinOnlineRoom(code) {
+          this.lobby = null;
+          this.renderOnlineLobby();
           this.setOnlineStatus("Connecting to your friend's room...");
           online.join(code, () => {
-              this.setOnlineStatus("Connected! Starting...");
+              this.setOnlineStatus("Connected! Waiting for the host...");
               online.send({ t: "hello", info: this.myOnlineInfo() });
           }, (err) => this.setOnlineStatus(err, true));
       }
   
-      startOnlineFromMessage(role, hostInfo, guestInfo) {
+      lobbyTeam(index) {
+          return index % 2 === 0 ? "blue" : "red";
+      }
+  
+      // Lobby list shown to everyone; the host also gets the Start button (2v2)
+      renderOnlineLobby(players = null, matchType = null) {
+          const box = document.getElementById("online-lobby");
+          const list = document.getElementById("online-lobby-list");
+          const startBtn = document.getElementById("btn-online-start");
+          if (!box || !list) return;
+          const isHost = online.role === "host" && this.lobby;
+          const shown = players || (isHost ? this.lobby.players.map((p, i) => ({ name: p.info.name, team: this.lobbyTeam(i) })) : null);
+          const type = matchType || (this.lobby && this.lobby.matchType);
+          if (!shown || type !== "2v2") {
+              box.classList.add("hidden");
+              return;
+          }
+          box.classList.remove("hidden");
+          const escapeHTML = (str) => String(str).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+          const col = (team) => {
+              const names = shown.filter(p => p.team === team).map(p => `<li>${escapeHTML(p.name)}</li>`);
+              while (names.length < 2) names.push(`<li class="lobby-bot">Bot (empty spot)</li>`);
+              return `<div class="lobby-team lobby-${team}"><div class="lobby-team-name">${team === "blue" ? "Blue" : "Red"} Team</div><ul>${names.join("")}</ul></div>`;
+          };
+          list.innerHTML = col("blue") + col("red");
+          if (startBtn) startBtn.classList.toggle("hidden", !isHost);
+      }
+  
+      broadcastLobby() {
+          if (!this.lobby) return;
+          online.send({
+              t: "lobby",
+              matchType: this.lobby.matchType,
+              players: this.lobby.players.map((p, i) => ({ name: p.info.name, team: this.lobbyTeam(i) }))
+          });
+          this.renderOnlineLobby();
+      }
+  
+      // Builds the match slots (Blue first, then Red); empty 2v2 spots become bots
+      buildOnlineSetup() {
+          const lobby = this.lobby;
+          this.lobby.players[0].info = this.myOnlineInfo(); // host may have changed weapons
+          const botInfo = (n) => ({
+              name: n,
+              skin: ["alex", "zombie", "skeleton", "creeper"][Math.floor(Math.random() * 4)],
+              weapon: ["mace", "spear", "sword"][Math.floor(Math.random() * 3)],
+              weapon2: null,
+              upgrades: {}
+          });
+          const slotFor = (player, team, botName) => player
+              ? { ...player.info, team, peer: player.peer }
+              : { ...botInfo(botName), team, peer: null };
+          const p = lobby.players;
+          if (lobby.matchType === "1v1") {
+              return { matchType: "1v1", slots: [slotFor(p[0], "blue"), slotFor(p[1], "red", "Rival Bot")] };
+          }
+          return {
+              matchType: "2v2",
+              slots: [
+                  slotFor(p[0], "blue"), slotFor(p[2], "blue", "Ally Bot"),
+                  slotFor(p[1], "red", "Rival Bot"), slotFor(p[3], "red", "Rival Bot 2")
+              ]
+          };
+      }
+  
+      startOnlineFromMessage(role, setup, you) {
           if (this.arenaModal) this.arenaModal.classList.add("hidden");
           if (this.statsModal) this.statsModal.classList.add("hidden");
           this.hideResultsScreen();
           this.setOnlineStatus("");
-          this.game.startOnlineMatch(role, hostInfo, guestInfo);
+          this.game.startOnlineMatch(role, setup, you);
       }
   
       hostStartOnlineMatch() {
-          const hostInfo = this.myOnlineInfo();
-          const guestInfo = this.onlineGuestInfo || { name: "Guest" };
-          online.send({ t: "start", host: hostInfo, guest: guestInfo });
-          this.startOnlineFromMessage("host", hostInfo, guestInfo);
+          if (!this.lobby || online.role !== "host") return;
+          if (this.lobby.matchType === "1v1" && this.lobby.players.length < 2) return;
+          const setup = this.buildOnlineSetup();
+          setup.slots.forEach((slot, i) => {
+              if (slot.peer && slot.peer !== "host") online.sendTo(slot.peer, { t: "start", setup, you: i });
+          });
+          this.startOnlineFromMessage("host", setup, 0);
       }
   
-      handleOnlineMessage(msg) {
-          if (msg.t === "hello" && online.role === "host") {
-              this.onlineGuestInfo = msg.info || {};
-              this.hostStartOnlineMatch();
+      handleOnlineMessage(msg, peer) {
+          if (msg.t === "hello" && online.role === "host" && this.lobby) {
+              if (this.lobby.players.some(p => p.peer === peer)) return;
+              this.lobby.players.push({ peer, info: msg.info || { name: "Player" } });
+              if (this.lobby.matchType === "1v1") {
+                  this.setOnlineStatus("Friend connected! Starting...");
+                  this.hostStartOnlineMatch();
+              } else {
+                  this.setOnlineStatus(`${(msg.info && msg.info.name) || "A friend"} joined. Press Start when everyone's in.`);
+                  this.broadcastLobby();
+              }
+          } else if (msg.t === "lobby" && online.role === "guest") {
+              this.setOnlineStatus("You're in! Waiting for the host to start...");
+              this.renderOnlineLobby(msg.players, msg.matchType);
+          } else if (msg.t === "full" && online.role === "guest") {
+              this.setOnlineStatus("That room is full.", true);
           } else if (msg.t === "start" && online.role === "guest") {
-              this.startOnlineFromMessage("guest", msg.host, msg.guest);
+              this.startOnlineFromMessage("guest", msg.setup, msg.you);
           } else if (msg.t === "rematch" && online.role === "host") {
-              this.hostStartOnlineMatch();
+              if (this.game.state === "gameover") this.hostStartOnlineMatch();
           } else {
-              this.game.handleNetMessage(msg);
+              this.game.handleNetMessage(msg, peer);
           }
       }
   
-      handleOnlineDisconnect(reason) {
-          if (this.game.mode === "online" && this.game.state !== "menu") {
+      handleOnlineDisconnect(reason, peer) {
+          const inMatch = this.game.mode === "online" && this.game.state !== "menu";
+          if (online.role === "host" && this.lobby) {
+              const leaving = this.lobby.players.find(p => p.peer === peer);
+              this.lobby.players = this.lobby.players.filter(p => p.peer !== peer);
+              const name = leaving ? leaving.info.name : "A player";
+              if (inMatch && this.game.isTeamMatch) {
+                  // 2v2 keeps going: a bot takes over their fighter
+                  this.game.replaceWithBot(peer);
+                  this.showToast(`${name} left. A bot took over.`);
+                  return;
+              }
+              if (!inMatch) {
+                  this.setOnlineStatus(`${name} left the room.`);
+                  this.broadcastLobby();
+                  return;
+              }
+          }
+          if (inMatch) {
               if (this.statsModal) this.statsModal.classList.add("hidden");
               this.game.goHome();
               this.showToast(reason);
           } else {
               this.setOnlineStatus(reason, true);
+              this.renderOnlineLobby();
           }
       }
   
@@ -7295,57 +7811,11 @@
           }
       }
   
+      // Ranked arena vs bots: go straight to the VS screen (there is no online queue)
       startMatchmakingQueue(matchType, weaponId) {
-          if (!this.queueModal) return;
-          this.arenaModal.classList.add("hidden");
-          this.queueModal.classList.remove("hidden");
+          if (this.arenaModal) this.arenaModal.classList.add("hidden");
           sound.playClick();
-  
-          const timerEl = document.getElementById("queue-timer-text");
-          const statusEl = document.getElementById("queue-status-text");
-          const countEl = document.getElementById("queue-count-text");
-  
-          let seconds = 0;
-          let count = 1;
-          const total = matchType === "5v5" ? 10 : (matchType === "2v2" ? 4 : 2);
-  
-          if (statusEl) statusEl.textContent = `Finding players for ${matchType.toUpperCase()}...`;
-          if (countEl) countEl.textContent = `1 / ${total} Players`;
-  
-          clearInterval(this.queueInterval);
-          this.queueInterval = setInterval(() => {
-              seconds++;
-              if (timerEl) timerEl.textContent = `0:${seconds < 10 ? '0' : ''}${seconds}`;
-  
-              // Simulated matchmaking connections
-              if (seconds === 1) {
-                  count = Math.min(total, Math.ceil(total * 0.5));
-                  if (countEl) countEl.textContent = `${count} / ${total} Players`;
-              } else if (seconds === 2) {
-                  count = Math.min(total, total - 1);
-                  if (countEl) countEl.textContent = `${count} / ${total} Players`;
-              } else if (seconds >= 3) {
-                  clearInterval(this.queueInterval);
-                  if (countEl) countEl.textContent = `${total} / ${total} Players`;
-                  if (statusEl) statusEl.textContent = `MATCH FOUND! Entering Arena...`;
-                  sound.playWin();
-  
-                  setTimeout(() => {
-                      this.queueModal.classList.add("hidden");
-                      this.launchArenaMatchWithLoading(matchType, weaponId);
-                  }, 800);
-              }
-          }, 800);
-  
-          // Cancel queue
-          const cancelBtn = document.getElementById("btn-cancel-queue");
-          if (cancelBtn) {
-              cancelBtn.onclick = () => {
-                  clearInterval(this.queueInterval);
-                  this.queueModal.classList.add("hidden");
-                  this.openArenaModal();
-              };
-          }
+          this.launchArenaMatchWithLoading(matchType, weaponId);
       }
   
       // ==========================================
@@ -7375,8 +7845,8 @@
               container.innerHTML = `
                   <div style="text-align:center; padding:28px 10px; color:var(--text-muted); font-size:13px; border:2px dashed #444; border-radius:4px; margin:10px 0;">
                       <div style="font-size:26px; margin-bottom:6px;">🛡️</div>
-                      <b style="color:#fff;">Verified Real Players Leaderboard</b><br>
-                      <span>All AI bots have been purged. Play Ranked Arena to climb and claim Rank #1!</span>
+                      <b style="color:#fff;">No ranked players on this device yet</b><br>
+                      <span>Play Ranked vs Bots in the Arena to earn RP. Only profiles that have played on this device appear here.</span>
                   </div>
               `;
               return;
@@ -7540,41 +8010,11 @@
           if (this.statsModal) this.statsModal.classList.add("hidden");
           if (this.pauseModal) this.pauseModal.classList.add("hidden");
   
-          const modal = this.matchmakingModal || document.getElementById("matchmaking-modal");
-          const statusText = document.getElementById("matchmaking-status-text");
-          const countSpan = document.getElementById("matchmaking-countdown");
-  
-          if (modal) modal.classList.remove("hidden");
-          if (statusText) statusText.textContent = "Searching regional servers for opponent...";
-  
-          let timeLeft = 2.5;
-          if (countSpan) countSpan.textContent = `${timeLeft.toFixed(1)}s`;
-  
-          if (this.matchmakingInterval) clearInterval(this.matchmakingInterval);
-  
-          this.matchmakingInterval = setInterval(() => {
-              timeLeft -= 0.1;
-              if (timeLeft <= 0) {
-                  clearInterval(this.matchmakingInterval);
-                  this.matchmakingInterval = null;
-                  if (modal) modal.classList.add("hidden");
-                  sound.playDoubleJump();
-                  if (this.game.isTeamMatch) {
-                      this.launchArenaMatchWithLoading(this.game.matchType, this.game.player.weaponId);
-                  } else {
-                      this.launchMatchWithLoading(this.game.mode);
-                  }
-              } else {
-                  if (countSpan) countSpan.textContent = `${timeLeft.toFixed(1)}s`;
-                  if (statusText) {
-                      if (timeLeft < 0.7) {
-                          statusText.textContent = "Opponent matched! Loading arena...";
-                      } else if (timeLeft < 1.6) {
-                          statusText.textContent = "Syncing network & combat physics...";
-                      }
-                  }
-              }
-          }, 100);
+          if (this.game.isTeamMatch) {
+              this.launchArenaMatchWithLoading(this.game.matchType, this.game.player.weaponId);
+          } else {
+              this.launchMatchWithLoading(this.game.mode);
+          }
       }
   
       cancelMatchmaking() {
@@ -8309,26 +8749,19 @@
               btn.addEventListener("mouseup", end);
           };
   
-          bindButton("touch-left", 
-              () => { this.game.keys["ArrowLeft"] = true; },
-              () => { this.game.keys["ArrowLeft"] = false; }
+          // A / D are Player 1's keys in every mode (arrows belong to Player 2 in local PvP)
+          bindButton("touch-left",
+              () => { this.game.keys["KeyA"] = true; },
+              () => { this.game.keys["KeyA"] = false; }
           );
-          bindButton("touch-right", 
-              () => { this.game.keys["ArrowRight"] = true; },
-              () => { this.game.keys["ArrowRight"] = false; }
+          bindButton("touch-right",
+              () => { this.game.keys["KeyD"] = true; },
+              () => { this.game.keys["KeyD"] = false; }
           );
-          bindButton("touch-jump", 
-              () => { this.game.player.jump(); },
-              () => {}
-          );
-          bindButton("touch-dash", 
-              () => { this.game.player.dash(null, true, null, this.game.arrowManager); },
-              () => {}
-          );
-          bindButton("touch-slam", 
-              () => { this.game.player.slam(); },
-              () => {}
-          );
+          bindButton("touch-jump", () => this.game.localAction("jump"), () => {});
+          bindButton("touch-dash", () => this.game.localAttack(), () => {});
+          bindButton("touch-slam", () => this.game.localAction("slam"), () => {});
+          bindButton("touch-swap", () => this.game.localAction("swap"), () => {});
       }
   
       detectTouchDevice() {
@@ -8525,7 +8958,7 @@
           return;
       }
   
-      applyMinecraftBackground();
+      applyMinecraftBackground("space");
   
       let ui = null;
   
