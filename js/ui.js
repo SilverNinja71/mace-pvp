@@ -1150,6 +1150,17 @@ export class UIManager {
         const leaderboardData = arena.getLeaderboard(user);
         container.innerHTML = "";
 
+        if (!leaderboardData || leaderboardData.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center; padding:28px 10px; color:var(--text-muted); font-size:13px; border:2px dashed #444; border-radius:4px; margin:10px 0;">
+                    <div style="font-size:26px; margin-bottom:6px;">🛡️</div>
+                    <b style="color:#fff;">Verified Real Players Leaderboard</b><br>
+                    <span>All AI bots have been purged. Play Ranked Arena to climb and claim Rank #1!</span>
+                </div>
+            `;
+            return;
+        }
+
         leaderboardData.forEach(entry => {
             const isUser = !!entry.isUser;
             const tierObj = ARENA_TIERS[entry.tier] || ARENA_TIERS.obsidian;
@@ -1158,22 +1169,22 @@ export class UIManager {
             row.className = `leaderboard-row ${isUser ? 'user-highlight' : ''} ${entry.rank <= 3 ? 'top-three' : ''}`;
 
             let rankBadge = `#${entry.rank}`;
-            if (entry.rank === 1) rankBadge = "#1";
-            else if (entry.rank === 2) rankBadge = "#2";
-            else if (entry.rank === 3) rankBadge = "#3";
+            if (entry.rank === 1) rankBadge = "👑 #1";
+            else if (entry.rank === 2) rankBadge = "🥈 #2";
+            else if (entry.rank === 3) rankBadge = "🥉 #3";
 
             row.innerHTML = `
                 <div class="lb-rank">${rankBadge}</div>
                 <div class="lb-player">
                     <span class="lb-flag">${headImgHTML(entry.skin || "steve", 22)}</span>
-                    <span class="lb-name">${entry.name}</span>
+                    <span class="lb-name">${entry.name} ${isUser ? '<span style="color:#55ff55; font-size:10px; margin-left:4px; font-weight:bold;">(YOU)</span>' : ''}</span>
                 </div>
                 <div class="lb-tier" style="color:${tierObj.color}">
                     <span>${tierPipHTML(tierObj)} ${tierObj.name}</span>
                 </div>
                 <div class="lb-rp"><b>${entry.rp}</b> RP</div>
                 <div class="lb-weapon">${WEAPON_TYPES[entry.weapon]?.name || entry.weapon}</div>
-                <div class="lb-winrate">${entry.winRate} Win</div>
+                <div class="lb-winrate">${entry.winRate || '0%'} Win</div>
             `;
             container.appendChild(row);
         });

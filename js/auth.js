@@ -120,10 +120,59 @@ export class AuthManager {
     saveUser() {
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(this.user));
+            this.syncRealPlayerToLeaderboard();
             this.notifyListeners();
         } catch (e) {
             console.error("Failed to save user profile:", e);
         }
+    }
+
+    syncRealPlayerToLeaderboard() {
+        if (!this.user || !this.user.username) return;
+        try {
+            const raw = localStorage.getItem("spear_mace_real_leaderboard");
+            let list = raw ? JSON.parse(raw) : [];
+            // Remove any bots
+            list = list.filter(p => p && !p.isBot && !(p.name && p.name.startsWith("[BOT]")));
+
+            const existingIdx = list.findIndex(p => 
+                (p.id && p.id === this.user.id) || 
+                (p.name && p.name.toLowerCase() === this.user.username.toLowerCase())
+            );
+
+            const userWins = this.user.stats?.wins || 0;
+            const matches = this.user.stats?.matches || 0;
+            const userWinRate = matches > 0 ? `${Math.round((userWins / matches) * 100)}%` : "0%";
+            const rp = this.user.arenaRP || 250;
+            let tierId = "bronze";
+            if (rp >= 2000) tierId = "obsidian";
+            else if (rp >= 1500) tierId = "diamond";
+            else if (rp >= 1000) tierId = "gold";
+            else if (rp >= 500) tierId = "silver";
+
+            const entry = {
+                id: this.user.id,
+                name: this.user.username,
+                rp: rp,
+                tier: tierId,
+                wins: userWins,
+                matches: matches,
+                winRate: userWinRate,
+                weapon: this.user.equippedWeapon || "mace",
+                skin: this.user.skinId || "steve",
+                isBot: false,
+                isUser: true,
+                updatedAt: Date.now()
+            };
+
+            if (existingIdx >= 0) {
+                list[existingIdx] = entry;
+            } else {
+                list.push(entry);
+            }
+
+            localStorage.setItem("spear_mace_real_leaderboard", JSON.stringify(list));
+        } catch (e) {}
     }
 
     onUserChanged(callback) {

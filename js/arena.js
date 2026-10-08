@@ -52,18 +52,8 @@ export const ARENA_TIERS = {
     }
 };
 
-export const NATIONAL_LEADERBOARD_SEED = [
-    { rank: 1, name: "xX_MaceGod_Xx", rp: 2840, tier: "obsidian", wins: 342, winRate: "89%", weapon: "mace", flag: "", skin: "steve" },
-    { rank: 2, name: "SkySniper_Pro", rp: 2715, tier: "obsidian", wins: 298, winRate: "84%", weapon: "bow", flag: "", skin: "alex" },
-    { rank: 3, name: "DiamondSlicer", rp: 2640, tier: "obsidian", wins: 285, winRate: "82%", weapon: "sword", flag: "", skin: "man_face" },
-    { rank: 4, name: "BreezeTitan", rp: 2580, tier: "obsidian", wins: 260, winRate: "80%", weapon: "spear", flag: "", skin: "steve" },
-    { rank: 5, name: "NoobDestroyer99", rp: 2490, tier: "obsidian", wins: 245, winRate: "79%", weapon: "fists", flag: "", skin: "noob" },
-    { rank: 6, name: "ApexSlammer", rp: 2410, tier: "obsidian", wins: 231, winRate: "77%", weapon: "mace", flag: "", skin: "creeper" },
-    { rank: 7, name: "EnderValkyrie", rp: 2350, tier: "obsidian", wins: 219, winRate: "76%", weapon: "spear", flag: "", skin: "enderman" },
-    { rank: 8, name: "NetherKnight", rp: 2280, tier: "obsidian", wins: 208, winRate: "75%", weapon: "sword", flag: "", skin: "steve" },
-    { rank: 9, name: "GravityGhost", rp: 2190, tier: "obsidian", wins: 195, winRate: "74%", weapon: "mace", flag: "", skin: "skeleton" },
-    { rank: 10, name: "BowLegend_Infinity", rp: 2120, tier: "obsidian", wins: 184, winRate: "73%", weapon: "bow", flag: "", skin: "alex" }
-];
+// National Leaderboard Seed: Completely empty to ensure ONLY real people are featured on the leaderboard
+export const NATIONAL_LEADERBOARD_SEED = [];
 
 export class ArenaManager {
     constructor() {
@@ -174,48 +164,74 @@ export class ArenaManager {
         return { redTeam, blueTeam, matchType };
     }
 
-    // Get national leaderboard with player inserted at their appropriate rank
+    // Get verified national leaderboard with ONLY real human players (zero bots)
     getLeaderboard(userProfile) {
-        const board = [...NATIONAL_LEADERBOARD_SEED];
-        const userRP = userProfile.arenaRP || 250;
-        const userTier = this.getTier(userRP);
-        const userWins = userProfile.stats?.wins || 0;
-        const matches = userProfile.stats?.matches || 0;
-        const userWinRate = matches > 0 ? `${Math.round((userWins / matches) * 100)}%` : "0%";
-
-        const playerEntry = {
-            rank: 999,
-            name: `${userProfile.username || 'You'} (YOU)`,
-            rp: userRP,
-            tier: userTier.id,
-            wins: userWins,
-            winRate: userWinRate,
-            weapon: userProfile.equippedWeapon || "mace",
-            flag: "",
-            skin: userProfile.skinId || "steve",
-            isUser: true
-        };
-
-        // Determine user rank based on RP
-        let inserted = false;
-        for (let i = 0; i < board.length; i++) {
-            if (userRP >= board[i].rp) {
-                board.splice(i, 0, playerEntry);
-                inserted = true;
-                break;
+        const REAL_LEADERBOARD_KEY = "spear_mace_real_leaderboard";
+        let board = [];
+        try {
+            const raw = localStorage.getItem(REAL_LEADERBOARD_KEY);
+            if (raw) {
+                board = JSON.parse(raw);
             }
+        } catch (e) {
+            board = [];
         }
 
-        if (!inserted) {
-            board.push(playerEntry);
+        // Strictly purge any bots from the leaderboard
+        board = board.filter(entry => entry && !entry.isBot && !(entry.name && entry.name.startsWith("[BOT]")));
+
+        // Upsert current active real player
+        if (userProfile && userProfile.username) {
+            const userRP = userProfile.arenaRP || 250;
+            const userTier = this.getTier(userRP);
+            const userWins = userProfile.stats?.wins || 0;
+            const matches = userProfile.stats?.matches || 0;
+            const userWinRate = matches > 0 ? `${Math.round((userWins / matches) * 100)}%` : "0%";
+
+            const existingIdx = board.findIndex(p => 
+                (p.id && p.id === userProfile.id) || 
+                (p.name && p.name.toLowerCase() === userProfile.username.toLowerCase())
+            );
+
+            const playerEntry = {
+                id: userProfile.id || "current_user",
+                name: userProfile.username || 'You',
+                rp: userRP,
+                tier: userTier.id,
+                wins: userWins,
+                matches: matches,
+                winRate: userWinRate,
+                weapon: userProfile.equippedWeapon || "mace",
+                flag: "",
+                skin: userProfile.skinId || "steve",
+                isUser: true,
+                isBot: false,
+                lastActive: Date.now()
+            };
+
+            if (existingIdx >= 0) {
+                board[existingIdx] = playerEntry;
+            } else {
+                board.push(playerEntry);
+            }
+
+            try {
+                localStorage.setItem(REAL_LEADERBOARD_KEY, JSON.stringify(board));
+            } catch (e) {}
         }
 
-        // Re-index ranks
-        board.forEach((entry, idx) => {
-            entry.rank = idx + 1;
+        // Sort descending by RP, then by wins
+        board.sort((a, b) => {
+            if (b.rp !== a.rp) return b.rp - a.rp;
+            return (b.wins || 0) - (a.wins || 0);
         });
 
-        return board;
+        // Re-index ranks
+        return board.map((entry, idx) => ({
+            ...entry,
+            rank: idx + 1,
+            isUser: entry.id === userProfile?.id || entry.name?.toLowerCase() === userProfile?.username?.toLowerCase()
+        }));
     }
 }
 
