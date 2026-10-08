@@ -3,6 +3,13 @@
 // Faithful to the original Khan Academy ProcessingJS game
 // ==========================================
 
+// Google Sign-In: paste your OAuth Client ID here (looks like
+// "1234567890-abc123.apps.googleusercontent.com"). Create one at
+// https://console.cloud.google.com/apis/credentials with your site
+// (e.g. https://silverninja71.github.io) as an Authorized JavaScript origin.
+// Leave empty to hide Google sign-in.
+export const GOOGLE_CLIENT_ID = "";
+
 export const ARENA_CONFIG = {
     width: 800,
     height: 400,

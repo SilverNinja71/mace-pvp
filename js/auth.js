@@ -1,3 +1,4 @@
+import { GOOGLE_CLIENT_ID } from './config.js';
 // ==========================================
 // SPEAR-MACE PVP - Authentication, Economy & Profile Manager
 // Handles Google Sign-In, Gold Currency, Minecraft Weapons Arsenal,
@@ -20,13 +21,13 @@ export const AVATAR_PRESETS = [
 export const BLOCK_FACES = [
     { id: "steve", name: "Minecraft Steve", icon: "", cost: 0, desc: "Classic Minecraft icon with cyan tee and brown hair." },
     { id: "alex", name: "Minecraft Alex", icon: "", cost: 0, desc: "Classic Minecraft explorer with green tunic and orange hair." },
-    { id: "noob", name: "Roblox Noob", icon: "", cost: 100, desc: "The iconic yellow block head with simple smile and blue torso." },
-    { id: "man_face", name: "Roblox Man Face", icon: "", cost: 200, desc: "The legendary, unmistakable smirking block face." },
-    { id: "creeper", name: "Creeper Face", icon: "", cost: 250, desc: "Pixelated green explosive face with iconic black frown." },
-    { id: "enderman", name: "Enderman", icon: "", cost: 300, desc: "Deep dark obsidian head with glowing mystical violet eyes." },
-    { id: "skeleton", name: "Skeleton Skull", icon: "", cost: 250, desc: "Bone white archer skull with hollow dark eyes." },
-    { id: "zombie", name: "Zombie", icon: "", cost: 200, desc: "Infected undead Steve with necrotic green skin." },
-    { id: "diamond_knight", name: "Diamond Helmet", icon: "", cost: 400, desc: "Gleaming enchanted diamond helmet warrior." }
+    { id: "noob", name: "Roblox Noob", icon: "", cost: 200, desc: "The iconic yellow block head with simple smile and blue torso." },
+    { id: "man_face", name: "Roblox Man Face", icon: "", cost: 400, desc: "The legendary, unmistakable smirking block face." },
+    { id: "creeper", name: "Creeper Face", icon: "", cost: 500, desc: "Pixelated green explosive face with iconic black frown." },
+    { id: "enderman", name: "Enderman", icon: "", cost: 600, desc: "Deep dark obsidian head with glowing mystical violet eyes." },
+    { id: "skeleton", name: "Skeleton Skull", icon: "", cost: 500, desc: "Bone white archer skull with hollow dark eyes." },
+    { id: "zombie", name: "Zombie", icon: "", cost: 400, desc: "Infected undead Steve with necrotic green skin." },
+    { id: "diamond_knight", name: "Diamond Helmet", icon: "", cost: 800, desc: "Gleaming enchanted diamond helmet warrior." }
 ];
 
 export const RANDOM_USERNAMES = [
@@ -50,7 +51,7 @@ export class AuthManager {
             if (data) {
                 const parsed = JSON.parse(data);
                 // Schema backfills
-                if (parsed.gold === undefined) parsed.gold = 500;
+                if (parsed.gold === undefined) parsed.gold = 300;
                 if (!parsed.equippedWeapon) parsed.equippedWeapon = "mace";
                 if (!parsed.unlockedWeapons) parsed.unlockedWeapons = ["mace", "spear"];
                 if (!parsed.weaponUpgrades) parsed.weaponUpgrades = {};
@@ -87,7 +88,7 @@ export class AuthManager {
             authProvider: "guest", // "guest" | "google"
             level: 1,
             xp: 0,
-            gold: 500, // 500 starter gold
+            gold: 300, // 300 starter gold
             equippedWeapon: "mace",
             unlockedWeapons: ["mace", "spear"],
             weaponUpgrades: {},
@@ -303,20 +304,51 @@ export class AuthManager {
     // GOOGLE IDENTITY SERVICES
     // ==========================================
 
+    isGoogleConfigured() {
+        return !!GOOGLE_CLIENT_ID;
+    }
+
+    // The Google script loads asynchronously; wait for it, then initialize once
     initGoogleClient() {
-        if (typeof window !== "undefined" && window.google && window.google.accounts) {
-            try {
-                const clientId = window.GOOGLE_CLIENT_ID || null;
-                if (clientId) {
+        this.googleReady = false;
+        this.googleReadyCallbacks = [];
+        if (!this.isGoogleConfigured() || typeof window === "undefined") return;
+
+        let tries = 0;
+        const tryInit = () => {
+            if (window.google && window.google.accounts && window.google.accounts.id) {
+                try {
                     window.google.accounts.id.initialize({
-                        client_id: clientId,
-                        callback: (response) => this.handleGoogleCredentialResponse(response)
+                        client_id: GOOGLE_CLIENT_ID,
+                        callback: (response) => this.handleGoogleCredentialResponse(response),
+                        auto_select: false
                     });
+                    this.googleReady = true;
+                    this.googleReadyCallbacks.forEach(cb => cb());
+                    this.googleReadyCallbacks = [];
+                } catch (e) {
+                    console.warn("Google Identity Services initialization warning:", e);
                 }
-            } catch (e) {
-                console.warn("Google Identity Services initialization warning:", e);
+                return;
             }
-        }
+            if (++tries < 100) setTimeout(tryInit, 100); // give up after ~10s (offline / blocked)
+        };
+        tryInit();
+    }
+
+    // Draws Google's official "Sign in with Google" button into the element
+    renderGoogleButton(el) {
+        const draw = () => {
+            el.innerHTML = "";
+            window.google.accounts.id.renderButton(el, {
+                theme: "filled_black",
+                size: "large",
+                text: "signin_with",
+                shape: "rectangular"
+            });
+        };
+        if (this.googleReady) draw();
+        else this.googleReadyCallbacks.push(draw);
     }
 
     parseJwt(token) {
@@ -343,6 +375,7 @@ export class AuthManager {
             name: payload.name || payload.given_name || "Google Player",
             picture: payload.picture
         });
+        if (this.onGoogleSignIn) this.onGoogleSignIn();
     }
 
     signInWithGoogleData({ id, email, name, picture }) {
@@ -365,6 +398,9 @@ export class AuthManager {
     }
 
     signOut() {
+        if (typeof window !== "undefined" && window.google && window.google.accounts && window.google.accounts.id) {
+            try { window.google.accounts.id.disableAutoSelect(); } catch (e) { /* not initialized */ }
+        }
         this.user.email = null;
         this.user.authProvider = "guest";
         this.user.avatarType = "preset";

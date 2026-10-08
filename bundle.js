@@ -7,6 +7,13 @@
   // Faithful to the original Khan Academy ProcessingJS game
   // ==========================================
   
+  // Google Sign-In: paste your OAuth Client ID here (looks like
+  // "1234567890-abc123.apps.googleusercontent.com"). Create one at
+  // https://console.cloud.google.com/apis/credentials with your site
+  // (e.g. https://silverninja71.github.io) as an Authorized JavaScript origin.
+  // Leave empty to hide Google sign-in.
+  const GOOGLE_CLIENT_ID = "";
+  
   const ARENA_CONFIG = {
       width: 800,
       height: 400,
@@ -928,7 +935,7 @@
                   name: "Density V",
                   desc: "Increases slam damage multiplier from greater heights.",
                   maxLevel: 5,
-                  costPerLevel: 150,
+                  costPerLevel: 300,
                   apply: (stats, lvl) => { stats.slamPower += lvl * 0.15; stats.slamMaxDmg += lvl * 15; }
               },
               {
@@ -936,7 +943,7 @@
                   name: "Wind Burst III",
                   desc: "Launches you significantly higher into the air after landing a hit.",
                   maxLevel: 3,
-                  costPerLevel: 200,
+                  costPerLevel: 400,
                   apply: (stats, lvl) => { stats.hitLaunch -= lvl * 1.8; }
               },
               {
@@ -944,7 +951,7 @@
                   name: "Breach IV",
                   desc: "Ignores a portion of opponent damage reduction and armor.",
                   maxLevel: 4,
-                  costPerLevel: 180,
+                  costPerLevel: 360,
                   apply: (stats, lvl) => { stats.breachArmor = lvl * 0.1; }
               }
           ]
@@ -956,7 +963,7 @@
           icon: "",
           category: "Wind Charge",
           desc: "Super-fast wind dashes on ground and air. Pierces through incoming attacks.",
-          baseCost: 200,
+          baseCost: 400,
           unlockedByDefault: true,
           stats: {
               damage: 20,
@@ -975,7 +982,7 @@
                   name: "Impaling V",
                   desc: "Increases spear dash strike damage.",
                   maxLevel: 5,
-                  costPerLevel: 140,
+                  costPerLevel: 280,
                   apply: (stats, lvl) => { stats.dashDamage += lvl * 4; }
               },
               {
@@ -983,7 +990,7 @@
                   name: "Piercing IV",
                   desc: "Increases dash velocity and distance.",
                   maxLevel: 4,
-                  costPerLevel: 175,
+                  costPerLevel: 350,
                   apply: (stats, lvl) => { stats.dashSpeed += lvl * 2; stats.dashDistance += lvl * 1; }
               },
               {
@@ -991,7 +998,7 @@
                   name: "Breeze Agility",
                   desc: "Reduces dash cooldown time.",
                   maxLevel: 3,
-                  costPerLevel: 220,
+                  costPerLevel: 440,
                   apply: (stats, lvl) => { stats.attackCooldown -= lvl * 5; }
               }
           ]
@@ -1003,7 +1010,7 @@
           icon: "",
           category: "Blade Slice",
           desc: "Shorter, precision dash slice that deals massive swift slash damage.",
-          baseCost: 350,
+          baseCost: 700,
           unlockedByDefault: false,
           stats: {
               damage: 32,
@@ -1022,7 +1029,7 @@
                   name: "Sharpness V",
                   desc: "Significantly enhances blade slice damage.",
                   maxLevel: 5,
-                  costPerLevel: 180,
+                  costPerLevel: 360,
                   apply: (stats, lvl) => { stats.dashDamage += lvl * 6; stats.damage += lvl * 5; }
               },
               {
@@ -1030,7 +1037,7 @@
                   name: "Knockback II",
                   desc: "Sends enemies flying further across the arena.",
                   maxLevel: 3,
-                  costPerLevel: 160,
+                  costPerLevel: 320,
                   apply: (stats, lvl) => { stats.knockbackMult = 1.0 + lvl * 0.35; }
               },
               {
@@ -1038,7 +1045,7 @@
                   name: "Sweeping Edge III",
                   desc: "Widens the horizontal hit area of your blade slice.",
                   maxLevel: 3,
-                  costPerLevel: 210,
+                  costPerLevel: 420,
                   apply: (stats, lvl) => { stats.range += lvl * 8; }
               }
           ]
@@ -1050,7 +1057,7 @@
           icon: "",
           category: "Martial Brawl",
           desc: "Pure close-quarters Steve punches! Does brutal damage in hand-to-hand combat.",
-          baseCost: 150,
+          baseCost: 300,
           unlockedByDefault: false,
           stats: {
               damage: 42,
@@ -1069,7 +1076,7 @@
                   name: "Strength II",
                   desc: "Potion of Strength power! Heavily boosts fist impact damage.",
                   maxLevel: 5,
-                  costPerLevel: 160,
+                  costPerLevel: 320,
                   apply: (stats, lvl) => { stats.dashDamage += lvl * 7; stats.damage += lvl * 6; }
               },
               {
@@ -1077,7 +1084,7 @@
                   name: "Haste Beacon",
                   desc: "Reduces attack cooldown for rapid-fire punch barrages.",
                   maxLevel: 4,
-                  costPerLevel: 180,
+                  costPerLevel: 360,
                   apply: (stats, lvl) => { stats.attackCooldown -= lvl * 3; }
               },
               {
@@ -1085,7 +1092,7 @@
                   name: "Heavy Fist Impact",
                   desc: "Increases stun duration dealt to struck opponents.",
                   maxLevel: 3,
-                  costPerLevel: 200,
+                  costPerLevel: 400,
                   apply: (stats, lvl) => { stats.stunBonus = lvl * 8; }
               }
           ]
@@ -1097,7 +1104,7 @@
           icon: "",
           category: "Ranged Marksman",
           desc: "Fires deadly arrows from afar. Dash key shoots arrows with a reload cooldown.",
-          baseCost: 500,
+          baseCost: 1000,
           unlockedByDefault: false,
           stats: {
               damage: 18,
@@ -1119,7 +1126,7 @@
                   name: "Power V",
                   desc: "Greatly increases arrow projectile damage.",
                   maxLevel: 5,
-                  costPerLevel: 200,
+                  costPerLevel: 400,
                   apply: (stats, lvl) => { stats.arrowDamage += lvl * 7; }
               },
               {
@@ -1127,7 +1134,7 @@
                   name: "Infinity / Quick Charge",
                   desc: "Dramatically reduces bow reload time between shots.",
                   maxLevel: 4,
-                  costPerLevel: 220,
+                  costPerLevel: 440,
                   apply: (stats, lvl) => { stats.reloadTime = Math.max(18, stats.reloadTime - lvl * 7); }
               },
               {
@@ -1135,7 +1142,7 @@
                   name: "Punch II",
                   desc: "Adds strong knockback to arrows.",
                   maxLevel: 3,
-                  costPerLevel: 180,
+                  costPerLevel: 360,
                   apply: (stats, lvl) => { stats.arrowKnockback = 1.0 + lvl * 0.4; }
               }
           ]
@@ -1561,13 +1568,13 @@
   const BLOCK_FACES = [
       { id: "steve", name: "Minecraft Steve", icon: "", cost: 0, desc: "Classic Minecraft icon with cyan tee and brown hair." },
       { id: "alex", name: "Minecraft Alex", icon: "", cost: 0, desc: "Classic Minecraft explorer with green tunic and orange hair." },
-      { id: "noob", name: "Roblox Noob", icon: "", cost: 100, desc: "The iconic yellow block head with simple smile and blue torso." },
-      { id: "man_face", name: "Roblox Man Face", icon: "", cost: 200, desc: "The legendary, unmistakable smirking block face." },
-      { id: "creeper", name: "Creeper Face", icon: "", cost: 250, desc: "Pixelated green explosive face with iconic black frown." },
-      { id: "enderman", name: "Enderman", icon: "", cost: 300, desc: "Deep dark obsidian head with glowing mystical violet eyes." },
-      { id: "skeleton", name: "Skeleton Skull", icon: "", cost: 250, desc: "Bone white archer skull with hollow dark eyes." },
-      { id: "zombie", name: "Zombie", icon: "", cost: 200, desc: "Infected undead Steve with necrotic green skin." },
-      { id: "diamond_knight", name: "Diamond Helmet", icon: "", cost: 400, desc: "Gleaming enchanted diamond helmet warrior." }
+      { id: "noob", name: "Roblox Noob", icon: "", cost: 200, desc: "The iconic yellow block head with simple smile and blue torso." },
+      { id: "man_face", name: "Roblox Man Face", icon: "", cost: 400, desc: "The legendary, unmistakable smirking block face." },
+      { id: "creeper", name: "Creeper Face", icon: "", cost: 500, desc: "Pixelated green explosive face with iconic black frown." },
+      { id: "enderman", name: "Enderman", icon: "", cost: 600, desc: "Deep dark obsidian head with glowing mystical violet eyes." },
+      { id: "skeleton", name: "Skeleton Skull", icon: "", cost: 500, desc: "Bone white archer skull with hollow dark eyes." },
+      { id: "zombie", name: "Zombie", icon: "", cost: 400, desc: "Infected undead Steve with necrotic green skin." },
+      { id: "diamond_knight", name: "Diamond Helmet", icon: "", cost: 800, desc: "Gleaming enchanted diamond helmet warrior." }
   ];
   
   const RANDOM_USERNAMES = [
@@ -1591,7 +1598,7 @@
               if (data) {
                   const parsed = JSON.parse(data);
                   // Schema backfills
-                  if (parsed.gold === undefined) parsed.gold = 500;
+                  if (parsed.gold === undefined) parsed.gold = 300;
                   if (!parsed.equippedWeapon) parsed.equippedWeapon = "mace";
                   if (!parsed.unlockedWeapons) parsed.unlockedWeapons = ["mace", "spear"];
                   if (!parsed.weaponUpgrades) parsed.weaponUpgrades = {};
@@ -1628,7 +1635,7 @@
               authProvider: "guest", // "guest" | "google"
               level: 1,
               xp: 0,
-              gold: 500, // 500 starter gold
+              gold: 300, // 300 starter gold
               equippedWeapon: "mace",
               unlockedWeapons: ["mace", "spear"],
               weaponUpgrades: {},
@@ -1844,20 +1851,51 @@
       // GOOGLE IDENTITY SERVICES
       // ==========================================
   
+      isGoogleConfigured() {
+          return !!GOOGLE_CLIENT_ID;
+      }
+  
+      // The Google script loads asynchronously; wait for it, then initialize once
       initGoogleClient() {
-          if (typeof window !== "undefined" && window.google && window.google.accounts) {
-              try {
-                  const clientId = window.GOOGLE_CLIENT_ID || null;
-                  if (clientId) {
+          this.googleReady = false;
+          this.googleReadyCallbacks = [];
+          if (!this.isGoogleConfigured() || typeof window === "undefined") return;
+  
+          let tries = 0;
+          const tryInit = () => {
+              if (window.google && window.google.accounts && window.google.accounts.id) {
+                  try {
                       window.google.accounts.id.initialize({
-                          client_id: clientId,
-                          callback: (response) => this.handleGoogleCredentialResponse(response)
+                          client_id: GOOGLE_CLIENT_ID,
+                          callback: (response) => this.handleGoogleCredentialResponse(response),
+                          auto_select: false
                       });
+                      this.googleReady = true;
+                      this.googleReadyCallbacks.forEach(cb => cb());
+                      this.googleReadyCallbacks = [];
+                  } catch (e) {
+                      console.warn("Google Identity Services initialization warning:", e);
                   }
-              } catch (e) {
-                  console.warn("Google Identity Services initialization warning:", e);
+                  return;
               }
-          }
+              if (++tries < 100) setTimeout(tryInit, 100); // give up after ~10s (offline / blocked)
+          };
+          tryInit();
+      }
+  
+      // Draws Google's official "Sign in with Google" button into the element
+      renderGoogleButton(el) {
+          const draw = () => {
+              el.innerHTML = "";
+              window.google.accounts.id.renderButton(el, {
+                  theme: "filled_black",
+                  size: "large",
+                  text: "signin_with",
+                  shape: "rectangular"
+              });
+          };
+          if (this.googleReady) draw();
+          else this.googleReadyCallbacks.push(draw);
       }
   
       parseJwt(token) {
@@ -1884,6 +1922,7 @@
               name: payload.name || payload.given_name || "Google Player",
               picture: payload.picture
           });
+          if (this.onGoogleSignIn) this.onGoogleSignIn();
       }
   
       signInWithGoogleData({ id, email, name, picture }) {
@@ -1906,6 +1945,9 @@
       }
   
       signOut() {
+          if (typeof window !== "undefined" && window.google && window.google.accounts && window.google.accounts.id) {
+              try { window.google.accounts.id.disableAutoSelect(); } catch (e) { /* not initialized */ }
+          }
           this.user.email = null;
           this.user.authProvider = "guest";
           this.user.avatarType = "preset";
@@ -6006,6 +6048,12 @@
       // ==========================================
   
       setupAuthUI() {
+          // Refresh the profile screen after Google's sign-in popup finishes
+          auth.onGoogleSignIn = () => {
+              sound.playClick();
+              if (this.authModal && !this.authModal.classList.contains("hidden")) this.renderAuthModalContent();
+          };
+  
           auth.onUserChanged((user) => {
               this.updateHeaderProfileBadge(user);
               if (this.goldDisplay) {
@@ -6092,21 +6140,17 @@
                       this.renderAuthModalContent();
                   });
               } else {
-                  googleSection.innerHTML = `
-                      <button id="btn-google-signin" class="btn-google-signin">
-                          <svg class="google-icon" viewBox="0 0 24 24" width="18" height="18">
-                              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                          </svg>
-                          <span>Sign in with Google</span>
-                      </button>
-                      <p class="google-disclaimer">Link your Google account to sync your profile across devices.</p>
-                  `;
-                  document.getElementById("btn-google-signin")?.addEventListener("click", () => {
-                      this.triggerGoogleSignInFlow();
-                  });
+                  if (auth.isGoogleConfigured()) {
+                      googleSection.innerHTML = `
+                          <div id="google-signin-button" class="google-signin-button">Loading Google sign-in...</div>
+                          <p class="google-disclaimer">Sign in with your Google account. Your progress is saved in this browser.</p>
+                      `;
+                      auth.renderGoogleButton(document.getElementById("google-signin-button"));
+                  } else {
+                      googleSection.innerHTML = `
+                          <p class="google-disclaimer">Google sign-in isn't set up yet.</p>
+                      `;
+                  }
               }
           }
   
@@ -6206,77 +6250,6 @@
                       </div>
                   </div>
               `;
-          }
-      }
-  
-      triggerGoogleSignInFlow() {
-          sound.playClick();
-          if (window.google && window.google.accounts && window.GOOGLE_CLIENT_ID) {
-              try {
-                  window.google.accounts.id.prompt();
-                  return;
-              } catch (e) {
-                  console.warn("GIS prompt fallback:", e);
-              }
-          }
-  
-          const googleMockModal = document.getElementById("google-mock-modal");
-          if (googleMockModal) {
-              googleMockModal.classList.remove("hidden");
-              this.setupGoogleMockOptions();
-          }
-      }
-  
-      setupGoogleMockOptions() {
-          const demoAccounts = [
-              { name: "Steve Gamer", email: "steve.craft@gmail.com", avatar: "https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=100&auto=format&fit=crop&q=80" },
-              { name: "Alex Champion", email: "alex.aerial@gmail.com", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" }
-          ];
-  
-          const container = document.getElementById("google-account-list");
-          if (!container) return;
-  
-          container.innerHTML = "";
-          demoAccounts.forEach((acc) => {
-              const item = document.createElement("div");
-              item.className = "google-acc-row";
-              item.innerHTML = `
-                  <img src="${acc.avatar}" alt="${acc.name}" class="google-acc-img">
-                  <div class="google-acc-text">
-                      <div class="google-acc-name">${acc.name}</div>
-                      <div class="google-acc-email">${acc.email}</div>
-                  </div>
-              `;
-              item.addEventListener("click", () => {
-                  auth.signInWithGoogleData({
-                      id: Math.floor(Math.random() * 1000000).toString(),
-                      name: acc.name,
-                      email: acc.email,
-                      picture: acc.avatar
-                  });
-                  document.getElementById("google-mock-modal")?.classList.add("hidden");
-                  sound.playClick();
-                  this.renderAuthModalContent();
-              });
-              container.appendChild(item);
-          });
-  
-          const customBtn = document.getElementById("btn-custom-google-signin");
-          const customInput = document.getElementById("input-custom-google-email");
-          if (customBtn && customInput) {
-              customBtn.onclick = () => {
-                  const email = customInput.value.trim() || "player@gmail.com";
-                  const handle = email.split("@")[0] || "GooglePlayer";
-                  auth.signInWithGoogleData({
-                      id: Math.floor(Math.random() * 1000000).toString(),
-                      name: handle,
-                      email: email,
-                      picture: null
-                  });
-                  document.getElementById("google-mock-modal")?.classList.add("hidden");
-                  sound.playClick();
-                  this.renderAuthModalContent();
-              };
           }
       }
   
