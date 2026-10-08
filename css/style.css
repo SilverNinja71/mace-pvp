@@ -3057,3 +3057,46 @@ input, textarea, .selectable {
 }
 
 .loadout-hint b { color: #fff; font-weight: normal; }
+
+/* Touch controls: six buttons must fit a phone screen */
+@media (max-width: 520px) {
+    .touch-controls { padding: 0 4px; }
+    .touch-cluster { gap: 6px; }
+    .touch-btn { width: 52px; height: 52px; font-size: 15px; }
+}
+
+/* Online 2v2 lobby */
+.online-lobby {
+    margin-bottom: 8px;
+}
+
+.online-lobby.hidden { display: none; }
+
+.online-lobby-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.lobby-team {
+    background: rgba(0, 0, 0, 0.35);
+    border: 2px solid #000;
+    border-top: 5px solid #2f86ff;
+    padding: 4px 8px;
+}
+
+.lobby-team.lobby-red { border-top-color: #ff4757; }
+
+.lobby-team-name {
+    font-size: 16px;
+    color: var(--text-muted);
+}
+
+.lobby-team ul {
+    list-style: none;
+    font-size: 18px;
+    color: #fff;
+}
+
+.lobby-team .lobby-bot { color: #888; }

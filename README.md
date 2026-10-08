@@ -144,7 +144,7 @@ Enter the **🏟️ Arena Hub** for multi-fighter aerial combat:
   - **5 v 5 Epic Brawl**: 10-fighter massive team chaos!
 - **Matchmaking & Private Rooms**:
   - **Public Quick Match**: Click *Find Match* to enter the matchmaking queue with live radar search and player counter.
-  - **Play a Friend Online (1v1)**: Create a room and send the invite link (or code, e.g. `MACE-XK92-481`). Your friend opens the link and clicks Join, and your browsers connect directly peer-to-peer (WebRTC via [PeerJS](https://peerjs.com)). No server to run; needs an internet connection.
+  - **Play Friends Online (1v1 or 2v2)**: Pick 1v1 or 2v2, create a room and send the invite link. In 2v2, up to 3 friends join and empty spots become bots; if someone leaves mid-match a bot takes over (or code, e.g. `MACE-XK92-481`). Your friend opens the link and clicks Join, and your browsers connect directly peer-to-peer (WebRTC via [PeerJS](https://peerjs.com)). No server to run; needs an internet connection.
 - **Loadout Selection**: Choose your equipped weapon before deploying into battle.
 
 ---

@@ -48,48 +48,41 @@ export class Renderer {
         const biome = this.biome || "overworld";
 
         if (biome === "nether") {
-            // Nether: Deep crimson-orange fog and netherrack peaks
-            ctx.fillStyle = "#330808";
-            ctx.fillRect(0, 0, this.width, this.height);
+            if (!this.netherLayer) this.netherLayer = this.buildNetherLayer();
+            ctx.drawImage(this.netherLayer, 0, 0, this.width, this.height);
 
-            // Lava river glow at horizon
-            ctx.fillStyle = "#cf4417";
-            ctx.fillRect(0, 310, this.width, this.height - 310);
-
-            // Netherrack pillars & jagged stalagmites (capped at platform floor level y = 390)
-            ctx.fillStyle = "#5c1818";
-            const pillars = [[0, 260], [100, 220], [220, 270], [340, 230], [460, 280], [580, 210], [700, 250]];
-            for (const [px, py] of pillars) {
-                ctx.fillRect(px, py, 90, 390 - py);
+            // Lava surface shimmer (moving bright pixels)
+            ctx.fillStyle = "#ffb43a";
+            for (let i = 0; i < 24; i++) {
+                const lx = (i * 37 + this.frameCount * (0.3 + (i % 3) * 0.15)) % this.width;
+                ctx.fillRect(Math.round(lx), 352 + (i % 4) * 8, 6, 2);
             }
-
-            // Floating ash particles
-            ctx.fillStyle = "#ff7b25";
-            for (let i = 0; i < 15; i++) {
-                const ax = (Math.sin(this.frameCount * 0.02 + i * 1.5) * 400 + 400 + i * 27) % this.width;
-                const ay = (this.frameCount * 0.4 + i * 31) % 360;
-                ctx.fillRect(ax, ay, 3, 3);
+            // Rising embers
+            for (let i = 0; i < 18; i++) {
+                const ax = (i * 47 + Math.sin(this.frameCount * 0.02 + i) * 20 + this.width) % this.width;
+                const ay = 380 - ((this.frameCount * (0.35 + (i % 4) * 0.1) + i * 53) % 380);
+                ctx.fillStyle = i % 3 ? "#ff7b25" : "#ffd36b";
+                ctx.fillRect(Math.round(ax), Math.round(ay), 2, 2);
             }
         } else if (biome === "end") {
-            // The End: Void darkness with obsidian pillars
-            ctx.fillStyle = "#0c0714";
-            ctx.fillRect(0, 0, this.width, this.height);
+            if (!this.endLayer) this.endLayer = this.buildEndLayer();
+            ctx.drawImage(this.endLayer, 0, 0, this.width, this.height);
 
-            // Distant purple void clouds
-            ctx.fillStyle = "#221338";
-            ctx.fillRect(0, 280, this.width, this.height - 280);
-
-            // Tall Obsidian Spikes (stop cleanly at main floor y = 390)
-            ctx.fillStyle = "#15151e";
-            ctx.fillRect(80, 140, 50, 250);
-            ctx.fillRect(320, 90, 60, 300);
-            ctx.fillRect(600, 160, 55, 230);
-
-            // Ender crystal glow at top of middle pillar
-            const glow = (Math.sin(this.frameCount * 0.1) > 0) ? "#e066ff" : "#b030d0";
-            ctx.fillStyle = glow;
-            ctx.fillRect(342, 75, 16, 15);
-        } else {
+            // Twinkling stars
+            for (let i = 0; i < 40; i++) {
+                if ((Math.floor(this.frameCount / 20) + i) % 5 === 0) continue;
+                ctx.fillStyle = i % 4 ? "#d8c8ff" : "#ffffff";
+                ctx.fillRect((i * 97) % this.width, (i * 53) % 200, 2, 2);
+            }
+            // End crystals pulsing on the obsidian pillars
+            const pulse = Math.sin(this.frameCount * 0.08) > 0;
+            for (const [cx, cy] of [[112, 128], [345, 78], [628, 148]]) {
+                ctx.fillStyle = pulse ? "#ff8cff" : "#c04ad8";
+                ctx.fillRect(cx - 7, cy - 7, 14, 14);
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(cx - 2, cy - 2, 4, 4);
+            }
+                } else {
             // Overworld: static layers are painted once and cached
             if (!this.overworldLayer) this.overworldLayer = this.buildOverworldLayer();
             ctx.drawImage(this.overworldLayer, 0, 0, this.width, this.height);
@@ -108,6 +101,88 @@ export class Renderer {
                 ctx.fillRect(cx, cy + 16, cloud.w, 6);
             }
         }
+    }
+
+    // Nether backdrop: crimson cave ceiling, glowstone, netherrack cliffs, lava sea
+    buildNetherLayer() {
+        const c = document.createElement("canvas");
+        c.width = this.width;
+        c.height = this.height;
+        const g = c.getContext("2d");
+        const W = this.width;
+        const ground = ARENA_CONFIG.groundY;
+
+        const bands = ["#2a0606", "#350909", "#410c0b", "#4f110e", "#5f1711", "#712015"];
+        const bandH = Math.ceil(ground / bands.length);
+        bands.forEach((col, i) => { g.fillStyle = col; g.fillRect(0, i * bandH, W, bandH + 1); });
+
+        // Jagged cave ceiling with hanging netherrack
+        g.fillStyle = "#3b0b0b";
+        for (let x = 0; x < W; x += 8) {
+            const h = 24 + Math.round((Math.sin(x * 0.02) * 14 + Math.sin(x * 0.07 + 2) * 8) / 8) * 8;
+            g.fillRect(x, 0, 8, h);
+        }
+        // Glowstone clusters on the ceiling
+        for (const [gx, gy] of [[90, 30], [300, 22], [520, 34], [700, 26]]) {
+            g.fillStyle = "#c79a3c"; g.fillRect(gx, gy, 24, 16);
+            g.fillStyle = "#ffe08a"; g.fillRect(gx + 4, gy + 4, 8, 6); g.fillRect(gx + 14, gy + 8, 6, 5);
+        }
+        // Far cliffs
+        g.fillStyle = "#5a1414";
+        for (let x = 0; x < W; x += 8) {
+            const h = 210 + Math.round((Math.sin(x * 0.013 + 1) * 30 + Math.sin(x * 0.041) * 12) / 8) * 8;
+            g.fillRect(x, h, 8, ground - h);
+        }
+        // Near cliffs with crimson nylium tops
+        g.fillStyle = "#7a1e1e";
+        for (let x = 0; x < W; x += 8) {
+            const h = 270 + Math.round((Math.sin(x * 0.019 + 3) * 22 + Math.sin(x * 0.05) * 8) / 8) * 8;
+            g.fillRect(x, h, 8, ground - h);
+            g.fillStyle = "#b02a3e"; g.fillRect(x, h, 8, 3); g.fillStyle = "#7a1e1e";
+        }
+        // Lava sea in front of the cliffs
+        g.fillStyle = "#e05a12";
+        g.fillRect(0, 346, W, ground - 346);
+        g.fillStyle = "#f58a1f";
+        g.fillRect(0, 346, W, 4);
+        // Lavafalls pouring from the cliffs
+        for (const lx of [160, 430, 690]) {
+            g.fillStyle = "#e86a14"; g.fillRect(lx, 230, 10, 120);
+            g.fillStyle = "#ffb43a"; g.fillRect(lx + 3, 230, 3, 120);
+        }
+        return c;
+    }
+
+    // End backdrop: void sky, distant end islands, obsidian pillars
+    buildEndLayer() {
+        const c = document.createElement("canvas");
+        c.width = this.width;
+        c.height = this.height;
+        const g = c.getContext("2d");
+        const W = this.width;
+        const ground = ARENA_CONFIG.groundY;
+
+        const bands = ["#07040d", "#0b0614", "#10081c", "#160b25", "#1d0f30", "#24133b"];
+        const bandH = Math.ceil(ground / bands.length);
+        bands.forEach((col, i) => { g.fillStyle = col; g.fillRect(0, i * bandH, W, bandH + 1); });
+
+        // Distant floating end islands
+        for (const [ix, iy, iw] of [[40, 230, 120], [520, 200, 150], [300, 260, 90], [690, 250, 90]]) {
+            g.fillStyle = "#a9a46e"; g.fillRect(ix, iy, iw, 10);
+            g.fillStyle = "#8a8550"; g.fillRect(ix + 8, iy + 10, iw - 16, 8); g.fillRect(ix + 20, iy + 18, iw - 40, 6);
+        }
+        // Obsidian pillars with iron-bar cages at the top
+        for (const [px, py, pw] of [[90, 140, 44], [320, 90, 50], [605, 160, 46]]) {
+            g.fillStyle = "#15111f"; g.fillRect(px, py, pw, ground - py);
+            g.fillStyle = "#231b33";
+            for (let y = py + 6; y < ground; y += 16) g.fillRect(px + 4, y, pw - 8, 2);
+            g.fillStyle = "#3a3346"; g.fillRect(px + pw / 2 - 1, py - 18, 2, 18);
+            g.fillRect(px + 4, py - 18, 2, 18); g.fillRect(px + pw - 6, py - 18, 2, 18);
+        }
+        // Void haze near the floor
+        g.fillStyle = "#2c1748";
+        g.fillRect(0, 352, W, ground - 352);
+        return c;
     }
 
     // Paints the Overworld backdrop (sky bands, sun, mountains, hills, trees) to an offscreen canvas
@@ -935,6 +1010,9 @@ export class Renderer {
         ctx.fillStyle = "#ffffff";
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 3;
+        ctx.strokeText("Q: swap", x0 + 2 * (size + 4) + 4, y0 + size / 2);
         ctx.fillText("Q: swap", x0 + 2 * (size + 4) + 4, y0 + size / 2);
         ctx.restore();
     }

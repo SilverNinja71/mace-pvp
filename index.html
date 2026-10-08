@@ -20,7 +20,6 @@
         <nav class="header-nav" aria-label="Main">
             <button id="btn-inventory" class="btn-ctrl" title="Weapons, Enchanting & Skins (I)">Inventory</button>
             <button id="btn-leaderboard" class="btn-ctrl" title="Ranked Leaderboard">Ranked</button>
-            <button id="btn-social" class="btn-ctrl" title="Friends, Mailbox & Account Restrictions">Social</button>
         </nav>
         <div class="header-top-right">
             <!-- Gold Currency Balance -->
@@ -278,13 +277,13 @@
                     <h3 class="auth-sec-title">3. Deploy</h3>
                     <div class="arena-actions-split">
                         <div class="action-box">
-                            <h4>Public Matchmaking</h4>
-                            <p>Queue up and enter live arena matches against ranked fighters.</p>
-                            <button id="btn-arena-find-match" class="btn-submit-arena">Find Match / Queue</button>
+                            <h4>Ranked vs Bots</h4>
+                            <p>Jump straight into an arena match against computer fighters and earn RP.</p>
+                            <button id="btn-arena-find-match" class="btn-submit-arena">Quick Match vs Bots</button>
                         </div>
                         <div class="action-box">
                             <h4>Play a Friend Online</h4>
-                            <p>1v1 over the internet. Create a room and send your friend the link.</p>
+                            <p>1v1 or 2v2 over the internet (pick the size above). Create a room and send the link.</p>
                             <div class="private-controls-row">
                                 <button id="btn-host-private" class="btn-ctrl">Create Room Code</button>
                             </div>
@@ -297,6 +296,10 @@
                                 <div id="copy-link-status" class="copy-link-status" aria-live="polite"></div>
                             </div>
                             <div id="online-status" class="online-status" aria-live="polite"></div>
+                            <div id="online-lobby" class="online-lobby hidden">
+                                <div id="online-lobby-list" class="online-lobby-list"></div>
+                                <button id="btn-online-start" class="btn-submit-arena hidden">Start Match</button>
+                            </div>
                             <div class="join-private-row">
                                 <input type="text" id="input-join-code" class="auth-input" placeholder="Paste Room Code or Link">
                                 <button id="btn-join-private" class="btn-ctrl btn-save-name">Join</button>
@@ -307,26 +310,11 @@
             </div>
         </div>
 
-        <!-- Matchmaking Queue Overlay -->
-        <div id="queue-modal" class="modal-backdrop hidden">
-            <div class="modal-card queue-card">
-                <div class="queue-radar">
-                    <div class="radar-circle"></div>
-                    <div class="radar-sweep"></div>
-                    
-                </div>
-                <h3 id="queue-status-text">Searching for opponents...</h3>
-                <div id="queue-count-text" class="queue-count">1 / 4 Players</div>
-                <div id="queue-timer-text" class="queue-timer">0:00</div>
-                <button id="btn-cancel-queue" class="btn-ctrl">Cancel Matchmaking</button>
-            </div>
-        </div>
-
         <!-- National Obsidian Leaderboard Modal -->
         <div id="leaderboard-modal" class="modal-backdrop hidden">
             <div class="modal-card modal-leaderboard-card">
                 <div class="modal-header">
-                    <h2>National Obsidian Leaderboard</h2>
+                    <h2>Ranked Leaderboard (This Device)</h2>
                     <button class="btn-close-modal">&times;</button>
                 </div>
                 <div class="leaderboard-tier-explainer">
@@ -337,7 +325,7 @@
                     <span class="lte-badge" style="background:#9b59b6">Obsidian (Top Tier)</span>
                 </div>
                 <div style="text-align:center; margin: 4px 0 10px 0; font-size:12px; color:#55ff55; display:flex; align-items:center; justify-content:center; gap:6px;">
-                    <span>🛡️</span> <b>Verified Real Players Only</b> <span style="color:var(--text-muted); font-size:11px;">(All AI bots excluded)</span>
+                    <span>Profiles that have played on this device. A worldwide leaderboard would need an online database.</span>
                 </div>
                 <div id="leaderboard-list-container" class="leaderboard-list-container">
                     <!-- Populated by ui.js -->
@@ -441,25 +429,6 @@
             </div>
         </div>
 
-        <!-- Matchmaking Radar Queue Modal (Realistic Queue Delay) -->
-        <div id="matchmaking-modal" class="modal-backdrop hidden">
-            <div class="modal-card matchmaking-card">
-                <div class="modal-header">
-                    <h2>Matchmaking Queue</h2>
-                </div>
-                <div class="matchmaking-body">
-                    <div class="radar-box">
-                        <div class="radar-circle"></div>
-                        <div class="radar-sweep"></div>
-                        <div class="radar-ping"></div>
-                    </div>
-                    <p id="matchmaking-status-text" class="matchmaking-status">Searching regional lobbies for opponent...</p>
-                    <p class="matchmaking-eta">Estimated Wait: <span id="matchmaking-countdown">2.5s</span></p>
-                    <button id="btn-cancel-matchmaking" class="btn-ctrl" style="margin-top: 14px;">Cancel Matchmaking</button>
-                </div>
-            </div>
-        </div>
-
         <!-- Social, Friends & Mailbox Modal -->
         <div id="social-modal" class="modal-backdrop hidden">
             <div class="modal-card social-card">
@@ -537,7 +506,7 @@
                     <!-- Populated by ui.js -->
                 </div>
                 <div class="modal-actions" style="margin-top: 20px;">
-                    <button id="btn-stats-play-again" class="btn-ctrl">Play Again (Matchmake)</button>
+                    <button id="btn-stats-play-again" class="btn-ctrl">Play Again</button>
                     <button id="btn-stats-home" class="btn-ctrl btn-home-subtle">Home Menu</button>
                 </div>
             </div>
@@ -624,8 +593,9 @@
         </div>
         <div class="touch-cluster">
             <button id="touch-jump" class="touch-btn touch-btn-action" aria-label="Jump">JUMP</button>
-            <button id="touch-dash" class="touch-btn touch-btn-dash" aria-label="Attack / Dash">DASH</button>
+            <button id="touch-dash" class="touch-btn touch-btn-dash" aria-label="Attack">HIT</button>
             <button id="touch-slam" class="touch-btn touch-btn-slam" aria-label="Slam">SLAM</button>
+            <button id="touch-swap" class="touch-btn touch-btn-swap" aria-label="Swap weapon">SWAP</button>
         </div>
     </div>
 
