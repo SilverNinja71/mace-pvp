@@ -287,11 +287,16 @@
                                 <button id="btn-host-private" class="btn-ctrl">Create Room Code</button>
                             </div>
                             <div id="private-room-panel" class="private-room-panel hidden">
-                                <div>Room Code: <b id="private-room-code-display" class="room-code-val">----</b></div>
+                                <div>Room Code: <b id="private-room-code-display" class="room-code-val selectable">----</b></div>
+                                <div class="invite-link-row">
+                                    <input type="text" id="private-room-link" class="auth-input invite-link-input" readonly aria-label="Room invite link">
+                                    <button id="btn-copy-room-link" class="btn-ctrl">Copy Link</button>
+                                </div>
+                                <div id="copy-link-status" class="copy-link-status" aria-live="polite"></div>
                                 <button id="btn-launch-private" class="btn-submit-arena">Start Private Match</button>
                             </div>
                             <div class="join-private-row">
-                                <input type="text" id="input-join-code" class="auth-input" placeholder="Enter Room Code">
+                                <input type="text" id="input-join-code" class="auth-input" placeholder="Paste Room Code or Link">
                                 <button id="btn-join-private" class="btn-ctrl btn-save-name">Join</button>
                             </div>
                         </div>
@@ -562,6 +567,26 @@
                 <div class="modal-actions" style="margin-top: 20px;">
                     <button id="btn-stats-play-again" class="btn-ctrl">Play Again (Matchmake)</button>
                     <button id="btn-stats-home" class="btn-ctrl btn-home-subtle">Home Menu</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Smash-Style Results Screen ("GAME!" splash, then placements) -->
+        <div id="results-screen" class="results-screen hidden" aria-live="polite">
+            <div id="results-game-splash" class="results-game-splash">GAME!</div>
+            <div id="results-panel" class="results-panel">
+                <div class="results-stripes"></div>
+                <div class="results-header">
+                    <span class="results-winner-label">WINNER</span>
+                    <span id="results-winner-name" class="results-winner-name">---</span>
+                    <span id="results-subtitle" class="results-subtitle"></span>
+                </div>
+                <div id="results-fighters" class="results-fighters"></div>
+                <div id="results-rewards" class="results-rewards"></div>
+                <div class="results-actions">
+                    <button id="btn-results-again" class="btn-ctrl">Play Again (R)</button>
+                    <button id="btn-results-details" class="btn-ctrl">Full Stats</button>
+                    <button id="btn-results-home" class="btn-ctrl">Home (H)</button>
                 </div>
             </div>
         </div>

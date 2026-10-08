@@ -72,6 +72,8 @@ export class UIManager {
         this.setupArmoryUI();
         this.setupSkinsUI();
         this.setupArenaUI();
+        this.setupResultsUI();
+        this.handleInviteLinkOnLoad();
         this.setupSocialUI();
         this.setupTouchButtons();
         this.detectTouchDevice();
@@ -1007,9 +1009,23 @@ export class UIManager {
             btnHost.onclick = () => {
                 const code = arena.generateRoomCode();
                 document.getElementById("private-room-code-display").textContent = code;
+                const linkInput = document.getElementById("private-room-link");
+                if (linkInput) linkInput.value = this.buildRoomLink(code);
+                const status = document.getElementById("copy-link-status");
+                if (status) status.textContent = "";
                 document.getElementById("private-room-panel").classList.remove("hidden");
                 sound.playClick();
             };
+        }
+
+        // Copy Invite Link button
+        const btnCopyLink = document.getElementById("btn-copy-room-link");
+        const linkInput = document.getElementById("private-room-link");
+        if (btnCopyLink && linkInput) {
+            btnCopyLink.onclick = () => this.copyRoomLink(linkInput);
+            // Clicking the link field selects all of it for easy manual copying
+            linkInput.addEventListener("focus", () => linkInput.select());
+            linkInput.addEventListener("click", () => linkInput.select());
         }
 
         // Launch Private Match button
@@ -1026,16 +1042,68 @@ export class UIManager {
         const joinInput = document.getElementById("input-join-code");
         if (btnJoin && joinInput) {
             btnJoin.onclick = () => {
-                const code = joinInput.value.trim().toUpperCase();
-                if (code.length < 5) {
-                    alert("Please enter a valid Room Code!");
+                const code = this.parseRoomCode(joinInput.value);
+                if (!code) {
+                    alert("Please enter a valid Room Code or paste an invite link!");
                     return;
                 }
+                joinInput.value = code;
                 sound.playWin();
                 this.arenaModal.classList.add("hidden");
                 this.launchArenaMatchWithLoading(this.selectedArenaMode, this.selectedArenaWeapon);
             };
         }
+    }
+
+    // Shareable invite link for a private room, e.g. https://site/index.html?room=MACE-ABCD-123
+    buildRoomLink(code) {
+        const base = window.location.href.split(/[?#]/)[0];
+        return `${base}?room=${encodeURIComponent(code)}`;
+    }
+
+    // Accepts a bare room code or a full pasted invite link and returns the code (or null)
+    parseRoomCode(text) {
+        let raw = (text || "").trim();
+        if (!raw) return null;
+        const match = raw.match(/[?&#]room=([^&#\s]+)/i);
+        if (match) raw = decodeURIComponent(match[1]);
+        const code = raw.toUpperCase().replace(/\s+/g, "");
+        return /^[A-Z0-9-]{5,}$/.test(code) ? code : null;
+    }
+
+    copyRoomLink(linkInput) {
+        const status = document.getElementById("copy-link-status");
+        const text = linkInput.value;
+        const done = (ok) => {
+            if (status) status.textContent = ok ? "Link copied! Send it to a friend." : "Select the link and press Ctrl/Cmd+C to copy.";
+            sound.playClick();
+        };
+        const fallback = () => {
+            linkInput.focus();
+            linkInput.select();
+            let ok = false;
+            try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+            done(ok);
+        };
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(() => done(true), fallback);
+        } else {
+            fallback();
+        }
+    }
+
+    // If the page was opened from an invite link (?room=CODE), open the arena hub with the code filled in
+    handleInviteLinkOnLoad() {
+        let code = null;
+        try {
+            code = this.parseRoomCode(window.location.search);
+        } catch (e) {
+            code = null;
+        }
+        if (!code) return;
+        const joinInput = document.getElementById("input-join-code");
+        if (joinInput) joinInput.value = code;
+        this.openArenaModal();
     }
 
     openArenaModal() {
@@ -1311,6 +1379,7 @@ export class UIManager {
 
     triggerMatchmakingRestart() {
         sound.playClick();
+        this.hideResultsScreen();
         if (this.statsModal) this.statsModal.classList.add("hidden");
         if (this.pauseModal) this.pauseModal.classList.add("hidden");
 
@@ -2109,6 +2178,7 @@ export class UIManager {
     }
 
     onStateChanged(state) {
+        if (state !== "gameover") this.hideResultsScreen();
         if (state === "menu") {
             if (this.menuOverlay) this.menuOverlay.classList.remove("hidden");
             if (this.pauseModal) this.pauseModal.classList.add("hidden");
@@ -2120,13 +2190,128 @@ export class UIManager {
         } else if (state === "paused") {
             if (this.pauseModal) this.pauseModal.classList.remove("hidden");
         } else if (state === "gameover") {
-            // Automatically show detailed post-match stats promptly (snappy response, no lag)
-            setTimeout(() => {
-                if (this.game.state === "gameover") {
-                    this.openStatsModal();
-                }
-            }, 220);
+            this.openResultsScreen();
         }
+    }
+
+    // ==========================================
+    // SMASH-STYLE RESULTS SCREEN
+    // ==========================================
+
+    setupResultsUI() {
+        this.resultsScreen = document.getElementById("results-screen");
+        this.resultsTimer = null;
+
+        const again = document.getElementById("btn-results-again");
+        if (again) again.addEventListener("click", () => this.triggerMatchmakingRestart());
+        const details = document.getElementById("btn-results-details");
+        if (details) details.addEventListener("click", () => this.openStatsModal());
+        const home = document.getElementById("btn-results-home");
+        if (home) home.addEventListener("click", () => this.handleHomeClick());
+    }
+
+    hideResultsScreen() {
+        if (this.resultsTimer) {
+            clearTimeout(this.resultsTimer);
+            this.resultsTimer = null;
+        }
+        if (this.resultsScreen) this.resultsScreen.classList.add("hidden");
+    }
+
+    openResultsScreen() {
+        const screen = this.resultsScreen;
+        if (!screen) {
+            this.openStatsModal();
+            return;
+        }
+        const g = this.game;
+        const isPlayerWin = g.winnerTeam === "blue";
+
+        // Winner name in the big banner
+        let winnerName;
+        if (g.isTeamMatch) {
+            winnerName = isPlayerWin ? "BLUE TEAM" : "RED TEAM";
+        } else if (g.mode === "pvp") {
+            winnerName = isPlayerWin ? "PLAYER 1" : "PLAYER 2";
+        } else {
+            winnerName = isPlayerWin ? (g.player.name || "YOU") : (g.bot.name || "BOT");
+        }
+        const nameEl = document.getElementById("results-winner-name");
+        nameEl.textContent = winnerName;
+        screen.dataset.winner = g.winnerTeam || "blue";
+
+        const subEl = document.getElementById("results-subtitle");
+        if (g.isTeamMatch) {
+            subEl.textContent = g.isTiebreaker
+                ? `Sudden Death • Blue ${g.scoreBlue} - Red ${g.scoreRed}`
+                : `${g.matchType.toUpperCase()} • Blue ${g.scoreBlue} - Red ${g.scoreRed}`;
+        } else {
+            const modeMeta = MODE_METADATA[g.mode] || {};
+            subEl.textContent = g.mode === "pvp" ? "Local 1v1 Duel" : `1v1 vs ${modeMeta.name || "Bot"}`;
+        }
+
+        // Placement order: winning team first, then by KOs, then damage dealt
+        const fighters = (g.allFighters || [g.player, g.bot]).slice();
+        const teamOf = (f) => f.team || (f === g.player ? "blue" : "red");
+        fighters.sort((a, b) => {
+            const aw = teamOf(a) === g.winnerTeam ? 0 : 1;
+            const bw = teamOf(b) === g.winnerTeam ? 0 : 1;
+            if (aw !== bw) return aw - bw;
+            const ak = (a.stats && a.stats.kills) || 0;
+            const bk = (b.stats && b.stats.kills) || 0;
+            if (ak !== bk) return bk - ak;
+            return ((b.stats && b.stats.damageDealt) || 0) - ((a.stats && a.stats.damageDealt) || 0);
+        });
+
+        const ordinal = (n) => n === 1 ? "1st" : n === 2 ? "2nd" : n === 3 ? "3rd" : `${n}th`;
+        const compact = fighters.length > 4;
+        const escapeHTML = (str) => String(str).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+        const cards = fighters.map((f, i) => {
+            const st = f.stats || {};
+            // Teams share a placement (whole winning team is 1st), solo duels rank individually
+            const place = g.isTeamMatch ? (teamOf(f) === g.winnerTeam ? 1 : 2) : i + 1;
+            const team = teamOf(f);
+            const isYou = f === g.player;
+            const wep = WEAPON_TYPES[f.weaponId] || WEAPON_TYPES.mace;
+            return `
+                <div class="rs-card rs-${team} ${place === 1 ? "rs-first" : ""} ${isYou ? "rs-you" : ""}" style="animation-delay:${0.15 + i * 0.08}s">
+                    <div class="rs-place">${ordinal(place)}</div>
+                    <div class="rs-portrait">${headImgHTML(f.skinId || (team === "blue" ? "steve" : "alex"), compact ? 32 : 72)}</div>
+                    <div class="rs-name">${escapeHTML(f.name || "Fighter")}${isYou ? ' <span class="rs-you-tag">YOU</span>' : ""}</div>
+                    <div class="rs-wep">${weaponIconHTML(f.weaponId || "mace", 16)} ${escapeHTML(wep.name)}</div>
+                    <div class="rs-stats">
+                        <div><span>KOs</span><b>${st.kills || 0}</b></div>
+                        <div><span>Falls</span><b>${st.deaths || 0}</b></div>
+                        <div><span>Damage</span><b>${Math.round(st.damageDealt || 0)}</b></div>
+                    </div>
+                </div>
+            `;
+        }).join("");
+
+        const fightersEl = document.getElementById("results-fighters");
+        fightersEl.classList.toggle("compact", compact);
+        // One row per team in team matches (winners on top)
+        fightersEl.style.setProperty("--rs-cols", g.isTeamMatch ? Math.ceil(fighters.length / 2) : fighters.length);
+        fightersEl.innerHTML = cards;
+
+        const rewardsEl = document.getElementById("results-rewards");
+        const r = g.lastRewardInfo;
+        rewardsEl.innerHTML = r ? `
+            <span class="reward-pill">+${r.goldEarned} Gold</span>
+            <span class="reward-pill xp">+${r.xpEarned} XP</span>
+            ${r.rpDelta ? `<span class="reward-pill rp">${r.rpDelta > 0 ? "+" : ""}${r.rpDelta} RP</span>` : ""}
+        ` : "";
+
+        // Phase 1: "GAME!" splash over the arena, Phase 2: slide in the results panel
+        this.hideResultsScreen();
+        screen.classList.remove("hidden", "show-panel");
+        // Restart CSS animations
+        void screen.offsetWidth;
+        this.resultsTimer = setTimeout(() => {
+            this.resultsTimer = null;
+            if (this.game.state === "gameover") screen.classList.add("show-panel");
+        }, 1400);
     }
 
     downloadGame() {

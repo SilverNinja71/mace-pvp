@@ -294,6 +294,10 @@ export class Game {
         window.addEventListener("keydown", (e) => {
             sound.ensureContext();
 
+            // Never treat typing in a text field (room codes, names, pasted links) as game input
+            const t = e.target;
+            if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+
             const gameKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", "KeyW", "KeyS", "KeyA", "KeyD"];
             if (gameKeys.includes(e.code) && this.state !== "menu") {
                 e.preventDefault();
@@ -608,6 +612,7 @@ export class Game {
             const f = this.allFighters[i];
             if (f.hp <= 0 && !f.isDead) {
                 f.isDead = true;
+                f.stats.deaths = (f.stats.deaths || 0) + 1;
                 sound.playDashHit();
                 this.particles.addHitSparks(f.x + f.w / 2, f.y + f.h / 2, 22, "#e74c3c");
                 this.particles.addDust(f.x + f.w / 2, f.y + f.h / 2, 16);
@@ -615,7 +620,7 @@ export class Game {
                 const isRedFighter = f.team === "red" || (!f.team && f !== this.player);
                 if (isRedFighter) {
                     this.scoreBlue++;
-                    this.particles.addDamageText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, true);
+                    this.particles.addFloatingText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, "#ff2244", true, 1.3);
                     const killer = this.blueTeam.find(b => b.hp > 0) || this.player;
                     if (killer && killer.stats) killer.stats.kills++;
 
@@ -626,7 +631,7 @@ export class Game {
                     }
                 } else {
                     this.scoreRed++;
-                    this.particles.addDamageText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, true);
+                    this.particles.addFloatingText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, "#ff2244", true, 1.3);
                     const killer = this.redTeam.find(r => r.hp > 0) || this.bot;
                     if (killer && killer.stats) killer.stats.kills++;
 
@@ -680,7 +685,7 @@ export class Game {
             if (item.timer <= 0) {
                 item.fighter.respawn(item.spawnX, item.spawnY);
                 this.particles.addDust(item.fighter.x + 12, item.fighter.y + 24, 15);
-                this.particles.addDamageText(item.fighter.x + 12, item.fighter.y - 10, "RESPAWNED!", false);
+                this.particles.addFloatingText(item.fighter.x + 12, item.fighter.y - 10, "RESPAWNED!", "#2ecc71");
                 this.respawnQueue.splice(i, 1);
             }
         }
@@ -791,22 +796,7 @@ export class Game {
 
         this.renderer.drawControlsHint(this.mode === "pvp", this.matchFrames);
 
-        // Game Over Banner
-        if (this.state === "gameover") {
-            let winner = "YOU";
-            if (this.isTeamMatch) {
-                winner = this.winnerTeam === "blue" ? "BLUE TEAM" : "RED TEAM";
-            } else {
-                winner = this.winnerTeam === "blue" 
-                    ? (this.mode === "pvp" ? "PLAYER 1" : (this.player.name || "YOU")) 
-                    : (this.mode === "pvp" ? "PLAYER 2" : (this.bot.name || "BOT"));
-            }
-
-            this.renderer.drawGameOver(
-                winner, this.player.stats, this.bot.stats, this.lastRewardInfo,
-                this.scoreBlue, this.scoreRed, this.highestJumper, this.isTiebreaker
-            );
-        }
+        // Game Over: the Smash-style results screen is an HTML overlay (see UIManager.openResultsScreen)
 
         ctx.restore();
     }
@@ -822,13 +812,23 @@ export class Game {
             lastTime = currentTime;
 
             accumulator += frameTime;
-            while (accumulator >= FIXED_DT) {
-                this.update();
-                accumulator -= FIXED_DT;
-            }
-
-            this.render();
+            // Schedule the next frame first and guard each step, so a single
+            // runtime error can never stop the loop and freeze the game.
             this.animFrameId = requestAnimationFrame(loop);
+            try {
+                while (accumulator >= FIXED_DT) {
+                    this.update();
+                    accumulator -= FIXED_DT;
+                }
+            } catch (err) {
+                accumulator = 0;
+                console.error("Game update error:", err);
+            }
+            try {
+                this.render();
+            } catch (err) {
+                console.error("Game render error:", err);
+            }
         };
 
         this.animFrameId = requestAnimationFrame(loop);
