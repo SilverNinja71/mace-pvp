@@ -178,6 +178,9 @@ export class CombatEngine {
             attacker.dashAttack = false;
             attacker.dashTimer = 0;
             attacker.xVel = attacker.facing * 3;
+            if (attacker.onGround && attacker.dashCooldown <= 0) {
+                attacker.dashReady = true;
+            }
 
             attacker.stats.damageDealt += finalDamage;
             attacker.stats.dashesLanded++;

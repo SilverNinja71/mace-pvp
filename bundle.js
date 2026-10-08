@@ -2675,6 +2675,11 @@
               this.dashCooldown--;
           }
   
+          // On-ground dash recovery: guarantee that any grounded fighter regains dash readiness once cooldown expires
+          if (this.dashCooldown <= 0 && this.onGround && !this.dashing) {
+              this.dashReady = true;
+          }
+  
           // Buffered dash activation as soon as cooldown and stun clear
           if (this.dashBuffer > 0) {
               this.dashBuffer--;
@@ -2962,11 +2967,24 @@
               if ((this.dodging || this.runAway) && !bot.dashing) {
                   bot.xVel = distance > 0 ? -P.runSpeed : P.runSpeed;
               } else if (!bot.dashing) {
-                  if (Math.abs(distance) > 26) {
+                  if (Math.abs(distance) > 40) {
                       bot.xVel = distance > 0 ? P.speed : -P.speed;
+                  } else if (Math.abs(distance) > 28) {
+                      bot.xVel = distance > 0 ? P.speed * 0.7 : -P.speed * 0.7;
                   } else {
-                      // Close quarters: keep active spacing so fighters never freeze merged together
-                      bot.xVel = distance >= 0 ? 1.2 : -1.2;
+                      // Close quarters (< 28px):
+                      // In point-blank range, do not push continuously into player's pushbox.
+                      // If dash is ready, strike immediately!
+                      if (bot.dashReady && bot.dashCooldown <= 0 && this.dashTimerAI <= 0) {
+                          this.startDash(true, distance);
+                      } else {
+                          // Dash is on cooldown: back away to maintain tactical spacing or leap to initiate aerial attack
+                          bot.xVel = distance >= 0 ? -P.speed : P.speed;
+                          if (this.jumpTimer <= 0 && bot.onGround && Math.random() < 0.35) {
+                              bot.jump();
+                              this.jumpTimer = 30 + Math.random() * 25;
+                          }
+                      }
                   }
               }
   
@@ -3018,11 +3036,13 @@
                   !bot.dashing &&
                   !this.runAway &&
                   bot.dashReady &&
+                  bot.dashCooldown <= 0 &&
                   this.dashTimerAI <= 0 &&
                   Math.abs(distance) < P.dashAttackRange &&
                   Math.abs(targetPlayer.y - bot.y) < P.dashAttackHeight
               ) {
-                  if (Math.random() * 100 < P.dashAttackChance) {
+                  const strikeChance = Math.abs(distance) < 65 ? Math.max(80, P.dashAttackChance) : P.dashAttackChance;
+                  if (Math.random() * 100 < strikeChance) {
                       this.startDash(true, distance);
                   }
               }
@@ -3283,6 +3303,9 @@
               attacker.dashAttack = false;
               attacker.dashTimer = 0;
               attacker.xVel = attacker.facing * 3;
+              if (attacker.onGround && attacker.dashCooldown <= 0) {
+                  attacker.dashReady = true;
+              }
   
               attacker.stats.damageDealt += finalDamage;
               attacker.stats.dashesLanded++;
@@ -3370,11 +3393,11 @@
               ctx.fillStyle = "#cf4417";
               ctx.fillRect(0, 310, this.width, this.height - 310);
   
-              // Netherrack pillars & jagged stalagmites
+              // Netherrack pillars & jagged stalagmites (capped at platform floor level y = 390)
               ctx.fillStyle = "#5c1818";
               const pillars = [[0, 260], [100, 220], [220, 270], [340, 230], [460, 280], [580, 210], [700, 250]];
               for (const [px, py] of pillars) {
-                  ctx.fillRect(px, py, 90, this.height - py);
+                  ctx.fillRect(px, py, 90, 390 - py);
               }
   
               // Floating ash particles
@@ -3393,7 +3416,7 @@
               ctx.fillStyle = "#221338";
               ctx.fillRect(0, 280, this.width, this.height - 280);
   
-              // Tall Obsidian Spikes
+              // Tall Obsidian Spikes (stop cleanly at main floor y = 390)
               ctx.fillStyle = "#15151e";
               ctx.fillRect(80, 140, 50, 250);
               ctx.fillRect(320, 90, 60, 300);
@@ -3408,16 +3431,25 @@
               ctx.fillStyle = "#79a6ff";
               ctx.fillRect(0, 0, this.width, this.height);
   
-              // Distant Overworld horizon hills (soft background, placed safely below platform ledges)
-              ctx.fillStyle = "#4a783d";
-              const hills = [[0, 360], [80, 350], [160, 345], [240, 355], [320, 365], [400, 350], [480, 345], [560, 352], [640, 360], [720, 350]];
-              for (const [hx, hy] of hills) {
-                  ctx.fillRect(hx, hy, 80, this.height - hy);
+              // Distant Minecraft mountain peaks in far background (capped at y = 295, well above ground floor y = 390)
+              ctx.fillStyle = "#527a60";
+              const mountains = [
+                  [0, 255, 110],
+                  [90, 230, 130],
+                  [200, 215, 150],
+                  [330, 245, 120],
+                  [430, 225, 140],
+                  [550, 240, 130],
+                  [660, 230, 140]
+              ];
+              for (const [mx, my, mw] of mountains) {
+                  ctx.fillRect(mx, my, mw, 295 - my);
               }
-              // Distant hill top trim
-              ctx.fillStyle = "#5e944f";
-              for (const [hx, hy] of hills) {
-                  ctx.fillRect(hx, hy, 80, 3);
+              // Mountain peak highlights
+              ctx.fillStyle = "#699878";
+              for (const [mx, my, mw] of mountains) {
+                  ctx.fillRect(mx + 10, my, mw - 20, 4);
+                  ctx.fillRect(mx + 25, my - 6, mw - 50, 6);
               }
   
               // Drifting blocky clouds
@@ -4091,7 +4123,7 @@
       }
   
       // Standard 1v1 HUD
-      drawHUD(player, bot, botColor, modeLabel, p1Label = "YOU", p2Label = "BOT", scoreRed = 0, scoreBlue = 0, isTiebreaker = false, tiebreakerTimer = 0, redDmg = 0, blueDmg = 0) {
+      drawHUD(player, bot, botColor, modeLabel, p1Label = "YOU", p2Label = "BOT", scoreRed = 0, scoreBlue = 0, isTiebreaker = false, tiebreakerTimer = 0, redDmg = 0, blueDmg = 0, isTeamMatch = false) {
           const ctx = this.ctx;
           ctx.save();
   
@@ -4151,7 +4183,7 @@
           ctx.fillStyle = "#ffffff";
           ctx.fillText(`${p2Label}: ${Math.max(0, Math.ceil(bot.hp))} / ${bot.maxHp} HP`, bX + 6, 27);
   
-          // Center Scoreboard (First to 11) & 10-10 Tiebreaker Banner
+          // Center Scoreboard (First to 11 in team arena, or 1v1 duel banner)
           ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
           ctx.fillRect(this.width / 2 - 80, 8, 160, 32);
           ctx.strokeStyle = isTiebreaker ? "#f1c40f" : "#000000";
@@ -4175,7 +4207,8 @@
               ctx.fillText(`${scoreBlue}  -  ${scoreRed}`, this.width / 2, 19);
               ctx.fillStyle = "#f1c40f";
               ctx.font = "bold 9px monospace";
-              ctx.fillText("FIRST TO 11 KILLS", this.width / 2, 31);
+              const subBadge = isTeamMatch ? "FIRST TO 11 KILLS" : `${(modeLabel || "1v1 DUEL").toUpperCase()}`;
+              ctx.fillText(subBadge, this.width / 2, 31);
           }
   
           ctx.restore();
@@ -4334,22 +4367,38 @@
           ctx.restore();
       }
   
-      drawControlsHint(isPvP = false) {
+      drawControlsHint(isPvP = false, matchFrames = 0) {
           const ctx = this.ctx;
+          // Smoothly fade out after ~5 seconds (240 frames) so combat arena remains completely clean
+          let alpha = 1.0;
+          if (matchFrames > 200) {
+              alpha = Math.max(0, 1.0 - (matchFrames - 200) / 70);
+          }
+          if (alpha <= 0) return;
+  
           ctx.save();
-          ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
-          ctx.font = "11px 'Segoe UI', system-ui, sans-serif";
-          ctx.textAlign = "left";
+          ctx.globalAlpha = alpha;
+  
+          const bannerW = isPvP ? 680 : 640;
+          const bannerH = 18;
+          const bannerX = (this.width - bannerW) / 2;
+          const bannerY = 48; // Upper clear sky, safely between top HUD and floating ledges at y=275
+  
+          ctx.fillStyle = "rgba(10, 12, 18, 0.72)";
+          ctx.fillRect(bannerX, bannerY, bannerW, bannerH);
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(bannerX, bannerY, bannerW, bannerH);
+  
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 9px 'Segoe UI', monospace";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
   
           if (isPvP) {
-              ctx.fillText("P1: WASD = MOVE/JUMP | SPACE = ATTACK/DASH/BOW | S = SLAM", 14, this.height - 18);
-              ctx.textAlign = "right";
-              ctx.fillText("P2: ARROWS = MOVE/JUMP | ENTER = ATTACK/DASH/BOW | DOWN = SLAM", this.width - 14, this.height - 18);
+              ctx.fillText("P1: WASD = MOVE/JUMP | SPACE = DASH/ATTACK | S = SLAM   ••   P2: ARROWS | ENTER = ATTACK | DOWN = SLAM", this.width / 2, bannerY + bannerH / 2);
           } else {
-              ctx.fillText("ARROWS / WASD = MOVE   •   UP = JUMP / DOUBLE JUMP", 14, this.height - 24);
-              ctx.fillText("SPACE = WEAPON ATTACK / DASH / SHOOT BOW   •   DOWN / S = MACE SLAM", 14, this.height - 10);
-              ctx.textAlign = "right";
-              ctx.fillText("ESC = PAUSE  •  M = MUTE  •  R = RESTART  •  H = HOME", this.width - 14, this.height - 10);
+              ctx.fillText("WASD / ARROWS = MOVE • SPACE = DASH / WEAPON ATTACK • S / DOWN = MACE SLAM • ESC = PAUSE", this.width / 2, bannerY + bannerH / 2);
           }
   
           ctx.restore();
@@ -4456,6 +4505,7 @@
           this.respawnQueue = [];
           this.highestJumper = null;
           this.winnerTeam = null;
+          this.matchFrames = 0;
   
           // State
           this.state = "menu"; // "menu", "play", "paused", "gameover"
@@ -4493,6 +4543,7 @@
           // Reset match score & tiebreaker
           this.scoreRed = 0;
           this.scoreBlue = 0;
+          this.matchFrames = 0;
           this.isTiebreaker = false;
           this.tiebreakerTimer = 0;
           this.tiebreakerRedDamage = 0;
@@ -4622,6 +4673,7 @@
           // Reset match score & tiebreaker
           this.scoreRed = 0;
           this.scoreBlue = 0;
+          this.matchFrames = 0;
           this.isTiebreaker = false;
           this.tiebreakerTimer = 0;
           this.tiebreakerRedDamage = 0;
@@ -4656,6 +4708,7 @@
   
           this.scoreRed = 0;
           this.scoreBlue = 0;
+          this.matchFrames = 0;
           this.isTiebreaker = false;
           this.tiebreakerTimer = 0;
           this.tiebreakerRedDamage = 0;
@@ -4844,6 +4897,7 @@
               return;
           }
   
+          this.matchFrames++;
           this.handleContinuousInput();
   
           const damageTakenMult = this.botParams.damageTaken ?? 1;
@@ -4913,7 +4967,7 @@
               }
           }
   
-          // Soft push-separation between overlapping fighters so models never fuse together
+          // Decisive push-separation between overlapping fighters so models never fuse together
           for (let i = 0; i < this.allFighters.length; i++) {
               const f1 = this.allFighters[i];
               if (f1.hp <= 0 || f1.dashing) continue;
@@ -4923,14 +4977,18 @@
   
                   const dx = (f2.x + f2.w / 2) - (f1.x + f1.w / 2);
                   const dy = Math.abs(f2.y - f1.y);
-                  if (Math.abs(dx) < 22 && dy < 32) {
-                      const push = 1.0;
-                      if (dx >= 0) {
+                  if (Math.abs(dx) < 24 && dy < 32) {
+                      const overlap = 24 - Math.abs(dx);
+                      const push = Math.max(1.2, overlap * 0.4);
+                      if (dx > 0) {
                           f1.x = Math.max(0, f1.x - push);
                           f2.x = Math.min(ARENA_CONFIG.width - f2.w, f2.x + push);
-                      } else {
+                      } else if (dx < 0) {
                           f1.x = Math.min(ARENA_CONFIG.width - f1.w, f1.x + push);
                           f2.x = Math.max(0, f2.x - push);
+                      } else {
+                          f1.x = Math.max(0, f1.x - push);
+                          f2.x = Math.min(ARENA_CONFIG.width - f2.w, f2.x + push);
                       }
                   }
               }
@@ -5179,11 +5237,12 @@
                   this.player, this.bot, botColor, botMeta.name, p1Label, p2Label,
                   this.scoreRed, this.scoreBlue,
                   this.isTiebreaker, this.tiebreakerTimer,
-                  this.tiebreakerRedDamage, this.tiebreakerBlueDamage
+                  this.tiebreakerRedDamage, this.tiebreakerBlueDamage,
+                  this.isTeamMatch
               );
           }
   
-          this.renderer.drawControlsHint(this.mode === "pvp");
+          this.renderer.drawControlsHint(this.mode === "pvp", this.matchFrames);
   
           // Game Over Banner
           if (this.state === "gameover") {

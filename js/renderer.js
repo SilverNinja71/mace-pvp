@@ -55,11 +55,11 @@ export class Renderer {
             ctx.fillStyle = "#cf4417";
             ctx.fillRect(0, 310, this.width, this.height - 310);
 
-            // Netherrack pillars & jagged stalagmites
+            // Netherrack pillars & jagged stalagmites (capped at platform floor level y = 390)
             ctx.fillStyle = "#5c1818";
             const pillars = [[0, 260], [100, 220], [220, 270], [340, 230], [460, 280], [580, 210], [700, 250]];
             for (const [px, py] of pillars) {
-                ctx.fillRect(px, py, 90, this.height - py);
+                ctx.fillRect(px, py, 90, 390 - py);
             }
 
             // Floating ash particles
@@ -78,7 +78,7 @@ export class Renderer {
             ctx.fillStyle = "#221338";
             ctx.fillRect(0, 280, this.width, this.height - 280);
 
-            // Tall Obsidian Spikes
+            // Tall Obsidian Spikes (stop cleanly at main floor y = 390)
             ctx.fillStyle = "#15151e";
             ctx.fillRect(80, 140, 50, 250);
             ctx.fillRect(320, 90, 60, 300);
@@ -93,16 +93,25 @@ export class Renderer {
             ctx.fillStyle = "#79a6ff";
             ctx.fillRect(0, 0, this.width, this.height);
 
-            // Distant Overworld horizon hills (soft background, placed safely below platform ledges)
-            ctx.fillStyle = "#4a783d";
-            const hills = [[0, 360], [80, 350], [160, 345], [240, 355], [320, 365], [400, 350], [480, 345], [560, 352], [640, 360], [720, 350]];
-            for (const [hx, hy] of hills) {
-                ctx.fillRect(hx, hy, 80, this.height - hy);
+            // Distant Minecraft mountain peaks in far background (capped at y = 295, well above ground floor y = 390)
+            ctx.fillStyle = "#527a60";
+            const mountains = [
+                [0, 255, 110],
+                [90, 230, 130],
+                [200, 215, 150],
+                [330, 245, 120],
+                [430, 225, 140],
+                [550, 240, 130],
+                [660, 230, 140]
+            ];
+            for (const [mx, my, mw] of mountains) {
+                ctx.fillRect(mx, my, mw, 295 - my);
             }
-            // Distant hill top trim
-            ctx.fillStyle = "#5e944f";
-            for (const [hx, hy] of hills) {
-                ctx.fillRect(hx, hy, 80, 3);
+            // Mountain peak highlights
+            ctx.fillStyle = "#699878";
+            for (const [mx, my, mw] of mountains) {
+                ctx.fillRect(mx + 10, my, mw - 20, 4);
+                ctx.fillRect(mx + 25, my - 6, mw - 50, 6);
             }
 
             // Drifting blocky clouds
@@ -776,7 +785,7 @@ export class Renderer {
     }
 
     // Standard 1v1 HUD
-    drawHUD(player, bot, botColor, modeLabel, p1Label = "YOU", p2Label = "BOT", scoreRed = 0, scoreBlue = 0, isTiebreaker = false, tiebreakerTimer = 0, redDmg = 0, blueDmg = 0) {
+    drawHUD(player, bot, botColor, modeLabel, p1Label = "YOU", p2Label = "BOT", scoreRed = 0, scoreBlue = 0, isTiebreaker = false, tiebreakerTimer = 0, redDmg = 0, blueDmg = 0, isTeamMatch = false) {
         const ctx = this.ctx;
         ctx.save();
 
@@ -836,7 +845,7 @@ export class Renderer {
         ctx.fillStyle = "#ffffff";
         ctx.fillText(`${p2Label}: ${Math.max(0, Math.ceil(bot.hp))} / ${bot.maxHp} HP`, bX + 6, 27);
 
-        // Center Scoreboard (First to 11) & 10-10 Tiebreaker Banner
+        // Center Scoreboard (First to 11 in team arena, or 1v1 duel banner)
         ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
         ctx.fillRect(this.width / 2 - 80, 8, 160, 32);
         ctx.strokeStyle = isTiebreaker ? "#f1c40f" : "#000000";
@@ -860,7 +869,8 @@ export class Renderer {
             ctx.fillText(`${scoreBlue}  -  ${scoreRed}`, this.width / 2, 19);
             ctx.fillStyle = "#f1c40f";
             ctx.font = "bold 9px monospace";
-            ctx.fillText("FIRST TO 11 KILLS", this.width / 2, 31);
+            const subBadge = isTeamMatch ? "FIRST TO 11 KILLS" : `${(modeLabel || "1v1 DUEL").toUpperCase()}`;
+            ctx.fillText(subBadge, this.width / 2, 31);
         }
 
         ctx.restore();
@@ -1019,22 +1029,38 @@ export class Renderer {
         ctx.restore();
     }
 
-    drawControlsHint(isPvP = false) {
+    drawControlsHint(isPvP = false, matchFrames = 0) {
         const ctx = this.ctx;
+        // Smoothly fade out after ~5 seconds (240 frames) so combat arena remains completely clean
+        let alpha = 1.0;
+        if (matchFrames > 200) {
+            alpha = Math.max(0, 1.0 - (matchFrames - 200) / 70);
+        }
+        if (alpha <= 0) return;
+
         ctx.save();
-        ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
-        ctx.font = "11px 'Segoe UI', system-ui, sans-serif";
-        ctx.textAlign = "left";
+        ctx.globalAlpha = alpha;
+
+        const bannerW = isPvP ? 680 : 640;
+        const bannerH = 18;
+        const bannerX = (this.width - bannerW) / 2;
+        const bannerY = 48; // Upper clear sky, safely between top HUD and floating ledges at y=275
+
+        ctx.fillStyle = "rgba(10, 12, 18, 0.72)";
+        ctx.fillRect(bannerX, bannerY, bannerW, bannerH);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(bannerX, bannerY, bannerW, bannerH);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 9px 'Segoe UI', monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
 
         if (isPvP) {
-            ctx.fillText("P1: WASD = MOVE/JUMP | SPACE = ATTACK/DASH/BOW | S = SLAM", 14, this.height - 18);
-            ctx.textAlign = "right";
-            ctx.fillText("P2: ARROWS = MOVE/JUMP | ENTER = ATTACK/DASH/BOW | DOWN = SLAM", this.width - 14, this.height - 18);
+            ctx.fillText("P1: WASD = MOVE/JUMP | SPACE = DASH/ATTACK | S = SLAM   ••   P2: ARROWS | ENTER = ATTACK | DOWN = SLAM", this.width / 2, bannerY + bannerH / 2);
         } else {
-            ctx.fillText("ARROWS / WASD = MOVE   •   UP = JUMP / DOUBLE JUMP", 14, this.height - 24);
-            ctx.fillText("SPACE = WEAPON ATTACK / DASH / SHOOT BOW   •   DOWN / S = MACE SLAM", 14, this.height - 10);
-            ctx.textAlign = "right";
-            ctx.fillText("ESC = PAUSE  •  M = MUTE  •  R = RESTART  •  H = HOME", this.width - 14, this.height - 10);
+            ctx.fillText("WASD / ARROWS = MOVE • SPACE = DASH / WEAPON ATTACK • S / DOWN = MACE SLAM • ESC = PAUSE", this.width / 2, bannerY + bannerH / 2);
         }
 
         ctx.restore();

@@ -52,6 +52,7 @@ export class Game {
         this.respawnQueue = [];
         this.highestJumper = null;
         this.winnerTeam = null;
+        this.matchFrames = 0;
 
         // State
         this.state = "menu"; // "menu", "play", "paused", "gameover"
@@ -89,6 +90,7 @@ export class Game {
         // Reset match score & tiebreaker
         this.scoreRed = 0;
         this.scoreBlue = 0;
+        this.matchFrames = 0;
         this.isTiebreaker = false;
         this.tiebreakerTimer = 0;
         this.tiebreakerRedDamage = 0;
@@ -218,6 +220,7 @@ export class Game {
         // Reset match score & tiebreaker
         this.scoreRed = 0;
         this.scoreBlue = 0;
+        this.matchFrames = 0;
         this.isTiebreaker = false;
         this.tiebreakerTimer = 0;
         this.tiebreakerRedDamage = 0;
@@ -252,6 +255,7 @@ export class Game {
 
         this.scoreRed = 0;
         this.scoreBlue = 0;
+        this.matchFrames = 0;
         this.isTiebreaker = false;
         this.tiebreakerTimer = 0;
         this.tiebreakerRedDamage = 0;
@@ -440,6 +444,7 @@ export class Game {
             return;
         }
 
+        this.matchFrames++;
         this.handleContinuousInput();
 
         const damageTakenMult = this.botParams.damageTaken ?? 1;
@@ -509,7 +514,7 @@ export class Game {
             }
         }
 
-        // Soft push-separation between overlapping fighters so models never fuse together
+        // Decisive push-separation between overlapping fighters so models never fuse together
         for (let i = 0; i < this.allFighters.length; i++) {
             const f1 = this.allFighters[i];
             if (f1.hp <= 0 || f1.dashing) continue;
@@ -519,14 +524,18 @@ export class Game {
 
                 const dx = (f2.x + f2.w / 2) - (f1.x + f1.w / 2);
                 const dy = Math.abs(f2.y - f1.y);
-                if (Math.abs(dx) < 22 && dy < 32) {
-                    const push = 1.0;
-                    if (dx >= 0) {
+                if (Math.abs(dx) < 24 && dy < 32) {
+                    const overlap = 24 - Math.abs(dx);
+                    const push = Math.max(1.2, overlap * 0.4);
+                    if (dx > 0) {
                         f1.x = Math.max(0, f1.x - push);
                         f2.x = Math.min(ARENA_CONFIG.width - f2.w, f2.x + push);
-                    } else {
+                    } else if (dx < 0) {
                         f1.x = Math.min(ARENA_CONFIG.width - f1.w, f1.x + push);
                         f2.x = Math.max(0, f2.x - push);
+                    } else {
+                        f1.x = Math.max(0, f1.x - push);
+                        f2.x = Math.min(ARENA_CONFIG.width - f2.w, f2.x + push);
                     }
                 }
             }
@@ -775,11 +784,12 @@ export class Game {
                 this.player, this.bot, botColor, botMeta.name, p1Label, p2Label,
                 this.scoreRed, this.scoreBlue,
                 this.isTiebreaker, this.tiebreakerTimer,
-                this.tiebreakerRedDamage, this.tiebreakerBlueDamage
+                this.tiebreakerRedDamage, this.tiebreakerBlueDamage,
+                this.isTeamMatch
             );
         }
 
-        this.renderer.drawControlsHint(this.mode === "pvp");
+        this.renderer.drawControlsHint(this.mode === "pvp", this.matchFrames);
 
         // Game Over Banner
         if (this.state === "gameover") {

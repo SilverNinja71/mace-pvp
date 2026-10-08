@@ -350,6 +350,11 @@ export class Fighter {
             this.dashCooldown--;
         }
 
+        // On-ground dash recovery: guarantee that any grounded fighter regains dash readiness once cooldown expires
+        if (this.dashCooldown <= 0 && this.onGround && !this.dashing) {
+            this.dashReady = true;
+        }
+
         // Buffered dash activation as soon as cooldown and stun clear
         if (this.dashBuffer > 0) {
             this.dashBuffer--;

@@ -164,11 +164,24 @@ export class BotAI {
             if ((this.dodging || this.runAway) && !bot.dashing) {
                 bot.xVel = distance > 0 ? -P.runSpeed : P.runSpeed;
             } else if (!bot.dashing) {
-                if (Math.abs(distance) > 26) {
+                if (Math.abs(distance) > 40) {
                     bot.xVel = distance > 0 ? P.speed : -P.speed;
+                } else if (Math.abs(distance) > 28) {
+                    bot.xVel = distance > 0 ? P.speed * 0.7 : -P.speed * 0.7;
                 } else {
-                    // Close quarters: keep active spacing so fighters never freeze merged together
-                    bot.xVel = distance >= 0 ? 1.2 : -1.2;
+                    // Close quarters (< 28px):
+                    // In point-blank range, do not push continuously into player's pushbox.
+                    // If dash is ready, strike immediately!
+                    if (bot.dashReady && bot.dashCooldown <= 0 && this.dashTimerAI <= 0) {
+                        this.startDash(true, distance);
+                    } else {
+                        // Dash is on cooldown: back away to maintain tactical spacing or leap to initiate aerial attack
+                        bot.xVel = distance >= 0 ? -P.speed : P.speed;
+                        if (this.jumpTimer <= 0 && bot.onGround && Math.random() < 0.35) {
+                            bot.jump();
+                            this.jumpTimer = 30 + Math.random() * 25;
+                        }
+                    }
                 }
             }
 
@@ -220,11 +233,13 @@ export class BotAI {
                 !bot.dashing &&
                 !this.runAway &&
                 bot.dashReady &&
+                bot.dashCooldown <= 0 &&
                 this.dashTimerAI <= 0 &&
                 Math.abs(distance) < P.dashAttackRange &&
                 Math.abs(targetPlayer.y - bot.y) < P.dashAttackHeight
             ) {
-                if (Math.random() * 100 < P.dashAttackChance) {
+                const strikeChance = Math.abs(distance) < 65 ? Math.max(80, P.dashAttackChance) : P.dashAttackChance;
+                if (Math.random() * 100 < strikeChance) {
                     this.startDash(true, distance);
                 }
             }
