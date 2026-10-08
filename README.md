@@ -38,6 +38,8 @@ You can launch or share the game immediately in multiple ways:
 | **Move Left / Right** | <kbd>A</kbd> / <kbd>D</kbd> or <kbd>←</kbd> / <kbd>→</kbd> | Run across platforms |
 | **Jump / Double Jump** | <kbd>W</kbd> or <kbd>↑</kbd> | Tap once to jump, tap in air for double jump |
 | **Spear Dash** | <kbd>Space</kbd> | High-speed horizontal burst (ground or air). Can dash mid-slam! |
+| **Swap Weapon** | <kbd>Q</kbd> | Switch between your two loadout weapons (set Slot 1 / Slot 2 in the Inventory). |
+| **Aim Bow** | Mouse | With the bow, <kbd>Space</kbd> or left-click fires toward the cursor. |
 | **Mace Slam** | <kbd>S</kbd> or <kbd>↓</kbd> | Dive downwards at terminal velocity. Hits harder from greater heights! |
 | **Pause** | <kbd>Esc</kbd> | Open pause menu |
 | **Toggle Mute** | <kbd>M</kbd> | Toggle synthesized Web Audio sound effects |
@@ -142,7 +144,7 @@ Enter the **🏟️ Arena Hub** for multi-fighter aerial combat:
   - **5 v 5 Epic Brawl**: 10-fighter massive team chaos!
 - **Matchmaking & Private Rooms**:
   - **Public Quick Match**: Click *Find Match* to enter the matchmaking queue with live radar search and player counter.
-  - **Private Room**: Create or join custom private rooms using shareable Room Codes (e.g. `MACE-XK92-481`).
+  - **Play a Friend Online (1v1)**: Create a room and send the invite link (or code, e.g. `MACE-XK92-481`). Your friend opens the link and clicks Join, and your browsers connect directly peer-to-peer (WebRTC via [PeerJS](https://peerjs.com)). No server to run; needs an internet connection.
 - **Loadout Selection**: Choose your equipped weapon before deploying into battle.
 
 ---

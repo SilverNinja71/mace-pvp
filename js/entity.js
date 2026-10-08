@@ -30,6 +30,7 @@ export class Fighter {
         this.weaponStats = getComputedWeaponStats("mace");
         this.skinId = "steve";
         this.arrowCooldown = 0;
+        this.aimAngle = null; // bow aim (radians) set from the mouse; null = shoot straight ahead
 
         // State Flags
         this.onGround = false;
@@ -79,6 +80,27 @@ export class Fighter {
         this.weaponStats = getComputedWeaponStats(weaponId, upgradeLevels);
     }
 
+    // Two-weapon loadout: primary + optional secondary, swapped with swapWeapon()
+    setLoadout(primary, secondary = null, upgradeLevels = {}) {
+        this.loadout = secondary && secondary !== primary ? [primary, secondary] : [primary];
+        this.loadoutUpgrades = upgradeLevels;
+        this.activeSlot = 0;
+        this.swapCooldown = 0;
+        this.setWeapon(primary, upgradeLevels);
+    }
+
+    swapWeapon() {
+        if (!this.loadout || this.loadout.length < 2) return false;
+        if (this.swapCooldown > 0 || this.dashing || this.slamming || this.hp <= 0) return false;
+        this.activeSlot = 1 - this.activeSlot;
+        this.setWeapon(this.loadout[this.activeSlot], this.loadoutUpgrades || {});
+        this.swapCooldown = 20; // ~1/3 second between swaps
+        this.squashX = 1.15;
+        this.squashY = 0.9;
+        sound.playClick();
+        return true;
+    }
+
     setSkin(skinId) {
         this.skinId = skinId;
     }
@@ -119,6 +141,7 @@ export class Fighter {
         this.squashY = 1.0;
 
         this.isDead = false;
+        this.lastHitBy = null;
         this.stats = {
             kills: 0,
             damageDealt: 0,
@@ -208,18 +231,23 @@ export class Fighter {
                 const reloadTime = this.weaponStats.reloadTime || 45;
                 this.arrowCooldown = reloadTime;
 
-                // Spawn arrow
+                // Spawn arrow (aimed at the mouse when an aim angle is set)
+                const aim = this.aimAngle;
+                const aimed = aim !== null && aim !== undefined;
+                if (aimed) this.facing = Math.cos(aim) >= 0 ? 1 : -1;
                 arrowManager.spawnArrow(
-                    this.facing > 0 ? this.x + this.w + 4 : this.x - 4,
-                    this.y + this.h / 2,
+                    aimed ? this.x + this.w / 2 + Math.cos(aim) * 18 : (this.facing > 0 ? this.x + this.w + 4 : this.x - 4),
+                    aimed ? this.y + this.h / 2 + Math.sin(aim) * 18 : this.y + this.h / 2,
                     this.facing,
                     this.id,
                     this.team,
                     this.weaponStats.arrowDamage || 30,
                     this.weaponStats.arrowSpeed || 16,
-                    this.weaponStats.arrowKnockback || 1.0
+                    this.weaponStats.arrowKnockback || 1.0,
+                    aimed ? aim : null
                 );
 
+                this.stats.arrowsAttempted++;
                 sound.playDash(); // bow shoot twang
                 this.squashX = 1.2;
                 this.squashY = 0.85;
@@ -323,10 +351,13 @@ export class Fighter {
         if (this.hp <= 0) return;
 
         // Update stat tracking (altitude)
-        const altitude = Math.max(0, ARENA_CONFIG.groundY - this.y);
+        // Height of the fighter's feet above the floor
+        const altitude = Math.max(0, ARENA_CONFIG.groundY - (this.y + this.h));
         if (altitude > this.stats.maxHeight) {
             this.stats.maxHeight = altitude;
         }
+
+        if (this.swapCooldown > 0) this.swapCooldown--;
 
         // Arrow cooldown countdown
         if (this.arrowCooldown > 0) {
@@ -442,6 +473,12 @@ export class Fighter {
         // Stepped off ledge
         if (wasGrounded && !landed && this.yVel >= 0) {
             this.coyoteTimer = CORE_PHYSICS.coyoteTime;
+        }
+
+        // Ceiling: bump your head instead of flying off the top of the screen
+        if (this.y < 0) {
+            this.y = 0;
+            if (this.yVel < 0) this.yVel = 0;
         }
 
         // Arena horizontal boundaries

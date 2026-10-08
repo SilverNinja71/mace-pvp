@@ -1,3 +1,4 @@
+import { GOOGLE_CLIENT_ID } from './config.js';
 // ==========================================
 // SPEAR-MACE PVP - Authentication, Economy & Profile Manager
 // Handles Google Sign-In, Gold Currency, Minecraft Weapons Arsenal,
@@ -20,13 +21,13 @@ export const AVATAR_PRESETS = [
 export const BLOCK_FACES = [
     { id: "steve", name: "Minecraft Steve", icon: "", cost: 0, desc: "Classic Minecraft icon with cyan tee and brown hair." },
     { id: "alex", name: "Minecraft Alex", icon: "", cost: 0, desc: "Classic Minecraft explorer with green tunic and orange hair." },
-    { id: "noob", name: "Roblox Noob", icon: "", cost: 100, desc: "The iconic yellow block head with simple smile and blue torso." },
-    { id: "man_face", name: "Roblox Man Face", icon: "", cost: 200, desc: "The legendary, unmistakable smirking block face." },
-    { id: "creeper", name: "Creeper Face", icon: "", cost: 250, desc: "Pixelated green explosive face with iconic black frown." },
-    { id: "enderman", name: "Enderman", icon: "", cost: 300, desc: "Deep dark obsidian head with glowing mystical violet eyes." },
-    { id: "skeleton", name: "Skeleton Skull", icon: "", cost: 250, desc: "Bone white archer skull with hollow dark eyes." },
-    { id: "zombie", name: "Zombie", icon: "", cost: 200, desc: "Infected undead Steve with necrotic green skin." },
-    { id: "diamond_knight", name: "Diamond Helmet", icon: "", cost: 400, desc: "Gleaming enchanted diamond helmet warrior." }
+    { id: "noob", name: "Roblox Noob", icon: "", cost: 200, desc: "The iconic yellow block head with simple smile and blue torso." },
+    { id: "man_face", name: "Roblox Man Face", icon: "", cost: 400, desc: "The legendary, unmistakable smirking block face." },
+    { id: "creeper", name: "Creeper Face", icon: "", cost: 500, desc: "Pixelated green explosive face with iconic black frown." },
+    { id: "enderman", name: "Enderman", icon: "", cost: 600, desc: "Deep dark obsidian head with glowing mystical violet eyes." },
+    { id: "skeleton", name: "Skeleton Skull", icon: "", cost: 500, desc: "Bone white archer skull with hollow dark eyes." },
+    { id: "zombie", name: "Zombie", icon: "", cost: 400, desc: "Infected undead Steve with necrotic green skin." },
+    { id: "diamond_knight", name: "Diamond Helmet", icon: "", cost: 800, desc: "Gleaming enchanted diamond helmet warrior." }
 ];
 
 export const RANDOM_USERNAMES = [
@@ -50,8 +51,9 @@ export class AuthManager {
             if (data) {
                 const parsed = JSON.parse(data);
                 // Schema backfills
-                if (parsed.gold === undefined) parsed.gold = 500;
+                if (parsed.gold === undefined) parsed.gold = 300;
                 if (!parsed.equippedWeapon) parsed.equippedWeapon = "mace";
+                if (parsed.secondaryWeapon === undefined) parsed.secondaryWeapon = null;
                 if (!parsed.unlockedWeapons) parsed.unlockedWeapons = ["mace", "spear"];
                 if (!parsed.weaponUpgrades) parsed.weaponUpgrades = {};
                 if (!parsed.skinId) parsed.skinId = "steve";
@@ -87,8 +89,9 @@ export class AuthManager {
             authProvider: "guest", // "guest" | "google"
             level: 1,
             xp: 0,
-            gold: 500, // 500 starter gold
+            gold: 300, // 300 starter gold
             equippedWeapon: "mace",
+            secondaryWeapon: null, // second loadout slot (swap with Q in matches)
             unlockedWeapons: ["mace", "spear"],
             weaponUpgrades: {},
             skinId: "steve",
@@ -111,6 +114,8 @@ export class AuthManager {
                 slamsLanded: 0,
                 dashesLanded: 0,
                 maxSlamDamage: 0,
+                kills: 0,
+                damageDealt: 0,
                 currentStreak: 0,
                 bestStreak: 0
             }
@@ -255,13 +260,27 @@ export class AuthManager {
         return { success: false, error: "Weapon already unlocked." };
     }
 
-    equipWeapon(weaponId) {
-        if (this.user.unlockedWeapons.includes(weaponId)) {
-            this.user.equippedWeapon = weaponId;
-            this.saveUser();
-            return true;
+    // slot 1 = primary weapon, slot 2 = secondary. Equipping a weapon that's in the
+    // other slot swaps the two.
+    equipWeapon(weaponId, slot = 1) {
+        if (!this.user.unlockedWeapons.includes(weaponId)) return false;
+        const u = this.user;
+        if (slot === 2) {
+            if (u.equippedWeapon === weaponId) u.equippedWeapon = u.secondaryWeapon || u.equippedWeapon;
+            u.secondaryWeapon = weaponId;
+            if (u.equippedWeapon === u.secondaryWeapon) u.secondaryWeapon = null;
+        } else {
+            if (u.secondaryWeapon === weaponId) u.secondaryWeapon = u.equippedWeapon;
+            u.equippedWeapon = weaponId;
+            if (u.secondaryWeapon === u.equippedWeapon) u.secondaryWeapon = null;
         }
-        return false;
+        this.saveUser();
+        return true;
+    }
+
+    clearSecondaryWeapon() {
+        this.user.secondaryWeapon = null;
+        this.saveUser();
     }
 
     upgradeWeapon(upgradeId, cost, maxLevel = 5) {
@@ -303,20 +322,51 @@ export class AuthManager {
     // GOOGLE IDENTITY SERVICES
     // ==========================================
 
+    isGoogleConfigured() {
+        return !!GOOGLE_CLIENT_ID;
+    }
+
+    // The Google script loads asynchronously; wait for it, then initialize once
     initGoogleClient() {
-        if (typeof window !== "undefined" && window.google && window.google.accounts) {
-            try {
-                const clientId = window.GOOGLE_CLIENT_ID || null;
-                if (clientId) {
+        this.googleReady = false;
+        this.googleReadyCallbacks = [];
+        if (!this.isGoogleConfigured() || typeof window === "undefined") return;
+
+        let tries = 0;
+        const tryInit = () => {
+            if (window.google && window.google.accounts && window.google.accounts.id) {
+                try {
                     window.google.accounts.id.initialize({
-                        client_id: clientId,
-                        callback: (response) => this.handleGoogleCredentialResponse(response)
+                        client_id: GOOGLE_CLIENT_ID,
+                        callback: (response) => this.handleGoogleCredentialResponse(response),
+                        auto_select: false
                     });
+                    this.googleReady = true;
+                    this.googleReadyCallbacks.forEach(cb => cb());
+                    this.googleReadyCallbacks = [];
+                } catch (e) {
+                    console.warn("Google Identity Services initialization warning:", e);
                 }
-            } catch (e) {
-                console.warn("Google Identity Services initialization warning:", e);
+                return;
             }
-        }
+            if (++tries < 100) setTimeout(tryInit, 100); // give up after ~10s (offline / blocked)
+        };
+        tryInit();
+    }
+
+    // Draws Google's official "Sign in with Google" button into the element
+    renderGoogleButton(el) {
+        const draw = () => {
+            el.innerHTML = "";
+            window.google.accounts.id.renderButton(el, {
+                theme: "filled_black",
+                size: "large",
+                text: "signin_with",
+                shape: "rectangular"
+            });
+        };
+        if (this.googleReady) draw();
+        else this.googleReadyCallbacks.push(draw);
     }
 
     parseJwt(token) {
@@ -343,6 +393,7 @@ export class AuthManager {
             name: payload.name || payload.given_name || "Google Player",
             picture: payload.picture
         });
+        if (this.onGoogleSignIn) this.onGoogleSignIn();
     }
 
     signInWithGoogleData({ id, email, name, picture }) {
@@ -365,6 +416,9 @@ export class AuthManager {
     }
 
     signOut() {
+        if (typeof window !== "undefined" && window.google && window.google.accounts && window.google.accounts.id) {
+            try { window.google.accounts.id.disableAutoSelect(); } catch (e) { /* not initialized */ }
+        }
         this.user.email = null;
         this.user.authProvider = "guest";
         this.user.avatarType = "preset";
@@ -528,13 +582,7 @@ export class AuthManager {
             xpEarned = 25;
         }
 
-        if (matchStats) {
-            s.slamsLanded += (matchStats.slamsLanded || 0);
-            s.dashesLanded += (matchStats.dashesLanded || 0);
-            if (matchStats.maxSlamDamage > s.maxSlamDamage) {
-                s.maxSlamDamage = matchStats.maxSlamDamage;
-            }
-        }
+        this.addMatchStatsToCareer(matchStats);
 
         this.addGold(goldEarned);
         this.addXP(xpEarned);
@@ -544,9 +592,23 @@ export class AuthManager {
     }
 
     // Ranked Arena Match Outcome (Scales heavily as rank increases)
-    recordArenaMatchResult(isWin, matchType = "1v1") {
+    // Adds one match's combat numbers to the lifetime career record
+    addMatchStatsToCareer(matchStats) {
+        if (!matchStats) return;
+        const s = this.user.stats;
+        s.slamsLanded = (s.slamsLanded || 0) + (matchStats.slamsLanded || 0);
+        s.dashesLanded = (s.dashesLanded || 0) + (matchStats.dashesLanded || 0);
+        s.kills = (s.kills || 0) + (matchStats.kills || 0);
+        s.damageDealt = (s.damageDealt || 0) + (matchStats.damageDealt || 0);
+        if ((matchStats.maxSlamDamage || 0) > (s.maxSlamDamage || 0)) {
+            s.maxSlamDamage = matchStats.maxSlamDamage;
+        }
+    }
+
+    recordArenaMatchResult(isWin, matchType = "1v1", matchStats = null) {
         const s = this.user.stats;
         s.matches++;
+        this.addMatchStatsToCareer(matchStats);
 
         const curRP = this.user.arenaRP || 250;
         let rpDelta = 0;

@@ -23,6 +23,7 @@ FILES_IN_ORDER = [
     "weapons.js",
     "arena.js",
     "auth.js",
+    "online.js",
     "particles.js",
     "entity.js",
     "ai.js",

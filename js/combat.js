@@ -13,6 +13,15 @@ export class CombatEngine {
     }
 
     // Resolves direct mid-air mace slam
+    // Applies damage and returns how much HP was actually removed (no overkill in stats)
+    applyDamage(attacker, defender, amount) {
+        const dealt = Math.min(amount, Math.max(0, defender.hp));
+        defender.hp -= amount;
+        defender.stats.damageTaken += dealt;
+        defender.lastHitBy = attacker;
+        return dealt;
+    }
+
     checkAirSlam(attacker, defender, damageMultiplier, stunMultiplier, onDefenderHit = null) {
         if (!attacker.slamming || attacker.dashing) return false;
         if (defender.hp <= 0 || defender.hitCooldown > 0) return false;
@@ -42,8 +51,7 @@ export class CombatEngine {
             }
 
             const finalDamage = slamDamage * effDmgMult;
-            defender.hp -= finalDamage;
-            defender.stats.damageTaken += finalDamage;
+            const dealt = this.applyDamage(attacker, defender, finalDamage);
             defender.hitCooldown = 25;
             defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier);
 
@@ -66,7 +74,7 @@ export class CombatEngine {
             defender.squashY = 0.7;
 
             // Stats
-            attacker.stats.damageDealt += finalDamage;
+            attacker.stats.damageDealt += dealt;
             attacker.stats.slamsLanded++;
             if (finalDamage > attacker.stats.maxSlamDamage) {
                 attacker.stats.maxSlamDamage = finalDamage;
@@ -118,8 +126,7 @@ export class CombatEngine {
             defender.hitCooldown <= 0
         ) {
             const finalDamage = CORE_PHYSICS.slamGroundDamage * damageMultiplier;
-            defender.hp -= finalDamage;
-            defender.stats.damageTaken += finalDamage;
+            const dealt = this.applyDamage(attacker, defender, finalDamage);
             defender.hitCooldown = 20;
             defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier);
 
@@ -127,8 +134,12 @@ export class CombatEngine {
             defender.dashing = false;
             defender.dashAttack = false;
 
-            attacker.stats.damageDealt += finalDamage;
-            attacker.stats.slamsLanded++;
+            attacker.stats.damageDealt += dealt;
+            // One slam that hits several enemies still counts as one landed slam
+            if (!attacker.groundSlamCounted) {
+                attacker.stats.slamsLanded++;
+                attacker.groundSlamCounted = true;
+            }
 
             if (onDefenderHit) onDefenderHit(finalDamage, attacker, defender);
 
@@ -162,8 +173,7 @@ export class CombatEngine {
             attacker.y + attacker.h > defender.y
         ) {
             const finalDamage = baseDmg * damageMultiplier;
-            defender.hp -= finalDamage;
-            defender.stats.damageTaken += finalDamage;
+            const dealt = this.applyDamage(attacker, defender, finalDamage);
             defender.hitCooldown = 22;
             defender.stun = Math.round((CORE_PHYSICS.hitStun + stunBonus) * stunMultiplier);
 
@@ -182,7 +192,7 @@ export class CombatEngine {
                 attacker.dashReady = true;
             }
 
-            attacker.stats.damageDealt += finalDamage;
+            attacker.stats.damageDealt += dealt;
             attacker.stats.dashesLanded++;
 
             if (onDefenderHit) onDefenderHit(finalDamage, attacker, defender);

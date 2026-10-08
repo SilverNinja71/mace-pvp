@@ -10,6 +10,7 @@ import { sound } from './audio.js';
 import { auth, AVATAR_PRESETS, BLOCK_FACES } from './auth.js';
 import { WEAPON_TYPES } from './weapons.js';
 import { arena, ARENA_TIERS } from './arena.js';
+import { online } from './online.js';
 import { cubeHTML, headImgHTML, presetHeadId, tierPipHTML, weaponIconHTML, applyMinecraftBackground } from './pixel.js';
 
 export class UIManager {
@@ -188,6 +189,26 @@ export class UIManager {
         }
 
         // Theme / Biome Toggle (Overworld -> Nether -> End)
+        // Settings dropdown in the header
+        const settingsBtn = document.getElementById("btn-settings");
+        const settingsMenu = document.getElementById("settings-menu");
+        if (settingsBtn && settingsMenu) {
+            const setOpen = (open) => {
+                settingsMenu.classList.toggle("hidden", !open);
+                settingsBtn.setAttribute("aria-expanded", open ? "true" : "false");
+            };
+            settingsBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                setOpen(settingsMenu.classList.contains("hidden"));
+            });
+            document.addEventListener("click", (e) => {
+                if (!settingsMenu.contains(e.target) && e.target !== settingsBtn) setOpen(false);
+            });
+            document.addEventListener("keydown", (e) => {
+                if (e.key === "Escape") setOpen(false);
+            });
+        }
+
         this.themeBtn = document.getElementById("btn-theme");
         this.currentBiome = "overworld";
         if (this.themeBtn) {
@@ -346,7 +367,7 @@ export class UIManager {
 
     updateMuteButton(isMuted) {
         if (!this.muteBtn) return;
-        this.muteBtn.textContent = isMuted ? "Unmute" : "Sound On";
+        this.muteBtn.textContent = isMuted ? "Sound: Off" : "Sound: On";
     }
 
     // ==========================================
@@ -354,6 +375,12 @@ export class UIManager {
     // ==========================================
 
     setupAuthUI() {
+        // Refresh the profile screen after Google's sign-in popup finishes
+        auth.onGoogleSignIn = () => {
+            sound.playClick();
+            if (this.authModal && !this.authModal.classList.contains("hidden")) this.renderAuthModalContent();
+        };
+
         auth.onUserChanged((user) => {
             this.updateHeaderProfileBadge(user);
             if (this.goldDisplay) {
@@ -440,21 +467,17 @@ export class UIManager {
                     this.renderAuthModalContent();
                 });
             } else {
-                googleSection.innerHTML = `
-                    <button id="btn-google-signin" class="btn-google-signin">
-                        <svg class="google-icon" viewBox="0 0 24 24" width="18" height="18">
-                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                        </svg>
-                        <span>Sign in with Google</span>
-                    </button>
-                    <p class="google-disclaimer">Link your Google account to sync your profile across devices.</p>
-                `;
-                document.getElementById("btn-google-signin")?.addEventListener("click", () => {
-                    this.triggerGoogleSignInFlow();
-                });
+                if (auth.isGoogleConfigured()) {
+                    googleSection.innerHTML = `
+                        <div id="google-signin-button" class="google-signin-button">Loading Google sign-in...</div>
+                        <p class="google-disclaimer">Sign in with your Google account. Your progress is saved in this browser.</p>
+                    `;
+                    auth.renderGoogleButton(document.getElementById("google-signin-button"));
+                } else {
+                    googleSection.innerHTML = `
+                        <p class="google-disclaimer">Google sign-in isn't set up yet.</p>
+                    `;
+                }
             }
         }
 
@@ -545,86 +568,31 @@ export class UIManager {
                         <span class="cs-label">Win Rate</span>
                     </div>
                     <div class="career-stat-card">
-                        <span class="cs-val">${s.slamsLanded}</span>
-                        <span class="cs-label">Mace Slams</span>
+                        <span class="cs-val">${s.matches || 0}</span>
+                        <span class="cs-label">Matches</span>
                     </div>
                     <div class="career-stat-card">
-                        <span class="cs-val" style="color:#e67e22">${s.maxSlamDamage.toFixed(0)}</span>
+                        <span class="cs-val" style="color:#ff7675">${s.kills || 0}</span>
+                        <span class="cs-label">Total KOs</span>
+                    </div>
+                    <div class="career-stat-card">
+                        <span class="cs-val">${Math.round(s.damageDealt || 0)}</span>
+                        <span class="cs-label">Damage Dealt</span>
+                    </div>
+                    <div class="career-stat-card">
+                        <span class="cs-val">${s.bestStreak || 0}</span>
+                        <span class="cs-label">Best Win Streak</span>
+                    </div>
+                    <div class="career-stat-card">
+                        <span class="cs-val">${s.slamsLanded || 0}</span>
+                        <span class="cs-label">Slams Landed</span>
+                    </div>
+                    <div class="career-stat-card">
+                        <span class="cs-val" style="color:#e67e22">${Math.round(s.maxSlamDamage || 0)}</span>
                         <span class="cs-label">Max Slam DMG</span>
                     </div>
                 </div>
             `;
-        }
-    }
-
-    triggerGoogleSignInFlow() {
-        sound.playClick();
-        if (window.google && window.google.accounts && window.GOOGLE_CLIENT_ID) {
-            try {
-                window.google.accounts.id.prompt();
-                return;
-            } catch (e) {
-                console.warn("GIS prompt fallback:", e);
-            }
-        }
-
-        const googleMockModal = document.getElementById("google-mock-modal");
-        if (googleMockModal) {
-            googleMockModal.classList.remove("hidden");
-            this.setupGoogleMockOptions();
-        }
-    }
-
-    setupGoogleMockOptions() {
-        const demoAccounts = [
-            { name: "Steve Gamer", email: "steve.craft@gmail.com", avatar: "https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=100&auto=format&fit=crop&q=80" },
-            { name: "Alex Champion", email: "alex.aerial@gmail.com", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" }
-        ];
-
-        const container = document.getElementById("google-account-list");
-        if (!container) return;
-
-        container.innerHTML = "";
-        demoAccounts.forEach((acc) => {
-            const item = document.createElement("div");
-            item.className = "google-acc-row";
-            item.innerHTML = `
-                <img src="${acc.avatar}" alt="${acc.name}" class="google-acc-img">
-                <div class="google-acc-text">
-                    <div class="google-acc-name">${acc.name}</div>
-                    <div class="google-acc-email">${acc.email}</div>
-                </div>
-            `;
-            item.addEventListener("click", () => {
-                auth.signInWithGoogleData({
-                    id: Math.floor(Math.random() * 1000000).toString(),
-                    name: acc.name,
-                    email: acc.email,
-                    picture: acc.avatar
-                });
-                document.getElementById("google-mock-modal")?.classList.add("hidden");
-                sound.playClick();
-                this.renderAuthModalContent();
-            });
-            container.appendChild(item);
-        });
-
-        const customBtn = document.getElementById("btn-custom-google-signin");
-        const customInput = document.getElementById("input-custom-google-email");
-        if (customBtn && customInput) {
-            customBtn.onclick = () => {
-                const email = customInput.value.trim() || "player@gmail.com";
-                const handle = email.split("@")[0] || "GooglePlayer";
-                auth.signInWithGoogleData({
-                    id: Math.floor(Math.random() * 1000000).toString(),
-                    name: handle,
-                    email: email,
-                    picture: null
-                });
-                document.getElementById("google-mock-modal")?.classList.add("hidden");
-                sound.playClick();
-                this.renderAuthModalContent();
-            };
         }
     }
 
@@ -714,14 +682,23 @@ export class UIManager {
                 const w = WEAPON_TYPES[weaponId];
                 if (weaponId === equipped) {
                     slot.classList.add("active");
+                } else if (weaponId === user.secondaryWeapon) {
+                    slot.classList.add("secondary");
                 }
-                slot.title = `${w.name} (${weaponId === equipped ? 'Equipped' : 'Click to Equip'})`;
+                slot.title = `${w.name}: ${weaponId === equipped ? 'Slot 1' : (weaponId === user.secondaryWeapon ? 'Slot 2' : 'click = Slot 1, right-click = Slot 2')}`;
                 slot.innerHTML = `
                     ${weaponIconHTML(weaponId, 28)}
                     <span class="mc-slot-num">${i + 1}</span>
                 `;
                 slot.addEventListener("click", () => {
-                    auth.equipWeapon(weaponId);
+                    auth.equipWeapon(weaponId, 1);
+                    sound.playClick();
+                    this.renderHotbarSlots();
+                    this.renderWeaponsModalContent();
+                });
+                slot.addEventListener("contextmenu", (e) => {
+                    e.preventDefault();
+                    auth.equipWeapon(weaponId, 2);
                     sound.playClick();
                     this.renderHotbarSlots();
                     this.renderWeaponsModalContent();
@@ -852,7 +829,9 @@ export class UIManager {
         // Weapons Catalog
         Object.values(WEAPON_TYPES).forEach(w => {
             const isUnlocked = user.unlockedWeapons.includes(w.id);
-            const isEquipped = user.equippedWeapon === w.id;
+            const inSlot1 = user.equippedWeapon === w.id;
+            const inSlot2 = user.secondaryWeapon === w.id;
+            const isEquipped = inSlot1 || inSlot2;
 
             const card = document.createElement("div");
             card.className = `weapon-shop-card ${isEquipped ? 'equipped' : ''}`;
@@ -867,10 +846,14 @@ export class UIManager {
                         </div>
                     </div>
                     <div class="ws-right">
-                        ${isEquipped ? 
-                            `<span class="badge-equipped">EQUIPPED</span>` :
-                            (isUnlocked ? 
-                                `<button class="btn-ctrl btn-equip-weap" data-id="${w.id}">Equip</button>` :
+                        ${inSlot1 ?
+                            `<span class="badge-equipped">SLOT 1</span>` :
+                          inSlot2 ?
+                            `<span class="badge-equipped badge-slot2">SLOT 2</span>
+                             <button class="btn-ctrl btn-clear-slot2" title="Remove from slot 2">Unequip</button>` :
+                            (isUnlocked ?
+                                `<button class="btn-ctrl btn-equip-weap" data-id="${w.id}" data-slot="1" title="Main weapon">Slot 1</button>
+                                 <button class="btn-ctrl btn-equip-weap" data-id="${w.id}" data-slot="2" title="Second weapon (press Q in a match to swap)">Slot 2</button>` :
                                 `<button class="btn-ctrl btn-unlock-weap ${gold >= w.baseCost ? 'btn-can-buy' : ''}" data-id="${w.id}" data-cost="${w.baseCost}" ${gold < w.baseCost ? 'disabled' : ''}>
                                     ${gold >= w.baseCost ? '⭐ ' : ''}Unlock (${w.baseCost} G)
                                 </button>`
@@ -891,9 +874,18 @@ export class UIManager {
         });
 
         // Attach Equip / Unlock handlers
+        container.querySelectorAll(".btn-clear-slot2").forEach(btn => {
+            btn.onclick = () => {
+                auth.clearSecondaryWeapon();
+                sound.playClick();
+                this.renderHotbarSlots();
+                this.renderWeaponsModalContent();
+            };
+        });
+
         container.querySelectorAll(".btn-equip-weap").forEach(btn => {
             btn.onclick = () => {
-                auth.equipWeapon(btn.dataset.id);
+                auth.equipWeapon(btn.dataset.id, parseInt(btn.dataset.slot) || 1);
                 sound.playClick();
                 this.renderHotbarSlots();
                 this.renderWeaponsModalContent();
@@ -1015,6 +1007,7 @@ export class UIManager {
                 if (status) status.textContent = "";
                 document.getElementById("private-room-panel").classList.remove("hidden");
                 sound.playClick();
+                this.hostOnlineRoom(code);
             };
         }
 
@@ -1028,15 +1021,6 @@ export class UIManager {
             linkInput.addEventListener("click", () => linkInput.select());
         }
 
-        // Launch Private Match button
-        const btnLaunchPrivate = document.getElementById("btn-launch-private");
-        if (btnLaunchPrivate) {
-            btnLaunchPrivate.onclick = () => {
-                this.arenaModal.classList.add("hidden");
-                this.launchArenaMatchWithLoading(this.selectedArenaMode, this.selectedArenaWeapon);
-            };
-        }
-
         // Join Private Room button
         const btnJoin = document.getElementById("btn-join-private");
         const joinInput = document.getElementById("input-join-code");
@@ -1048,11 +1032,122 @@ export class UIManager {
                     return;
                 }
                 joinInput.value = code;
-                sound.playWin();
-                this.arenaModal.classList.add("hidden");
-                this.launchArenaMatchWithLoading(this.selectedArenaMode, this.selectedArenaWeapon);
+                sound.playClick();
+                this.joinOnlineRoom(code);
             };
         }
+
+        online.onMessage = (msg) => this.handleOnlineMessage(msg);
+        online.onDisconnect = (reason) => this.handleOnlineDisconnect(reason);
+    }
+
+    // ==========================================
+    // ONLINE (PEER-TO-PEER) LOBBY
+    // ==========================================
+
+    setOnlineStatus(text, isError = false) {
+        const el = document.getElementById("online-status");
+        if (!el) return;
+        el.textContent = text;
+        el.classList.toggle("error", isError);
+    }
+
+    myOnlineInfo() {
+        const user = auth.getUser();
+        return {
+            name: (user.username || "Player").slice(0, 20),
+            skin: user.skinId || "steve",
+            weapon: this.selectedArenaWeapon || user.equippedWeapon || "mace",
+            weapon2: (user.secondaryWeapon && user.secondaryWeapon !== (this.selectedArenaWeapon || user.equippedWeapon))
+                ? user.secondaryWeapon
+                : (user.equippedWeapon !== this.selectedArenaWeapon ? user.equippedWeapon : null),
+            upgrades: user.weaponUpgrades || {}
+        };
+    }
+
+    hostOnlineRoom(code) {
+        this.setOnlineStatus("Opening room...");
+        online.host(code, () => {
+            // A friend connected; wait for their hello with their fighter info
+            this.setOnlineStatus("Friend connected! Starting...");
+        }, (err) => this.setOnlineStatus(err, true));
+        // Room is ready to share once the peer registers
+        if (online.peer) {
+            online.peer.on("open", () => this.setOnlineStatus("Room open. Waiting for your friend to join..."));
+        }
+    }
+
+    joinOnlineRoom(code) {
+        this.setOnlineStatus("Connecting to your friend's room...");
+        online.join(code, () => {
+            this.setOnlineStatus("Connected! Starting...");
+            online.send({ t: "hello", info: this.myOnlineInfo() });
+        }, (err) => this.setOnlineStatus(err, true));
+    }
+
+    startOnlineFromMessage(role, hostInfo, guestInfo) {
+        if (this.arenaModal) this.arenaModal.classList.add("hidden");
+        if (this.statsModal) this.statsModal.classList.add("hidden");
+        this.hideResultsScreen();
+        this.setOnlineStatus("");
+        this.game.startOnlineMatch(role, hostInfo, guestInfo);
+    }
+
+    hostStartOnlineMatch() {
+        const hostInfo = this.myOnlineInfo();
+        const guestInfo = this.onlineGuestInfo || { name: "Guest" };
+        online.send({ t: "start", host: hostInfo, guest: guestInfo });
+        this.startOnlineFromMessage("host", hostInfo, guestInfo);
+    }
+
+    handleOnlineMessage(msg) {
+        if (msg.t === "hello" && online.role === "host") {
+            this.onlineGuestInfo = msg.info || {};
+            this.hostStartOnlineMatch();
+        } else if (msg.t === "start" && online.role === "guest") {
+            this.startOnlineFromMessage("guest", msg.host, msg.guest);
+        } else if (msg.t === "rematch" && online.role === "host") {
+            this.hostStartOnlineMatch();
+        } else {
+            this.game.handleNetMessage(msg);
+        }
+    }
+
+    handleOnlineDisconnect(reason) {
+        if (this.game.mode === "online" && this.game.state !== "menu") {
+            if (this.statsModal) this.statsModal.classList.add("hidden");
+            this.game.goHome();
+            this.showToast(reason);
+        } else {
+            this.setOnlineStatus(reason, true);
+        }
+    }
+
+    onlineRematch() {
+        if (this.game.state !== "gameover") return;
+        if (online.role === "host") {
+            this.hostStartOnlineMatch();
+        } else if (online.isConnected()) {
+            online.send({ t: "rematch" });
+            const btn = document.getElementById("btn-results-again");
+            if (btn) btn.textContent = "Waiting for host...";
+        }
+    }
+
+    showToast(text) {
+        let toast = document.getElementById("game-toast");
+        if (!toast) {
+            toast = document.createElement("div");
+            toast.id = "game-toast";
+            toast.className = "game-toast";
+            toast.setAttribute("role", "status");
+            const container = document.getElementById("arena-container") || document.body;
+            container.appendChild(toast);
+        }
+        toast.textContent = text;
+        toast.classList.add("show");
+        clearTimeout(this.toastTimer);
+        this.toastTimer = setTimeout(() => toast.classList.remove("show"), 4000);
     }
 
     // Shareable invite link for a private room, e.g. https://site/index.html?room=MACE-ABCD-123
@@ -1355,7 +1450,7 @@ export class UIManager {
 
     handleHomeClick() {
         const inMatch = (this.game.state === "play" || this.game.state === "paused");
-        const isMultiplayer = this.game.isTeamMatch || this.game.mode === "pvp";
+        const isMultiplayer = this.game.isTeamMatch || this.game.mode === "pvp" || this.game.mode === "online";
 
         if (inMatch && isMultiplayer) {
             if (this.resignModal) {
@@ -1378,6 +1473,10 @@ export class UIManager {
     }
 
     triggerMatchmakingRestart() {
+        if (this.game.mode === "online") {
+            this.onlineRematch();
+            return;
+        }
         sound.playClick();
         this.hideResultsScreen();
         if (this.statsModal) this.statsModal.classList.add("hidden");
@@ -1843,14 +1942,18 @@ export class UIManager {
         if (!this.statsModal) return;
 
         const p1 = this.game.player;
-        const p2 = this.game.bot;
+        // In team matches the head-to-head compares you with the best opponent
+        const p2 = this.game.isTeamMatch
+            ? this.game.redTeam.slice().sort((a, b) => (b.stats.kills - a.stats.kills) || (b.stats.damageDealt - a.stats.damageDealt))[0]
+            : this.game.bot;
         const statsBody = document.getElementById("stats-body");
         if (!statsBody) return;
 
         const highest = this.game.highestJumper || p1;
         const isTiebreaker = this.game.isTiebreaker;
-        const isPlayerWin = this.game.winnerTeam === "blue";
-        const winner = isPlayerWin ? (p1.name || "Steve") : (p2.name || "Opponent");
+        const isPlayerWin = this.game.winnerTeam === (this.game.localFighter || p1).team;
+        let winner = this.game.winnerTeam === "blue" ? (p1.name || "Steve") : (p2.name || "Opponent");
+        if (this.game.isTeamMatch) winner = this.game.winnerTeam === "blue" ? "Blue Team" : "Red Team";
         const rewardInfo = this.game.lastRewardInfo;
 
         // Calculate Combat Performance Rating (S+, S, A, B, C, D)
@@ -2233,6 +2336,8 @@ export class UIManager {
             winnerName = isPlayerWin ? "BLUE TEAM" : "RED TEAM";
         } else if (g.mode === "pvp") {
             winnerName = isPlayerWin ? "PLAYER 1" : "PLAYER 2";
+        } else if (g.mode === "online") {
+            winnerName = isPlayerWin ? (g.player.name || "HOST") : (g.bot.name || "GUEST");
         } else {
             winnerName = isPlayerWin ? (g.player.name || "YOU") : (g.bot.name || "BOT");
         }
@@ -2247,7 +2352,9 @@ export class UIManager {
                 : `${g.matchType.toUpperCase()} • Blue ${g.scoreBlue} - Red ${g.scoreRed}`;
         } else {
             const modeMeta = MODE_METADATA[g.mode] || {};
-            subEl.textContent = g.mode === "pvp" ? "Local 1v1 Duel" : `1v1 vs ${modeMeta.name || "Bot"}`;
+            subEl.textContent = g.mode === "pvp" ? "Local 1v1 Duel"
+                : g.mode === "online" ? (g.winnerTeam === g.localFighter.team ? "Online 1v1 • You won!" : "Online 1v1 • Good game!")
+                : `1v1 vs ${modeMeta.name || "Bot"}`;
         }
 
         // Placement order: winning team first, then by KOs, then damage dealt
@@ -2272,7 +2379,7 @@ export class UIManager {
             // Teams share a placement (whole winning team is 1st), solo duels rank individually
             const place = g.isTeamMatch ? (teamOf(f) === g.winnerTeam ? 1 : 2) : i + 1;
             const team = teamOf(f);
-            const isYou = f === g.player;
+            const isYou = f === (g.localFighter || g.player);
             const wep = WEAPON_TYPES[f.weaponId] || WEAPON_TYPES.mace;
             return `
                 <div class="rs-card rs-${team} ${place === 1 ? "rs-first" : ""} ${isYou ? "rs-you" : ""}" style="animation-delay:${0.15 + i * 0.08}s">
@@ -2288,6 +2395,9 @@ export class UIManager {
                 </div>
             `;
         }).join("");
+
+        const againBtn = document.getElementById("btn-results-again");
+        if (againBtn) againBtn.textContent = g.mode === "online" ? "Rematch (R)" : "Play Again (R)";
 
         const fightersEl = document.getElementById("results-fighters");
         fightersEl.classList.toggle("compact", compact);

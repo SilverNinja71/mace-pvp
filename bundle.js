@@ -7,15 +7,22 @@
   // Faithful to the original Khan Academy ProcessingJS game
   // ==========================================
   
+  // Google Sign-In: paste your OAuth Client ID here (looks like
+  // "1234567890-abc123.apps.googleusercontent.com"). Create one at
+  // https://console.cloud.google.com/apis/credentials with your site
+  // (e.g. https://silverninja71.github.io) as an Authorized JavaScript origin.
+  // Leave empty to hide Google sign-in.
+  const GOOGLE_CLIENT_ID = "";
+  
   const ARENA_CONFIG = {
       width: 800,
-      height: 400,
+      height: 440,             // Taller view so the ground layers are visible
       groundY: 390
   };
   
   const CORE_PHYSICS = {
       gravity: 0.35,
-      jumpPower: -8.5,
+      jumpPower: -7.2,         // Lower jumps (was -8.5) so double jumps stay on screen
       coyoteTime: 12,
       groundY: 390,
   
@@ -41,44 +48,46 @@
   };
   
   const PLATFORMS_CONFIG = [
-      { x: 0,   y: 390, w: 800, h: 30, name: "Main Floor" },
+      { x: 0,   y: 390, w: 800, h: 50, name: "Main Floor" },
       { x: 140, y: 275, w: 150, h: 12, name: "Left Ledge" },
       { x: 510, y: 275, w: 150, h: 12, name: "Right Ledge" }
   ];
   
-  // Exact Bot difficulty settings table from the original source
+  // Bot difficulty settings (originally from the ProcessingJS source, rebalanced so each
+  // level is clearly harder than the last). damageMult = how hard the bot hits,
+  // damageTaken / stunMult = how much damage and stun the bot takes.
   const BOT_SETTINGS = {
       dashAttackChance:   { practice: 1,   easy: 8,   normal: 40,  pro: 70,  god: 70 },
       dashAttackRange:    { practice: 180, easy: 250, normal: 300, pro: 450, god: 450 },
       dashAttackHeight:   { practice: 40,  easy: 50,  normal: 60,  pro: 90,  god: 90 },
-      randomDashChance:   { practice: 0.1, easy: 2,   normal: 3,   pro: 3,   god: 8 },
+      randomDashChance:   { practice: 0.1, easy: 2,   normal: 3,   pro: 3,   god: 5 },
       escapeDashChance:   { practice: 10,  easy: 40,  normal: 40,  pro: 65,  god: 65 },
-      runAwayChance:      { practice: 70,  easy: 70,  normal: 40,  pro: 15,  god: 15 },
-      dodgeChance:        { practice: 8,   easy: 50,  normal: 95,  pro: 100, god: 100 },
+      runAwayChance:      { practice: 70,  easy: 50,  normal: 40,  pro: 15,  god: 15 },
+      dodgeChance:        { practice: 8,   easy: 25,  normal: 65,  pro: 85,  god: 95 },
       dodgeRange:         { practice: 50,  easy: 50,  normal: 90,  pro: 140, god: 140 },
       slamChance:         { practice: 20,  easy: 90,  normal: 100, pro: 100, god: 100 },
       slamCooldown:       { practice: 220, easy: 100, normal: 40,  pro: 20,  god: 20 },
       slamRange:          { practice: 50,  easy: 70,  normal: 90,  pro: 120, god: 120 },
       slamLead:           { practice: 0,   easy: 0,   normal: 8,   pro: 14,  god: 14 },
       climbHeight:        { practice: 0,   easy: 0,   normal: 1,   pro: 1,   god: 1 },
-      punishChance:       { practice: 0,   easy: 0,   normal: 35,  pro: 80,  god: 80 },
-      dashDodgeChance:    { practice: 0,   easy: 0,   normal: 45,  pro: 85,  god: 85 },
-      speed:              { practice: 1.5, easy: 2,   normal: 3,   pro: 5,   god: 5 },
-      runSpeed:           { practice: 3,   easy: 4,   normal: 5.5, pro: 9,   god: 9 },
+      punishChance:       { practice: 0,   easy: 0,   normal: 20,  pro: 65,  god: 75 },
+      dashDodgeChance:    { practice: 0,   easy: 0,   normal: 35,  pro: 60,  god: 75 },
+      speed:              { practice: 1.5, easy: 2,   normal: 3,   pro: 4,   god: 4.5 },
+      runSpeed:           { practice: 3,   easy: 4,   normal: 5.5, pro: 7.5, god: 8.5 },
       jumpChance:         { practice: 40,  easy: 80,  normal: 100, pro: 100, god: 100 },
       doubleJumpChance:   { practice: 20,  easy: 70,  normal: 100, pro: 100, god: 100 },
-      damageMult:         { practice: 0.6, easy: 1,   normal: 1.65,pro: 2,   god: 2 },
+      damageMult:         { practice: 0.6, easy: 0.85,normal: 1.05,pro: 1.25,god: 1.4 },
       maxHP:              { practice: 1000,easy: 100, normal: 100, pro: 100, god: 100 },
-      damageTaken:        { practice: 1,   easy: 1,   normal: 1,   pro: 0.7, god: 0.7 },
-      stunMult:           { practice: 1,   easy: 1,   normal: 1,   pro: 0.35,god: 0.35 },
-      botDashCooldown:    { practice: 40,  easy: 40,  normal: 40,  pro: 0,   god: 0 },
-      dashAIDelay:        { practice: 80,  easy: 80,  normal: 80,  pro: 35,  god: 10 },
-      dashSpeed:          { practice: 20,  easy: 20,  normal: 20,  pro: 28,  god: 28 },
+      damageTaken:        { practice: 1,   easy: 1,   normal: 1,   pro: 0.85,god: 0.8 },
+      stunMult:           { practice: 1,   easy: 1,   normal: 1,   pro: 0.6, god: 0.5 },
+      botDashCooldown:    { practice: 40,  easy: 40,  normal: 40,  pro: 15,  god: 8 },
+      dashAIDelay:        { practice: 80,  easy: 80,  normal: 80,  pro: 56,  god: 42 },
+      dashSpeed:          { practice: 20,  easy: 20,  normal: 20,  pro: 24,  god: 26 },
       airDashRecharge:    { practice: 0,   easy: 0,   normal: 0,   pro: 0,   god: 1 },
-      invisible:          { practice: 0,   easy: 0,   normal: 0,   pro: 1,   god: 1 },
-      invisEvery:         { practice: 900, easy: 900, normal: 900, pro: 900, god: 900 },
-      invisLength:        { practice: 300, easy: 300, normal: 300, pro: 300, god: 300 },
-      regen:              { practice: 0,   easy: 0,   normal: 0,   pro: 0.02,god: 0.02 }
+      invisible:          { practice: 0,   easy: 0,   normal: 0,   pro: 0,   god: 1 },
+      invisEvery:         { practice: 900, easy: 900, normal: 900, pro: 900, god: 720 },
+      invisLength:        { practice: 300, easy: 300, normal: 300, pro: 300, god: 420 },
+      regen:              { practice: 0,   easy: 0,   normal: 0,   pro: 0,   god: 0.05 }
   };
   
   const MODE_METADATA = {
@@ -494,6 +503,13 @@
           rect(11, 0, 2, 1, "#3a3d42"); rect(11, 7, 2, 1, "#3a3d42");
       }
       return c.toDataURL();
+  }
+  
+  // Data URL of a weapon's pixel sprite (for drawing on the canvas)
+  function weaponIconURL(id) {
+      const key = "wep:" + id;
+      if (!PX_CACHE[key]) PX_CACHE[key] = pxWeaponSprite(id);
+      return PX_CACHE[key];
   }
   
   function weaponIconHTML(id, size = 32) {
@@ -926,7 +942,7 @@
                   name: "Density V",
                   desc: "Increases slam damage multiplier from greater heights.",
                   maxLevel: 5,
-                  costPerLevel: 150,
+                  costPerLevel: 300,
                   apply: (stats, lvl) => { stats.slamPower += lvl * 0.15; stats.slamMaxDmg += lvl * 15; }
               },
               {
@@ -934,7 +950,7 @@
                   name: "Wind Burst III",
                   desc: "Launches you significantly higher into the air after landing a hit.",
                   maxLevel: 3,
-                  costPerLevel: 200,
+                  costPerLevel: 400,
                   apply: (stats, lvl) => { stats.hitLaunch -= lvl * 1.8; }
               },
               {
@@ -942,7 +958,7 @@
                   name: "Breach IV",
                   desc: "Ignores a portion of opponent damage reduction and armor.",
                   maxLevel: 4,
-                  costPerLevel: 180,
+                  costPerLevel: 360,
                   apply: (stats, lvl) => { stats.breachArmor = lvl * 0.1; }
               }
           ]
@@ -954,7 +970,7 @@
           icon: "",
           category: "Wind Charge",
           desc: "Super-fast wind dashes on ground and air. Pierces through incoming attacks.",
-          baseCost: 200,
+          baseCost: 400,
           unlockedByDefault: true,
           stats: {
               damage: 20,
@@ -973,7 +989,7 @@
                   name: "Impaling V",
                   desc: "Increases spear dash strike damage.",
                   maxLevel: 5,
-                  costPerLevel: 140,
+                  costPerLevel: 280,
                   apply: (stats, lvl) => { stats.dashDamage += lvl * 4; }
               },
               {
@@ -981,7 +997,7 @@
                   name: "Piercing IV",
                   desc: "Increases dash velocity and distance.",
                   maxLevel: 4,
-                  costPerLevel: 175,
+                  costPerLevel: 350,
                   apply: (stats, lvl) => { stats.dashSpeed += lvl * 2; stats.dashDistance += lvl * 1; }
               },
               {
@@ -989,7 +1005,7 @@
                   name: "Breeze Agility",
                   desc: "Reduces dash cooldown time.",
                   maxLevel: 3,
-                  costPerLevel: 220,
+                  costPerLevel: 440,
                   apply: (stats, lvl) => { stats.attackCooldown -= lvl * 5; }
               }
           ]
@@ -1001,7 +1017,7 @@
           icon: "",
           category: "Blade Slice",
           desc: "Shorter, precision dash slice that deals massive swift slash damage.",
-          baseCost: 350,
+          baseCost: 700,
           unlockedByDefault: false,
           stats: {
               damage: 32,
@@ -1020,7 +1036,7 @@
                   name: "Sharpness V",
                   desc: "Significantly enhances blade slice damage.",
                   maxLevel: 5,
-                  costPerLevel: 180,
+                  costPerLevel: 360,
                   apply: (stats, lvl) => { stats.dashDamage += lvl * 6; stats.damage += lvl * 5; }
               },
               {
@@ -1028,7 +1044,7 @@
                   name: "Knockback II",
                   desc: "Sends enemies flying further across the arena.",
                   maxLevel: 3,
-                  costPerLevel: 160,
+                  costPerLevel: 320,
                   apply: (stats, lvl) => { stats.knockbackMult = 1.0 + lvl * 0.35; }
               },
               {
@@ -1036,7 +1052,7 @@
                   name: "Sweeping Edge III",
                   desc: "Widens the horizontal hit area of your blade slice.",
                   maxLevel: 3,
-                  costPerLevel: 210,
+                  costPerLevel: 420,
                   apply: (stats, lvl) => { stats.range += lvl * 8; }
               }
           ]
@@ -1048,7 +1064,7 @@
           icon: "",
           category: "Martial Brawl",
           desc: "Pure close-quarters Steve punches! Does brutal damage in hand-to-hand combat.",
-          baseCost: 150,
+          baseCost: 300,
           unlockedByDefault: false,
           stats: {
               damage: 42,
@@ -1067,7 +1083,7 @@
                   name: "Strength II",
                   desc: "Potion of Strength power! Heavily boosts fist impact damage.",
                   maxLevel: 5,
-                  costPerLevel: 160,
+                  costPerLevel: 320,
                   apply: (stats, lvl) => { stats.dashDamage += lvl * 7; stats.damage += lvl * 6; }
               },
               {
@@ -1075,7 +1091,7 @@
                   name: "Haste Beacon",
                   desc: "Reduces attack cooldown for rapid-fire punch barrages.",
                   maxLevel: 4,
-                  costPerLevel: 180,
+                  costPerLevel: 360,
                   apply: (stats, lvl) => { stats.attackCooldown -= lvl * 3; }
               },
               {
@@ -1083,7 +1099,7 @@
                   name: "Heavy Fist Impact",
                   desc: "Increases stun duration dealt to struck opponents.",
                   maxLevel: 3,
-                  costPerLevel: 200,
+                  costPerLevel: 400,
                   apply: (stats, lvl) => { stats.stunBonus = lvl * 8; }
               }
           ]
@@ -1095,7 +1111,7 @@
           icon: "",
           category: "Ranged Marksman",
           desc: "Fires deadly arrows from afar. Dash key shoots arrows with a reload cooldown.",
-          baseCost: 500,
+          baseCost: 1000,
           unlockedByDefault: false,
           stats: {
               damage: 18,
@@ -1117,7 +1133,7 @@
                   name: "Power V",
                   desc: "Greatly increases arrow projectile damage.",
                   maxLevel: 5,
-                  costPerLevel: 200,
+                  costPerLevel: 400,
                   apply: (stats, lvl) => { stats.arrowDamage += lvl * 7; }
               },
               {
@@ -1125,7 +1141,7 @@
                   name: "Infinity / Quick Charge",
                   desc: "Dramatically reduces bow reload time between shots.",
                   maxLevel: 4,
-                  costPerLevel: 220,
+                  costPerLevel: 440,
                   apply: (stats, lvl) => { stats.reloadTime = Math.max(18, stats.reloadTime - lvl * 7); }
               },
               {
@@ -1133,7 +1149,7 @@
                   name: "Punch II",
                   desc: "Adds strong knockback to arrows.",
                   maxLevel: 3,
-                  costPerLevel: 180,
+                  costPerLevel: 360,
                   apply: (stats, lvl) => { stats.arrowKnockback = 1.0 + lvl * 0.4; }
               }
           ]
@@ -1171,12 +1187,14 @@
           this.arrows = [];
       }
   
-      spawnArrow(x, y, facing, ownerId, ownerTeam, damage = 30, speed = 16, knockbackMult = 1.0) {
+      // aimAngle (radians) fires toward a point; without it the arrow flies straight ahead
+      spawnArrow(x, y, facing, ownerId, ownerTeam, damage = 30, speed = 16, knockbackMult = 1.0, aimAngle = null) {
+          const aimed = aimAngle !== null && aimAngle !== undefined;
           this.arrows.push({
               x,
               y,
-              vx: facing * speed,
-              vy: -1.2, // slight upward arc
+              vx: aimed ? Math.cos(aimAngle) * speed : facing * speed,
+              vy: aimed ? Math.sin(aimAngle) * speed : -1.2, // slight upward arc
               gravity: 0.15,
               facing,
               ownerId,
@@ -1232,18 +1250,20 @@
                       a.y >= f.y && a.y <= f.y + f.h &&
                       f.hitCooldown <= 0
                   ) {
-                      // Hit fighter!
+                      // Hit fighter! (stats count only the HP actually removed)
+                      const dealt = Math.min(a.damage, Math.max(0, f.hp));
                       f.hp -= a.damage;
-                      f.stats.damageTaken += a.damage;
+                      f.stats.damageTaken += dealt;
                       f.hitCooldown = 20;
                       f.stun = 25;
                       f.xVel = a.facing * 7 * (a.knockbackMult || 1.0);
                       f.yVel = -5;
   
                       const shooter = fighters.find(fl => fl.id === a.ownerId);
+                      if (shooter) f.lastHitBy = shooter;
                       if (shooter) {
                           shooter.stats.arrowsHit++;
-                          shooter.stats.damageDealt += a.damage;
+                          shooter.stats.damageDealt += dealt;
                       }
   
                       if (onHitCallback) {
@@ -1558,13 +1578,13 @@
   const BLOCK_FACES = [
       { id: "steve", name: "Minecraft Steve", icon: "", cost: 0, desc: "Classic Minecraft icon with cyan tee and brown hair." },
       { id: "alex", name: "Minecraft Alex", icon: "", cost: 0, desc: "Classic Minecraft explorer with green tunic and orange hair." },
-      { id: "noob", name: "Roblox Noob", icon: "", cost: 100, desc: "The iconic yellow block head with simple smile and blue torso." },
-      { id: "man_face", name: "Roblox Man Face", icon: "", cost: 200, desc: "The legendary, unmistakable smirking block face." },
-      { id: "creeper", name: "Creeper Face", icon: "", cost: 250, desc: "Pixelated green explosive face with iconic black frown." },
-      { id: "enderman", name: "Enderman", icon: "", cost: 300, desc: "Deep dark obsidian head with glowing mystical violet eyes." },
-      { id: "skeleton", name: "Skeleton Skull", icon: "", cost: 250, desc: "Bone white archer skull with hollow dark eyes." },
-      { id: "zombie", name: "Zombie", icon: "", cost: 200, desc: "Infected undead Steve with necrotic green skin." },
-      { id: "diamond_knight", name: "Diamond Helmet", icon: "", cost: 400, desc: "Gleaming enchanted diamond helmet warrior." }
+      { id: "noob", name: "Roblox Noob", icon: "", cost: 200, desc: "The iconic yellow block head with simple smile and blue torso." },
+      { id: "man_face", name: "Roblox Man Face", icon: "", cost: 400, desc: "The legendary, unmistakable smirking block face." },
+      { id: "creeper", name: "Creeper Face", icon: "", cost: 500, desc: "Pixelated green explosive face with iconic black frown." },
+      { id: "enderman", name: "Enderman", icon: "", cost: 600, desc: "Deep dark obsidian head with glowing mystical violet eyes." },
+      { id: "skeleton", name: "Skeleton Skull", icon: "", cost: 500, desc: "Bone white archer skull with hollow dark eyes." },
+      { id: "zombie", name: "Zombie", icon: "", cost: 400, desc: "Infected undead Steve with necrotic green skin." },
+      { id: "diamond_knight", name: "Diamond Helmet", icon: "", cost: 800, desc: "Gleaming enchanted diamond helmet warrior." }
   ];
   
   const RANDOM_USERNAMES = [
@@ -1588,8 +1608,9 @@
               if (data) {
                   const parsed = JSON.parse(data);
                   // Schema backfills
-                  if (parsed.gold === undefined) parsed.gold = 500;
+                  if (parsed.gold === undefined) parsed.gold = 300;
                   if (!parsed.equippedWeapon) parsed.equippedWeapon = "mace";
+                  if (parsed.secondaryWeapon === undefined) parsed.secondaryWeapon = null;
                   if (!parsed.unlockedWeapons) parsed.unlockedWeapons = ["mace", "spear"];
                   if (!parsed.weaponUpgrades) parsed.weaponUpgrades = {};
                   if (!parsed.skinId) parsed.skinId = "steve";
@@ -1625,8 +1646,9 @@
               authProvider: "guest", // "guest" | "google"
               level: 1,
               xp: 0,
-              gold: 500, // 500 starter gold
+              gold: 300, // 300 starter gold
               equippedWeapon: "mace",
+              secondaryWeapon: null, // second loadout slot (swap with Q in matches)
               unlockedWeapons: ["mace", "spear"],
               weaponUpgrades: {},
               skinId: "steve",
@@ -1649,6 +1671,8 @@
                   slamsLanded: 0,
                   dashesLanded: 0,
                   maxSlamDamage: 0,
+                  kills: 0,
+                  damageDealt: 0,
                   currentStreak: 0,
                   bestStreak: 0
               }
@@ -1793,13 +1817,27 @@
           return { success: false, error: "Weapon already unlocked." };
       }
   
-      equipWeapon(weaponId) {
-          if (this.user.unlockedWeapons.includes(weaponId)) {
-              this.user.equippedWeapon = weaponId;
-              this.saveUser();
-              return true;
+      // slot 1 = primary weapon, slot 2 = secondary. Equipping a weapon that's in the
+      // other slot swaps the two.
+      equipWeapon(weaponId, slot = 1) {
+          if (!this.user.unlockedWeapons.includes(weaponId)) return false;
+          const u = this.user;
+          if (slot === 2) {
+              if (u.equippedWeapon === weaponId) u.equippedWeapon = u.secondaryWeapon || u.equippedWeapon;
+              u.secondaryWeapon = weaponId;
+              if (u.equippedWeapon === u.secondaryWeapon) u.secondaryWeapon = null;
+          } else {
+              if (u.secondaryWeapon === weaponId) u.secondaryWeapon = u.equippedWeapon;
+              u.equippedWeapon = weaponId;
+              if (u.secondaryWeapon === u.equippedWeapon) u.secondaryWeapon = null;
           }
-          return false;
+          this.saveUser();
+          return true;
+      }
+  
+      clearSecondaryWeapon() {
+          this.user.secondaryWeapon = null;
+          this.saveUser();
       }
   
       upgradeWeapon(upgradeId, cost, maxLevel = 5) {
@@ -1841,20 +1879,51 @@
       // GOOGLE IDENTITY SERVICES
       // ==========================================
   
+      isGoogleConfigured() {
+          return !!GOOGLE_CLIENT_ID;
+      }
+  
+      // The Google script loads asynchronously; wait for it, then initialize once
       initGoogleClient() {
-          if (typeof window !== "undefined" && window.google && window.google.accounts) {
-              try {
-                  const clientId = window.GOOGLE_CLIENT_ID || null;
-                  if (clientId) {
+          this.googleReady = false;
+          this.googleReadyCallbacks = [];
+          if (!this.isGoogleConfigured() || typeof window === "undefined") return;
+  
+          let tries = 0;
+          const tryInit = () => {
+              if (window.google && window.google.accounts && window.google.accounts.id) {
+                  try {
                       window.google.accounts.id.initialize({
-                          client_id: clientId,
-                          callback: (response) => this.handleGoogleCredentialResponse(response)
+                          client_id: GOOGLE_CLIENT_ID,
+                          callback: (response) => this.handleGoogleCredentialResponse(response),
+                          auto_select: false
                       });
+                      this.googleReady = true;
+                      this.googleReadyCallbacks.forEach(cb => cb());
+                      this.googleReadyCallbacks = [];
+                  } catch (e) {
+                      console.warn("Google Identity Services initialization warning:", e);
                   }
-              } catch (e) {
-                  console.warn("Google Identity Services initialization warning:", e);
+                  return;
               }
-          }
+              if (++tries < 100) setTimeout(tryInit, 100); // give up after ~10s (offline / blocked)
+          };
+          tryInit();
+      }
+  
+      // Draws Google's official "Sign in with Google" button into the element
+      renderGoogleButton(el) {
+          const draw = () => {
+              el.innerHTML = "";
+              window.google.accounts.id.renderButton(el, {
+                  theme: "filled_black",
+                  size: "large",
+                  text: "signin_with",
+                  shape: "rectangular"
+              });
+          };
+          if (this.googleReady) draw();
+          else this.googleReadyCallbacks.push(draw);
       }
   
       parseJwt(token) {
@@ -1881,6 +1950,7 @@
               name: payload.name || payload.given_name || "Google Player",
               picture: payload.picture
           });
+          if (this.onGoogleSignIn) this.onGoogleSignIn();
       }
   
       signInWithGoogleData({ id, email, name, picture }) {
@@ -1903,6 +1973,9 @@
       }
   
       signOut() {
+          if (typeof window !== "undefined" && window.google && window.google.accounts && window.google.accounts.id) {
+              try { window.google.accounts.id.disableAutoSelect(); } catch (e) { /* not initialized */ }
+          }
           this.user.email = null;
           this.user.authProvider = "guest";
           this.user.avatarType = "preset";
@@ -2066,13 +2139,7 @@
               xpEarned = 25;
           }
   
-          if (matchStats) {
-              s.slamsLanded += (matchStats.slamsLanded || 0);
-              s.dashesLanded += (matchStats.dashesLanded || 0);
-              if (matchStats.maxSlamDamage > s.maxSlamDamage) {
-                  s.maxSlamDamage = matchStats.maxSlamDamage;
-              }
-          }
+          this.addMatchStatsToCareer(matchStats);
   
           this.addGold(goldEarned);
           this.addXP(xpEarned);
@@ -2082,9 +2149,23 @@
       }
   
       // Ranked Arena Match Outcome (Scales heavily as rank increases)
-      recordArenaMatchResult(isWin, matchType = "1v1") {
+      // Adds one match's combat numbers to the lifetime career record
+      addMatchStatsToCareer(matchStats) {
+          if (!matchStats) return;
+          const s = this.user.stats;
+          s.slamsLanded = (s.slamsLanded || 0) + (matchStats.slamsLanded || 0);
+          s.dashesLanded = (s.dashesLanded || 0) + (matchStats.dashesLanded || 0);
+          s.kills = (s.kills || 0) + (matchStats.kills || 0);
+          s.damageDealt = (s.damageDealt || 0) + (matchStats.damageDealt || 0);
+          if ((matchStats.maxSlamDamage || 0) > (s.maxSlamDamage || 0)) {
+              s.maxSlamDamage = matchStats.maxSlamDamage;
+          }
+      }
+  
+      recordArenaMatchResult(isWin, matchType = "1v1", matchStats = null) {
           const s = this.user.stats;
           s.matches++;
+          this.addMatchStatsToCareer(matchStats);
   
           const curRP = this.user.arenaRP || 250;
           let rpDelta = 0;
@@ -2148,6 +2229,142 @@
   }
   
   const auth = new AuthManager();
+  
+
+  // ===== online.js =====
+  // ==========================================
+  // SPEAR-MACE PVP - Peer-to-Peer Online Play
+  // Two browsers connect directly with WebRTC (via PeerJS, loaded in index.html).
+  // The host runs the match simulation; the guest sends inputs and draws the
+  // snapshots the host streams back.
+  // ==========================================
+  
+  // Prefix keeps our room IDs from colliding with other apps on the public PeerJS server
+  const PEER_ID_PREFIX = "spear-mace-pvp-";
+  const CONNECT_TIMEOUT_MS = 12000;
+  
+  class OnlineSession {
+      constructor() {
+          this.peer = null;
+          this.conn = null;
+          this.role = null; // "host" | "guest" | null
+          this.onMessage = null; // (msg) => void
+          this.onDisconnect = null; // (reason) => void
+          this.connectTimer = null;
+      }
+  
+      isAvailable() {
+          return typeof window !== "undefined" && typeof window.Peer === "function";
+      }
+  
+      isConnected() {
+          return !!(this.conn && this.conn.open);
+      }
+  
+      // Host a room: resolves when the room is registered, calls onGuestJoined when a friend connects
+      host(roomCode, onGuestJoined, onError) {
+          this.close();
+          if (!this.isAvailable()) {
+              onError("Online play couldn't load. Check your internet connection and refresh.");
+              return;
+          }
+          this.role = "host";
+          this.peer = new window.Peer(PEER_ID_PREFIX + roomCode);
+  
+          this.peer.on("connection", (conn) => {
+              // Only one opponent per room
+              if (this.conn && this.conn.open) {
+                  conn.on("open", () => conn.close());
+                  return;
+              }
+              this.attachConnection(conn, () => onGuestJoined());
+          });
+          this.peer.on("error", (err) => onError(this.describeError(err)));
+      }
+  
+      // Join a friend's room: calls onConnected once the data channel is open
+      join(roomCode, onConnected, onError) {
+          this.close();
+          if (!this.isAvailable()) {
+              onError("Online play couldn't load. Check your internet connection and refresh.");
+              return;
+          }
+          this.role = "guest";
+          this.peer = new window.Peer();
+  
+          this.peer.on("open", () => {
+              const conn = this.peer.connect(PEER_ID_PREFIX + roomCode, { reliable: true });
+              this.attachConnection(conn, () => {
+                  clearTimeout(this.connectTimer);
+                  onConnected();
+              });
+          });
+          this.peer.on("error", (err) => {
+              clearTimeout(this.connectTimer);
+              onError(this.describeError(err));
+          });
+  
+          this.connectTimer = setTimeout(() => {
+              if (!this.isConnected()) {
+                  onError("Couldn't reach that room. Make sure your friend's room is still open, then try again.");
+                  this.close();
+              }
+          }, CONNECT_TIMEOUT_MS);
+      }
+  
+      attachConnection(conn, onOpen) {
+          this.conn = conn;
+          conn.on("open", onOpen);
+          conn.on("data", (msg) => {
+              if (this.onMessage && msg && typeof msg === "object") this.onMessage(msg);
+          });
+          conn.on("close", () => this.handleDisconnect("Your opponent left the match."));
+          conn.on("error", () => this.handleDisconnect("The connection to your opponent was lost."));
+      }
+  
+      handleDisconnect(reason) {
+          if (!this.conn) return;
+          this.conn = null;
+          if (this.onDisconnect) this.onDisconnect(reason);
+      }
+  
+      send(msg) {
+          if (this.conn && this.conn.open) {
+              try {
+                  this.conn.send(msg);
+              } catch (e) {
+                  console.warn("Online send failed:", e);
+              }
+          }
+      }
+  
+      close() {
+          clearTimeout(this.connectTimer);
+          const conn = this.conn;
+          this.conn = null; // closing on purpose: don't report it as a disconnect
+          if (conn) {
+              try { conn.close(); } catch (e) { /* already closed */ }
+          }
+          if (this.peer) {
+              try { this.peer.destroy(); } catch (e) { /* already destroyed */ }
+              this.peer = null;
+          }
+          this.role = null;
+      }
+  
+      describeError(err) {
+          const type = err && err.type;
+          if (type === "peer-unavailable") return "Room not found. Check the code, or ask your friend to create the room again.";
+          if (type === "unavailable-id") return "That room code is already in use. Create a new room.";
+          if (type === "network" || type === "server-error" || type === "socket-error" || type === "socket-closed") {
+              return "Couldn't reach the online server. Check your internet connection and try again.";
+          }
+          if (type === "browser-incompatible") return "This browser doesn't support online play. Try Chrome, Edge, Firefox or Safari.";
+          return "Online connection error. Please try again.";
+      }
+  }
+  
+  const online = new OnlineSession();
   
 
   // ===== particles.js =====
@@ -2420,6 +2637,7 @@
           this.weaponStats = getComputedWeaponStats("mace");
           this.skinId = "steve";
           this.arrowCooldown = 0;
+          this.aimAngle = null; // bow aim (radians) set from the mouse; null = shoot straight ahead
   
           // State Flags
           this.onGround = false;
@@ -2469,6 +2687,27 @@
           this.weaponStats = getComputedWeaponStats(weaponId, upgradeLevels);
       }
   
+      // Two-weapon loadout: primary + optional secondary, swapped with swapWeapon()
+      setLoadout(primary, secondary = null, upgradeLevels = {}) {
+          this.loadout = secondary && secondary !== primary ? [primary, secondary] : [primary];
+          this.loadoutUpgrades = upgradeLevels;
+          this.activeSlot = 0;
+          this.swapCooldown = 0;
+          this.setWeapon(primary, upgradeLevels);
+      }
+  
+      swapWeapon() {
+          if (!this.loadout || this.loadout.length < 2) return false;
+          if (this.swapCooldown > 0 || this.dashing || this.slamming || this.hp <= 0) return false;
+          this.activeSlot = 1 - this.activeSlot;
+          this.setWeapon(this.loadout[this.activeSlot], this.loadoutUpgrades || {});
+          this.swapCooldown = 20; // ~1/3 second between swaps
+          this.squashX = 1.15;
+          this.squashY = 0.9;
+          sound.playClick();
+          return true;
+      }
+  
       setSkin(skinId) {
           this.skinId = skinId;
       }
@@ -2509,6 +2748,7 @@
           this.squashY = 1.0;
   
           this.isDead = false;
+          this.lastHitBy = null;
           this.stats = {
               kills: 0,
               damageDealt: 0,
@@ -2598,18 +2838,23 @@
                   const reloadTime = this.weaponStats.reloadTime || 45;
                   this.arrowCooldown = reloadTime;
   
-                  // Spawn arrow
+                  // Spawn arrow (aimed at the mouse when an aim angle is set)
+                  const aim = this.aimAngle;
+                  const aimed = aim !== null && aim !== undefined;
+                  if (aimed) this.facing = Math.cos(aim) >= 0 ? 1 : -1;
                   arrowManager.spawnArrow(
-                      this.facing > 0 ? this.x + this.w + 4 : this.x - 4,
-                      this.y + this.h / 2,
+                      aimed ? this.x + this.w / 2 + Math.cos(aim) * 18 : (this.facing > 0 ? this.x + this.w + 4 : this.x - 4),
+                      aimed ? this.y + this.h / 2 + Math.sin(aim) * 18 : this.y + this.h / 2,
                       this.facing,
                       this.id,
                       this.team,
                       this.weaponStats.arrowDamage || 30,
                       this.weaponStats.arrowSpeed || 16,
-                      this.weaponStats.arrowKnockback || 1.0
+                      this.weaponStats.arrowKnockback || 1.0,
+                      aimed ? aim : null
                   );
   
+                  this.stats.arrowsAttempted++;
                   sound.playDash(); // bow shoot twang
                   this.squashX = 1.2;
                   this.squashY = 0.85;
@@ -2713,10 +2958,13 @@
           if (this.hp <= 0) return;
   
           // Update stat tracking (altitude)
-          const altitude = Math.max(0, ARENA_CONFIG.groundY - this.y);
+          // Height of the fighter's feet above the floor
+          const altitude = Math.max(0, ARENA_CONFIG.groundY - (this.y + this.h));
           if (altitude > this.stats.maxHeight) {
               this.stats.maxHeight = altitude;
           }
+  
+          if (this.swapCooldown > 0) this.swapCooldown--;
   
           // Arrow cooldown countdown
           if (this.arrowCooldown > 0) {
@@ -2832,6 +3080,12 @@
           // Stepped off ledge
           if (wasGrounded && !landed && this.yVel >= 0) {
               this.coyoteTimer = CORE_PHYSICS.coyoteTime;
+          }
+  
+          // Ceiling: bump your head instead of flying off the top of the screen
+          if (this.y < 0) {
+              this.y = 0;
+              if (this.yVel < 0) this.yVel = 0;
           }
   
           // Arena horizontal boundaries
@@ -3203,6 +3457,15 @@
       }
   
       // Resolves direct mid-air mace slam
+      // Applies damage and returns how much HP was actually removed (no overkill in stats)
+      applyDamage(attacker, defender, amount) {
+          const dealt = Math.min(amount, Math.max(0, defender.hp));
+          defender.hp -= amount;
+          defender.stats.damageTaken += dealt;
+          defender.lastHitBy = attacker;
+          return dealt;
+      }
+  
       checkAirSlam(attacker, defender, damageMultiplier, stunMultiplier, onDefenderHit = null) {
           if (!attacker.slamming || attacker.dashing) return false;
           if (defender.hp <= 0 || defender.hitCooldown > 0) return false;
@@ -3232,8 +3495,7 @@
               }
   
               const finalDamage = slamDamage * effDmgMult;
-              defender.hp -= finalDamage;
-              defender.stats.damageTaken += finalDamage;
+              const dealt = this.applyDamage(attacker, defender, finalDamage);
               defender.hitCooldown = 25;
               defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier);
   
@@ -3256,7 +3518,7 @@
               defender.squashY = 0.7;
   
               // Stats
-              attacker.stats.damageDealt += finalDamage;
+              attacker.stats.damageDealt += dealt;
               attacker.stats.slamsLanded++;
               if (finalDamage > attacker.stats.maxSlamDamage) {
                   attacker.stats.maxSlamDamage = finalDamage;
@@ -3308,8 +3570,7 @@
               defender.hitCooldown <= 0
           ) {
               const finalDamage = CORE_PHYSICS.slamGroundDamage * damageMultiplier;
-              defender.hp -= finalDamage;
-              defender.stats.damageTaken += finalDamage;
+              const dealt = this.applyDamage(attacker, defender, finalDamage);
               defender.hitCooldown = 20;
               defender.stun = Math.round(CORE_PHYSICS.hitStun * stunMultiplier);
   
@@ -3317,8 +3578,12 @@
               defender.dashing = false;
               defender.dashAttack = false;
   
-              attacker.stats.damageDealt += finalDamage;
-              attacker.stats.slamsLanded++;
+              attacker.stats.damageDealt += dealt;
+              // One slam that hits several enemies still counts as one landed slam
+              if (!attacker.groundSlamCounted) {
+                  attacker.stats.slamsLanded++;
+                  attacker.groundSlamCounted = true;
+              }
   
               if (onDefenderHit) onDefenderHit(finalDamage, attacker, defender);
   
@@ -3352,8 +3617,7 @@
               attacker.y + attacker.h > defender.y
           ) {
               const finalDamage = baseDmg * damageMultiplier;
-              defender.hp -= finalDamage;
-              defender.stats.damageTaken += finalDamage;
+              const dealt = this.applyDamage(attacker, defender, finalDamage);
               defender.hitCooldown = 22;
               defender.stun = Math.round((CORE_PHYSICS.hitStun + stunBonus) * stunMultiplier);
   
@@ -3372,7 +3636,7 @@
                   attacker.dashReady = true;
               }
   
-              attacker.stats.damageDealt += finalDamage;
+              attacker.stats.damageDealt += dealt;
               attacker.stats.dashesLanded++;
   
               if (onDefenderHit) onDefenderHit(finalDamage, attacker, defender);
@@ -3492,46 +3756,191 @@
               ctx.fillStyle = glow;
               ctx.fillRect(342, 75, 16, 15);
           } else {
-              // Overworld: Flat Minecraft sky (no gradient)
-              ctx.fillStyle = "#79a6ff";
-              ctx.fillRect(0, 0, this.width, this.height);
+              // Overworld: static layers are painted once and cached
+              if (!this.overworldLayer) this.overworldLayer = this.buildOverworldLayer();
+              ctx.drawImage(this.overworldLayer, 0, 0, this.width, this.height);
   
-              // Distant Minecraft mountain peaks in far background (capped at y = 295, well above ground floor y = 390)
-              ctx.fillStyle = "#527a60";
-              const mountains = [
-                  [0, 255, 110],
-                  [90, 230, 130],
-                  [200, 215, 150],
-                  [330, 245, 120],
-                  [430, 225, 140],
-                  [550, 240, 130],
-                  [660, 230, 140]
-              ];
-              for (const [mx, my, mw] of mountains) {
-                  ctx.fillRect(mx, my, mw, 295 - my);
-              }
-              // Mountain peak highlights
-              ctx.fillStyle = "#699878";
-              for (const [mx, my, mw] of mountains) {
-                  ctx.fillRect(mx + 10, my, mw - 20, 4);
-                  ctx.fillRect(mx + 25, my - 6, mw - 50, 6);
-              }
-  
-              // Drifting blocky clouds
-              ctx.fillStyle = "#ffffff";
+              // Drifting blocky clouds (two-tone, pixel-snapped)
               for (const cloud of this.clouds) {
                   cloud.x += cloud.speed;
                   if (cloud.x > this.width + 100) cloud.x = -150;
   
                   const cx = Math.round(cloud.x / 8) * 8;
                   const cy = Math.round(cloud.y / 8) * 8;
+                  ctx.fillStyle = "#ffffff";
                   ctx.fillRect(cx, cy, cloud.w, 16);
                   ctx.fillRect(cx + 16, cy - 8, Math.round(cloud.w * 0.6 / 8) * 8, 8);
                   ctx.fillStyle = "#dfe9ff";
-                  ctx.fillRect(cx, cy + 16, cloud.w, 4);
-                  ctx.fillStyle = "#ffffff";
+                  ctx.fillRect(cx, cy + 16, cloud.w, 6);
               }
           }
+      }
+  
+      // Paints the Overworld backdrop (sky bands, sun, mountains, hills, trees) to an offscreen canvas
+      buildOverworldLayer() {
+          const c = document.createElement("canvas");
+          c.width = this.width;
+          c.height = this.height;
+          const g = c.getContext("2d");
+          const W = this.width;
+          const ground = ARENA_CONFIG.groundY;
+  
+          // Sky in flat bands (lighter toward the horizon), no gradients
+          const bands = ["#5b8dff", "#6597ff", "#70a1ff", "#7cabff", "#89b5ff", "#97c0ff"];
+          const bandH = Math.ceil(ground / bands.length);
+          bands.forEach((col, i) => {
+              g.fillStyle = col;
+              g.fillRect(0, i * bandH, W, bandH + 1);
+          });
+  
+          // Square Minecraft sun with a soft halo ring
+          g.fillStyle = "#fff6b3";
+          g.fillRect(636, 36, 56, 56);
+          g.fillStyle = "#fffde6";
+          g.fillRect(648, 48, 32, 32);
+  
+          // Far mountains (blue-grey), stepped like blocks
+          const far = [[0, 210], [60, 190], [120, 175], [170, 195], [230, 160], [290, 180], [350, 200],
+              [400, 170], [460, 150], [520, 175], [580, 195], [640, 165], [700, 185], [760, 200]];
+          g.fillStyle = "#8aa3c8";
+          far.forEach(([x, y], i) => {
+              const w = (far[i + 1] ? far[i + 1][0] : W) - x;
+              g.fillRect(x, y, w, ground - y);
+          });
+          g.fillStyle = "#e8eef8"; // snow caps
+          far.forEach(([x, y], i) => {
+              const w = (far[i + 1] ? far[i + 1][0] : W) - x;
+              if (y < 185) g.fillRect(x, y, w, 8);
+          });
+  
+          // Near hills (green), stepped 8px blocks, reaching all the way down to the floor
+          g.fillStyle = "#4f8a3c";
+          for (let x = 0; x < W; x += 8) {
+              const h = 250 + Math.round((Math.sin(x * 0.011) * 22 + Math.sin(x * 0.031 + 1.7) * 10) / 8) * 8;
+              g.fillRect(x, h, 8, ground - h);
+          }
+          g.fillStyle = "#5d9c46"; // sunlit top edge
+          for (let x = 0; x < W; x += 8) {
+              const h = 250 + Math.round((Math.sin(x * 0.011) * 22 + Math.sin(x * 0.031 + 1.7) * 10) / 8) * 8;
+              g.fillRect(x, h, 8, 4);
+          }
+  
+          // Rows of pixel oak trees in the mid-ground
+          const tree = (x, base, s) => {
+              g.fillStyle = "#6b4a2b";
+              g.fillRect(x + 3 * s, base - 6 * s, 2 * s, 6 * s);
+              g.fillStyle = "#2f6b2a";
+              g.fillRect(x, base - 12 * s, 8 * s, 6 * s);
+              g.fillRect(x + 2 * s, base - 14 * s, 4 * s, 2 * s);
+              g.fillStyle = "#3d8436";
+              g.fillRect(x + s, base - 12 * s, 3 * s, 2 * s);
+          };
+          [[30, 330], [130, 345], [250, 325], [360, 340], [470, 330], [585, 345], [700, 335]].forEach(([x, b]) => tree(x, b, 3));
+          g.fillStyle = "#3f7330"; // darker meadow band behind the arena floor
+          g.fillRect(0, 350, W, ground - 350);
+          [[80, 386], [200, 388], [420, 386], [540, 388], [660, 386], [760, 388]].forEach(([x, b]) => tree(x, b, 4));
+  
+          return c;
+      }
+  
+      // Grass block top, dirt middle, stone with ores at the bottom (16px Minecraft blocks)
+      drawGrassFloor(ctx, p) {
+          const B = 16;
+          const dirtEnd = p.y + 30;
+          for (let bx = p.x; bx < p.x + p.w; bx += B) {
+              const n = (bx / B) | 0;
+              // Dirt
+              ctx.fillStyle = "#866043";
+              ctx.fillRect(bx, p.y, B, dirtEnd - p.y);
+              ctx.fillStyle = "#6f4e35";
+              ctx.fillRect(bx + ((n * 5) % 11), p.y + 12, 3, 3);
+              ctx.fillRect(bx + ((n * 7 + 4) % 12), p.y + 20, 2, 2);
+              ctx.fillStyle = "#9b7653";
+              ctx.fillRect(bx + ((n * 3 + 8) % 13), p.y + 16, 2, 2);
+              // Stone
+              ctx.fillStyle = "#7f7f7f";
+              ctx.fillRect(bx, dirtEnd, B, p.y + p.h - dirtEnd);
+              ctx.fillStyle = "#6a6a6a";
+              ctx.fillRect(bx + ((n * 5 + 2) % 12), dirtEnd + 4, 4, 2);
+              ctx.fillRect(bx + ((n * 3) % 10), dirtEnd + 11, 3, 2);
+              if (n % 7 === 3) { // coal ore
+                  ctx.fillStyle = "#2b2b2b";
+                  ctx.fillRect(bx + 4, dirtEnd + 6, 3, 3);
+                  ctx.fillRect(bx + 9, dirtEnd + 10, 2, 2);
+              } else if (n % 13 === 8) { // iron ore
+                  ctx.fillStyle = "#d8af93";
+                  ctx.fillRect(bx + 5, dirtEnd + 5, 3, 2);
+                  ctx.fillRect(bx + 10, dirtEnd + 11, 2, 2);
+              }
+              ctx.fillStyle = "rgba(0, 0, 0, 0.18)"; // block seams
+              ctx.fillRect(bx, p.y, 1, p.h);
+          }
+          // Grass top with ragged edge
+          ctx.fillStyle = "#5da83e";
+          ctx.fillRect(p.x, p.y, p.w, 5);
+          ctx.fillStyle = "#7cc958";
+          ctx.fillRect(p.x, p.y, p.w, 2);
+          ctx.fillStyle = "#5da83e";
+          for (let gx = p.x; gx < p.x + p.w; gx += 4) {
+              if (((gx / 4) | 0) % 3 !== 0) ctx.fillRect(gx, p.y + 5, 4, ((gx / 4) | 0) % 2 ? 3 : 2);
+          }
+          // Darker band where dirt meets stone
+          ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+          ctx.fillRect(p.x, dirtEnd, p.w, 2);
+      }
+  
+      // Floating oak-plank ledge with a grass carpet and hanging vines
+      drawOakLedge(ctx, p) {
+          // Soft shadow under the ledge
+          ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
+          ctx.fillRect(p.x + 4, p.y + p.h, p.w - 8, 4);
+          // Planks
+          ctx.fillStyle = "#a4844f";
+          ctx.fillRect(p.x, p.y, p.w, p.h);
+          ctx.fillStyle = "#8b6d3d";
+          ctx.fillRect(p.x, p.y + Math.floor(p.h / 2), p.w, 1);
+          for (let bx = p.x; bx < p.x + p.w; bx += 16) {
+              const off = (((bx - p.x) / 16) | 0) % 2 ? 8 : 0;
+              ctx.fillRect(bx + off, p.y, 1, Math.floor(p.h / 2));
+              ctx.fillRect(bx + 8 - off, p.y + Math.floor(p.h / 2), 1, p.h - Math.floor(p.h / 2));
+          }
+          ctx.fillStyle = "#6e5430";
+          ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
+          // Grass carpet
+          ctx.fillStyle = "#5da83e";
+          ctx.fillRect(p.x, p.y, p.w, 4);
+          ctx.fillStyle = "#7cc958";
+          ctx.fillRect(p.x, p.y, p.w, 1);
+          // Hanging vines
+          ctx.fillStyle = "#3f7d2a";
+          for (let vx = p.x + 10; vx < p.x + p.w - 6; vx += 23) {
+              const len = 6 + ((vx * 7) % 10);
+              ctx.fillRect(vx, p.y + p.h, 2, len);
+              ctx.fillRect(vx + 2, p.y + p.h + len - 3, 2, 3);
+          }
+      }
+  
+      // Shadow on the surface beneath a fighter (shrinks as they rise)
+      drawFighterShadow(f) {
+          if (f.hp <= 0) return;
+          const feet = f.y + f.h;
+          let surface = ARENA_CONFIG.groundY;
+          for (const p of PLATFORMS_CONFIG) {
+              if (p.y >= feet - 1 && p.y < surface && f.x + f.w > p.x && f.x < p.x + p.w) surface = p.y;
+          }
+          const gap = Math.max(0, surface - feet);
+          const scale = Math.max(0.3, 1 - gap / 220);
+          const w = Math.round((f.w + 6) * scale);
+          const ctx = this.ctx;
+          ctx.fillStyle = `rgba(0, 0, 0, ${0.32 * scale})`;
+          ctx.fillRect(Math.round(f.x + f.w / 2 - w / 2), surface - 2, w, 3);
+      }
+  
+      // Full-screen white flash for heavy hits and KOs
+      drawFlash(alpha) {
+          if (alpha <= 0) return;
+          this.ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(0.6, alpha)})`;
+          this.ctx.fillRect(-20, -20, this.width + 40, this.height + 40);
       }
   
       drawPlatforms() {
@@ -3670,50 +4079,12 @@
                   }
               } else {
                   // ==========================================
-                  // OVERWORLD: STONE / DIRT WITH LUSH GRASS
+                  // OVERWORLD: GRASS BLOCKS, DIRT, STONE & OAK LEDGES
                   // ==========================================
                   if (isFloor) {
-                      // Dirt body for main floor
-                      ctx.fillStyle = "#866043";
-                      ctx.fillRect(p.x, p.y, p.w, p.h);
-  
-                      ctx.fillStyle = "#725037";
-                      for (let bx = p.x; bx < p.x + p.w; bx += 16) {
-                          ctx.fillRect(bx + 2, p.y + 10, 4, 3);
-                          ctx.fillRect(bx + 9, p.y + 16, 4, 3);
-                      }
-                      ctx.fillStyle = "#5c3d28";
-                      for (let bx = p.x; bx < p.x + p.w; bx += 16) {
-                          ctx.fillRect(bx + 3, p.y + 11, 2, 2);
-                      }
-  
-                      // Lush Overworld Grass block top
-                      ctx.fillStyle = "#5da83e";
-                      ctx.fillRect(p.x, p.y, p.w, 6);
-                      ctx.fillStyle = "#78c253";
-                      ctx.fillRect(p.x, p.y, p.w, 2);
-                      ctx.fillStyle = "#3f7d2a";
-                      for (let gx = p.x; gx < p.x + p.w; gx += 8) {
-                          ctx.fillRect(gx, p.y + 6, 3, 3);
-                          ctx.fillRect(gx + 4, p.y + 6, 2, 2);
-                      }
+                      this.drawGrassFloor(ctx, p);
                   } else {
-                      // Smooth stone floating ledge
-                      ctx.fillStyle = "#7d7d7d";
-                      ctx.fillRect(p.x, p.y, p.w, p.h);
-                      ctx.fillStyle = "#5f5f5f";
-                      for (let bx = p.x; bx < p.x + p.w; bx += 16) {
-                          ctx.fillRect(bx, p.y, 2, p.h);
-                      }
-                      ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
-  
-                      // Stone slab top highlight
-                      ctx.fillStyle = "#a4a4a4";
-                      ctx.fillRect(p.x, p.y, p.w, 4);
-                      ctx.fillStyle = "#808080";
-                      for (let gx = p.x; gx < p.x + p.w; gx += 8) {
-                          ctx.fillRect(gx, p.y + 4, 4, 2);
-                      }
+                      this.drawOakLedge(ctx, p);
                   }
               }
           }
@@ -4188,12 +4559,66 @@
       }
   
       // Standard 1v1 HUD
+      // Minecraft-style 2-slot hotbar for the local player's loadout (bottom-left)
+      drawLoadoutHotbar(f) {
+          if (!f || !f.loadout || f.loadout.length < 2) return;
+          const ctx = this.ctx;
+          if (!this.iconCache) this.iconCache = {};
+          const size = 30;
+          const x0 = 14;
+          const y0 = this.height - size - 14;
+          ctx.save();
+          f.loadout.forEach((id, i) => {
+              const x = x0 + i * (size + 4);
+              const active = i === f.activeSlot;
+              ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+              ctx.fillRect(x, y0, size, size);
+              ctx.strokeStyle = active ? "#ffffff" : "#555555";
+              ctx.lineWidth = active ? 3 : 2;
+              ctx.strokeRect(x, y0, size, size);
+              let img = this.iconCache[id];
+              if (!img) {
+                  img = new Image();
+                  img.src = weaponIconURL(id);
+                  this.iconCache[id] = img;
+              }
+              if (img.complete) {
+                  ctx.imageSmoothingEnabled = false;
+                  ctx.globalAlpha = active ? 1 : 0.55;
+                  ctx.drawImage(img, x + 3, y0 + 3, size - 6, size - 6);
+                  ctx.globalAlpha = 1;
+              }
+          });
+          ctx.font = "16px VT323, monospace";
+          ctx.fillStyle = "#ffffff";
+          ctx.textAlign = "left";
+          ctx.textBaseline = "middle";
+          ctx.fillText("Q: swap", x0 + 2 * (size + 4) + 4, y0 + size / 2);
+          ctx.restore();
+      }
+  
       drawHUD(player, bot, botColor, modeLabel, p1Label = "YOU", p2Label = "BOT", scoreRed = 0, scoreBlue = 0, isTiebreaker = false, tiebreakerTimer = 0, redDmg = 0, blueDmg = 0, isTeamMatch = false) {
           const ctx = this.ctx;
           ctx.save();
   
-          const barW = 160;
+          const barW = 200;
           const barH = 18;
+  
+          // Name on the left (shortened to fit), HP number on the right, inside the bar
+          const barLabel = (x, label, hp, maxHp) => {
+              ctx.font = "bold 13px 'Segoe UI', system-ui, sans-serif";
+              ctx.textBaseline = "middle";
+              const hpText = `${Math.max(0, Math.ceil(hp))}/${maxHp}`;
+              ctx.textAlign = "right";
+              ctx.fillStyle = "#ffffff";
+              ctx.fillText(hpText, x + barW - 5, 27);
+              const room = barW - 14 - ctx.measureText(hpText).width;
+              let name = label;
+              ctx.textAlign = "left";
+              while (name.length > 1 && ctx.measureText(name).width > room) name = name.slice(0, -1);
+              if (name !== label) name = name.slice(0, -1) + "…";
+              ctx.fillText(name, x + 5, 27);
+          };
   
           // Player 1 HP
           ctx.fillStyle = "rgba(30, 30, 30, 0.85)";
@@ -4218,11 +4643,7 @@
           ctx.fillStyle = curCooldown <= 0 ? "#00d2d3" : "#576574";
           ctx.fillRect(20, 38, barW * p1DashRatio, 4);
   
-          ctx.fillStyle = "#ffffff";
-          ctx.font = "bold 13px 'Segoe UI', system-ui, sans-serif";
-          ctx.textAlign = "left";
-          ctx.textBaseline = "middle";
-          ctx.fillText(`${p1Label}: ${Math.max(0, Math.ceil(player.hp))} / ${player.maxHp} HP`, 24, 27);
+          barLabel(20, p1Label, player.hp, player.maxHp);
   
           // Bot / Player 2 HP
           const bX = this.width - 20 - barW;
@@ -4245,8 +4666,7 @@
           ctx.fillStyle = bot.dashReady && bot.dashCooldown <= 0 ? "#00d2d3" : "#576574";
           ctx.fillRect(bX, 38, barW * bDashRatio, 4);
   
-          ctx.fillStyle = "#ffffff";
-          ctx.fillText(`${p2Label}: ${Math.max(0, Math.ceil(bot.hp))} / ${bot.maxHp} HP`, bX + 6, 27);
+          barLabel(bX, p2Label, bot.hp, bot.maxHp);
   
           // Center Scoreboard (First to 11 in team arena, or 1v1 duel banner)
           ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
@@ -4463,65 +4883,12 @@
           if (isPvP) {
               ctx.fillText("P1: WASD = MOVE/JUMP | SPACE = DASH/ATTACK | S = SLAM   ••   P2: ARROWS | ENTER = ATTACK | DOWN = SLAM", this.width / 2, bannerY + bannerH / 2);
           } else {
-              ctx.fillText("WASD / ARROWS = MOVE • SPACE = DASH / WEAPON ATTACK • S / DOWN = MACE SLAM • ESC = PAUSE", this.width / 2, bannerY + bannerH / 2);
+              ctx.fillText("WASD / ARROWS = MOVE • SPACE / CLICK = ATTACK • S / DOWN = SLAM • Q = SWAP WEAPON • ESC = PAUSE", this.width / 2, bannerY + bannerH / 2);
           }
   
           ctx.restore();
       }
   
-      drawGameOver(winnerName, statsP1, statsP2, rewardInfo = null, scoreRed = 0, scoreBlue = 0, highestJumper = null, isTiebreaker = false) {
-          const ctx = this.ctx;
-          ctx.save();
-  
-          ctx.fillStyle = "rgba(0, 0, 0, 0.78)";
-          ctx.fillRect(0, 0, this.width, this.height);
-  
-          ctx.fillStyle = "#ffffff";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-  
-          ctx.font = "bold 34px 'Segoe UI', system-ui, sans-serif";
-          ctx.fillText(`${winnerName} WINS!`, this.width / 2, this.height / 2 - 60);
-  
-          // Final Score & Tiebreaker Indicator
-          ctx.font = "bold 16px monospace";
-          ctx.fillStyle = isTiebreaker ? "#f1c40f" : "#2ecc71";
-          const scoreBanner = isTiebreaker 
-              ? `⚔️ 10-10 TIEBREAKER VICTORY (MOST DAMAGE)` 
-              : ((scoreBlue + scoreRed > 1) 
-                  ? `FINAL SCORE: ${scoreBlue} - ${scoreRed} (FIRST TO 11)`
-                  : `1v1 DUEL COMPLETED`);
-          ctx.fillText(scoreBanner, this.width / 2, this.height / 2 - 28);
-  
-          // Highest Jumper Highlight (Altitude Champion 👑)
-          if (highestJumper) {
-              ctx.font = "bold 13px monospace";
-              ctx.fillStyle = "#00d2d3";
-              const jumperName = highestJumper.name || "Fighter";
-              ctx.fillText(`👑 ALTITUDE CHAMPION: ${jumperName} (${Math.round(highestJumper.stats?.maxHeight || 0)} px peak)`, this.width / 2, this.height / 2 - 6);
-          }
-  
-          // Reward information pill (Gold & XP & RP earned)
-          if (rewardInfo) {
-              ctx.font = "bold 14px 'Segoe UI', system-ui, sans-serif";
-              ctx.fillStyle = "#f1c40f";
-              let rewText = `+${rewardInfo.goldEarned} Gold   •   +${rewardInfo.xpEarned} XP`;
-              if (rewardInfo.rpDelta) {
-                  const rpSign = rewardInfo.rpDelta > 0 ? `+${rewardInfo.rpDelta}` : `${rewardInfo.rpDelta}`;
-                  rewText += `   •   ${rpSign} RP`;
-              }
-              ctx.fillText(rewText, this.width / 2, this.height / 2 + 18);
-          }
-  
-          ctx.fillStyle = "#ffffff";
-          ctx.font = "14px 'Segoe UI', system-ui, sans-serif";
-          ctx.fillText("Press R to matchmake next game", this.width / 2, this.height / 2 + 50);
-          ctx.font = "12px 'Segoe UI', system-ui, sans-serif";
-          ctx.fillStyle = "#bdc3c7";
-          ctx.fillText("Press H for home screen", this.width / 2, this.height / 2 + 74);
-  
-          ctx.restore();
-      }
   }
   
 
@@ -4579,8 +4946,19 @@
           this.botParams = {};
           this.lastRewardInfo = null;
   
+          // Online (peer-to-peer) match state
+          this.onlineRole = null; // "host" | "guest" | null
+          this.localFighter = this.player; // the fighter this browser controls
+          this.remoteInput = { left: false, right: false };
+          this.sentInput = { left: false, right: false };
+  
           // Key states
           this.keys = {};
+  
+          this.flash = 0; // white screen flash strength (heavy hits / KOs)
+  
+          // Mouse position in arena coordinates (for aiming the bow)
+          this.mouse = { x: 0, y: 0, active: false };
   
           // Loop timing
           this.lastTime = 0;
@@ -4590,7 +4968,7 @@
           auth.onUserChanged((user) => {
               this.playerName = user.username;
               this.player.name = user.username;
-              this.player.setWeapon(user.equippedWeapon || "mace", user.weaponUpgrades || {});
+              this.player.setLoadout(user.equippedWeapon || "mace", user.secondaryWeapon, user.weaponUpgrades || {});
               this.player.setSkin(user.skinId || "steve");
           });
   
@@ -4598,8 +4976,12 @@
           this.applyMode("normal");
       }
   
-      applyMode(mode, customOverrides = null) {
+      applyMode(mode, customOverrides = null, keepOnline = false) {
+          // Starting any offline game ends a pending or finished online session
+          if (!keepOnline && online.role) online.close();
           this.mode = mode;
+          this.onlineRole = null;
+          this.localFighter = this.player;
           this.isTeamMatch = false;
           this.matchType = "1v1";
           this.customBotParams = customOverrides;
@@ -4622,7 +5004,7 @@
   
           const isBot = (mode !== "pvp" && mode !== "arena");
           this.player.reset(150, 1, maxHp);
-          this.player.setWeapon(user.equippedWeapon || "mace", user.weaponUpgrades || {});
+          this.player.setLoadout(user.equippedWeapon || "mace", user.secondaryWeapon, user.weaponUpgrades || {});
           this.player.setSkin(user.skinId || "steve");
           this.player.setTeam("blue"); // PLAYER IS ALWAYS BLUE
           this.player.isBotGame = isBot;
@@ -4632,10 +5014,11 @@
           const botMeta = MODE_METADATA[mode] || { name: "Bot" };
           this.bot.reset(650, -1, maxHp);
           this.bot.name = (mode === "pvp") ? "Player 2" : `[BOT] ${botMeta.name}`;
-          this.bot.setWeapon(mode === "god" ? "mace" : (mode === "pro" ? "sword" : "spear"), {});
+          this.bot.setLoadout(mode === "god" ? "mace" : (mode === "pro" ? "sword" : "spear"));
           this.bot.setSkin(mode === "god" ? "enderman" : (mode === "pro" ? "diamond_knight" : "alex"));
           this.bot.setTeam("red"); // OPPONENT IS ALWAYS RED
           this.bot.isBotGame = isBot;
+          this.bot.isBot = mode !== "pvp"; // Player 2 is a person in local PvP (no [BOT] tag)
   
           this.botAI.setParams(this.botParams);
           this.botAI.reset();
@@ -4666,12 +5049,114 @@
           }
       }
   
+      // Online 1v1: host is always Blue (left), guest is always Red (right) on both screens
+      startOnlineMatch(role, hostInfo, guestInfo) {
+          sound.ensureContext();
+          this.applyMode("pvp", null, true);
+          this.mode = "online";
+          this.onlineRole = role;
+          this.botParams = getBotParamsForMode("pvp");
+  
+          const setup = (fighter, info, fallbackName) => {
+              fighter.name = (info && info.name) || fallbackName;
+              fighter.setLoadout((info && info.weapon) || "mace", (info && info.weapon2) || null, (info && info.upgrades) || {});
+              fighter.setSkin((info && info.skin) || "steve");
+              fighter.isBotGame = false;
+          };
+          setup(this.player, hostInfo, "Host");
+          setup(this.bot, guestInfo, "Guest");
+          this.player.isPlayer = role === "host";
+          this.bot.isPlayer = role === "guest";
+          this.bot._botAI = null;
+          this.bot.isBot = false; // the opponent is your friend, not a bot
+          this.allBots = [];
+          this.localFighter = role === "host" ? this.player : this.bot;
+          this.remoteInput = { left: false, right: false };
+          this.sentInput = { left: false, right: false };
+  
+          this.state = "play";
+          if (this.uiCallbacks.onStateChanged) {
+              this.uiCallbacks.onStateChanged(this.state);
+          }
+      }
+  
+      isOnlineGuest() {
+          return this.mode === "online" && this.onlineRole === "guest";
+      }
+  
+      // ---- Online networking: snapshots (host -> guest) and inputs (guest -> host) ----
+  
+      packFighter(f) {
+          const r = (n) => Math.round(n * 10) / 10;
+          return [r(f.x), r(f.y), r(f.xVel), r(f.yVel), f.facing, r(f.hp), r(f.ghostHp),
+              r(f.squashX), r(f.squashY), f.dashing ? 1 : 0, f.slamming ? 1 : 0, f.maxHp, f.weaponId];
+      }
+  
+      unpackFighter(f, d) {
+          const prevHp = f.hp;
+          [f.x, f.y, f.xVel, f.yVel, f.facing, f.hp, f.ghostHp, f.squashX, f.squashY] = d;
+          f.dashing = !!d[9];
+          f.slamming = !!d[10];
+          f.maxHp = d[11];
+          if (d[12] && d[12] !== f.weaponId) f.setWeapon(d[12], {});
+          // Recreate hit effects locally from health changes
+          if (f.hp < prevHp - 0.01 && prevHp > 0) {
+              const dmg = prevHp - Math.max(0, f.hp);
+              sound.playDashHit();
+              this.particles.addHitSparks(f.x + f.w / 2, f.y + f.h / 2, 10, "#e74c3c");
+              this.particles.addDamageText(f.x + f.w / 2, f.y, dmg, dmg >= 30);
+              this.particles.triggerShake(4, 6);
+              if (dmg >= 50) this.flash = Math.max(this.flash, 0.3);
+              if (f.hp <= 0) {
+                  this.flash = 0.55;
+                  this.particles.addFloatingText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, "#ff2244", true, 1.3);
+              }
+          }
+      }
+  
+      buildSnapshot() {
+          return {
+              t: "snap",
+              f: [this.packFighter(this.player), this.packFighter(this.bot)],
+              a: this.arrowManager.arrows.map(a => [Math.round(a.x), Math.round(a.y), a.vx, a.vy, a.stuck ? 1 : 0, a.facing]),
+              m: this.matchFrames
+          };
+      }
+  
+      handleNetMessage(msg) {
+          if (msg.t === "snap" && this.isOnlineGuest() && this.state === "play") {
+              this.unpackFighter(this.player, msg.f[0]);
+              this.unpackFighter(this.bot, msg.f[1]);
+              this.arrowManager.arrows = msg.a.map(([x, y, vx, vy, stuck, facing]) => ({
+                  x, y, vx, vy, facing, stuck: !!stuck, gravity: 0, life: 60
+              }));
+              this.matchFrames = msg.m;
+          } else if (msg.t === "input" && this.mode === "online" && this.onlineRole === "host") {
+              this.remoteInput.left = !!msg.l;
+              this.remoteInput.right = !!msg.r;
+          } else if (msg.t === "act" && this.mode === "online" && this.onlineRole === "host" && this.state === "play") {
+              if (msg.a === "jump") this.bot.jump();
+              if (msg.a === "dash") {
+                  this.bot.aimAngle = typeof msg.aim === "number" ? msg.aim : null;
+                  this.bot.dash(null, true, null, this.arrowManager);
+              }
+              if (msg.a === "slam") this.bot.slam();
+              if (msg.a === "swap") this.bot.swapWeapon();
+          } else if (msg.t === "end" && this.isOnlineGuest() && this.state === "play") {
+              msg.stats.forEach((st, i) => { this.allFighters[i].stats = st; });
+              this.finishMatch(msg.w === this.localFighter.team);
+          }
+      }
+  
       // Starts a 1v1, 2v2, or 5v5 Arena Match
       startArenaTeamMatch(matchType = "2v2", selectedWeaponId = "mace") {
           sound.ensureContext();
           sound.playClick();
   
+          if (online.role) online.close();
           this.mode = "arena";
+          this.onlineRole = null;
+          this.localFighter = this.player;
           this.matchType = matchType;
           this.isTeamMatch = true;
           this.botParams = getBotParamsForMode("normal");
@@ -4683,7 +5168,9 @@
           this.blueTeam = roster.blueTeam.map((data) => {
               if (data.isPlayer) {
                   this.player.reset(data.x, data.facing, data.maxHp);
-                  this.player.setWeapon(selectedWeaponId, user.weaponUpgrades || {});
+                  // Arena pick is the primary; the loadout's other weapon is the secondary
+                  const second = user.secondaryWeapon !== selectedWeaponId ? user.secondaryWeapon : (user.equippedWeapon !== selectedWeaponId ? user.equippedWeapon : null);
+                  this.player.setLoadout(selectedWeaponId, second, user.weaponUpgrades || {});
                   this.player.setSkin(user.skinId || "steve");
                   this.player.setTeam("blue");
                   this.player.name = user.username || "Player";
@@ -4791,6 +5278,10 @@
   
       goHome() {
           sound.playClick();
+          if (this.mode === "online") {
+              online.close();
+              this.onlineRole = null;
+          }
           this.state = "menu";
           if (this.uiCallbacks.onStateChanged) {
               this.uiCallbacks.onStateChanged(this.state);
@@ -4798,6 +5289,8 @@
       }
   
       togglePause() {
+          // Online matches can't be paused: the other player is still playing
+          if (this.mode === "online") return;
           if (this.state === "play") {
               this.state = "paused";
           } else if (this.state === "paused") {
@@ -4808,7 +5301,61 @@
           }
       }
   
+      // The bow aims at the mouse for whoever this browser controls
+      usesMouseAim() {
+          const f = this.localFighter;
+          return this.state === "play" && this.mouse.active && f && f.weaponId === "bow" && f.hp > 0;
+      }
+  
+      aimAngleFor(f) {
+          return Math.atan2(this.mouse.y - (f.y + f.h / 2), this.mouse.x - (f.x + f.w / 2));
+      }
+  
+      // Space / left-click attack for the local fighter (bow shots go toward the mouse)
+      localAttack() {
+          const f = this.localFighter;
+          const aim = this.usesMouseAim() ? this.aimAngleFor(f) : null;
+          if (this.isOnlineGuest()) {
+              online.send({ t: "act", a: "dash", aim });
+              return;
+          }
+          f.aimAngle = aim;
+          f.dash(null, true, null, this.arrowManager);
+      }
+  
       setupInputs() {
+          const toArena = (e) => {
+              const rect = this.canvas.getBoundingClientRect();
+              if (!rect.width || !rect.height) return null;
+              return {
+                  x: (e.clientX - rect.left) * (this.renderer.width / rect.width),
+                  y: (e.clientY - rect.top) * (this.renderer.height / rect.height)
+              };
+          };
+  
+          this.canvas.addEventListener("mousemove", (e) => {
+              const p = toArena(e);
+              if (!p) return;
+              this.mouse.x = p.x;
+              this.mouse.y = p.y;
+              this.mouse.active = true;
+          });
+  
+          // Left-click attacks like Space (the bow fires toward the mouse)
+          this.canvas.addEventListener("mousedown", (e) => {
+              if (e.button !== 0 || this.state !== "play") return;
+              const f = this.localFighter;
+              if (!f) return;
+              const p = toArena(e);
+              if (p) {
+                  this.mouse.x = p.x;
+                  this.mouse.y = p.y;
+                  this.mouse.active = true;
+              }
+              e.preventDefault();
+              this.localAttack();
+          });
+  
           window.addEventListener("keydown", (e) => {
               sound.ensureContext();
   
@@ -4879,18 +5426,35 @@
   
               if (this.state !== "play") return;
   
+              // Online guest: send actions to the host, which runs the match
+              if (this.isOnlineGuest()) {
+                  if (e.code === "ArrowUp" || e.code === "KeyW") online.send({ t: "act", a: "jump" });
+                  if (e.code === "Space") this.localAttack();
+                  if (e.code === "ArrowDown" || e.code === "KeyS") online.send({ t: "act", a: "slam" });
+                  if (e.code === "KeyQ") online.send({ t: "act", a: "swap" });
+                  return;
+              }
+  
+              // In local PvP the arrow keys belong to Player 2 only
+              const p1Arrows = this.mode !== "pvp";
+  
               // --- Player 1 Jump ---
-              if (e.code === "ArrowUp" || e.code === "KeyW") {
+              if (e.code === "KeyW" || (p1Arrows && e.code === "ArrowUp")) {
                   this.player.jump();
+              }
+  
+              // --- Swap between your two loadout weapons ---
+              if (e.code === "KeyQ") {
+                  this.localFighter.swapWeapon();
               }
   
               // --- Player 1 Weapon Attack / Dash / Bow Shoot ---
               if (e.code === "Space") {
-                  this.player.dash(null, true, null, this.arrowManager);
+                  this.localAttack();
               }
   
               // --- Player 1 Slam ---
-              if (e.code === "ArrowDown" || e.code === "KeyS") {
+              if (e.code === "KeyS" || (p1Arrows && e.code === "ArrowDown")) {
                   this.player.slam();
               }
   
@@ -4900,7 +5464,7 @@
                       this.bot.jump();
                   }
                   if (e.code === "Enter" || e.code === "ShiftRight") {
-                      this.bot.dash(this.botParams.dashSpeed, true, this.botParams.botDashCooldown, this.arrowManager);
+                      this.bot.dash(null, true, null, this.arrowManager);
                   }
                   if (e.code === "ArrowDown") {
                       this.bot.slam();
@@ -4921,6 +5485,17 @@
       handleContinuousInput() {
           if (this.state !== "play") return;
   
+          // Online guest: stream left/right held state to the host
+          if (this.isOnlineGuest()) {
+              const left = !!(this.keys["KeyA"] || this.keys["ArrowLeft"]);
+              const right = !!(this.keys["KeyD"] || this.keys["ArrowRight"]);
+              if (left !== this.sentInput.left || right !== this.sentInput.right) {
+                  this.sentInput = { left, right };
+                  online.send({ t: "input", l: left, r: right });
+              }
+              return;
+          }
+  
           // Player 1 Continuous Horizontal Movement
           if (this.player.stun <= 0 && !this.player.dashing) {
               const left = this.keys["KeyA"] || (this.mode !== "pvp" && this.keys["ArrowLeft"]);
@@ -4939,13 +5514,13 @@
               }
           }
   
-          // Player 2 Input (PVP Mode)
-          if (this.mode === "pvp") {
+          // Player 2 Input (local PvP keys, or the online guest's streamed input)
+          if (this.mode === "pvp" || this.mode === "online") {
               if (this.bot.stun <= 0 && !this.bot.dashing) {
-                  const left = this.keys["ArrowLeft"];
-                  const right = this.keys["ArrowRight"];
+                  const left = this.mode === "online" ? this.remoteInput.left : this.keys["ArrowLeft"];
+                  const right = this.mode === "online" ? this.remoteInput.right : this.keys["ArrowRight"];
   
-                  const speed = 3;
+                  const speed = 5.2; // Same as Player 1 so local duels are fair
                   if (left && !right) {
                       this.bot.xVel = -speed;
                       this.bot.facing = -1;
@@ -4953,11 +5528,30 @@
                       this.bot.xVel = speed;
                       this.bot.facing = 1;
                   } else {
-                      this.bot.xVel *= 0.65;
+                      this.bot.xVel *= 0.55;
                       if (Math.abs(this.bot.xVel) < 0.1) this.bot.xVel = 0;
                   }
               }
           }
+      }
+  
+      // Difficulty multipliers only apply to the single opponent bot in solo modes.
+      // Arena teams, local PvP and online play are always even.
+      isDifficultyBot(f) {
+          return f === this.bot && !this.isTeamMatch && this.mode !== "pvp" && this.mode !== "online";
+      }
+  
+      // damageMult = how hard the bot hits, damageTaken = how much damage the bot takes
+      hitDamageMult(attacker, defender) {
+          let mult = 1;
+          if (this.isDifficultyBot(attacker)) mult *= this.botParams.damageMult ?? 1;
+          if (this.isDifficultyBot(defender)) mult *= this.botParams.damageTaken ?? 1;
+          return mult;
+      }
+  
+      // stunMult = how long the bot stays stunned when hit
+      hitStunMult(defender) {
+          return this.isDifficultyBot(defender) ? (this.botParams.stunMult ?? 1) : 1;
       }
   
       update() {
@@ -4966,12 +5560,15 @@
               return;
           }
   
+          if (this.isOnlineGuest()) {
+              // The host simulates; we only animate effects and send our input
+              this.handleContinuousInput();
+              this.particles.update();
+              return;
+          }
+  
           this.matchFrames++;
           this.handleContinuousInput();
-  
-          const damageTakenMult = this.botParams.damageTaken ?? 1;
-          const stunMult = this.botParams.stunMult ?? 1;
-          const damageDealtMult = this.botParams.damageMult ?? 1;
   
           // Update all AI fighters (in-place zero allocation)
           for (let i = 0; i < this.allBots.length; i++) {
@@ -5017,13 +5614,14 @@
                   f.stun = 0;
                   f.hitCooldown = 0;
                   f.jumpsLeft = 2;
+                  f.groundSlamCounted = false;
   
                   const opposingTeam = f.team === "red" ? this.blueTeam : (f.team === "blue" ? this.redTeam : (f.isPlayer ? this.blueTeam : this.redTeam));
-                  const mult = f.isPlayer ? damageTakenMult : damageDealtMult;
                   for (let j = 0; j < opposingTeam.length; j++) {
                       const def = opposingTeam[j];
-                      this.combat.checkGroundSlam(f, def, mult, stunMult, (dmg, atk, defender) => {
+                      this.combat.checkGroundSlam(f, def, this.hitDamageMult(f, def), this.hitStunMult(def), (dmg, atk, defender) => {
                           if (defender._botAI) defender._botAI.onHit();
+                          if (dmg >= 50) this.flash = Math.max(this.flash, 0.3);
                           if (this.isTiebreaker) {
                               if (atk.team === "red" || (!atk.team && atk === this.player)) {
                                   this.tiebreakerRedDamage += dmg;
@@ -5093,12 +5691,14 @@
                   const def = this.blueTeam[j];
                   if (def.hp <= 0) continue;
   
-                  this.combat.checkAirSlam(atk, def, damageTakenMult, stunMult, (dmg) => {
+                  this.combat.checkAirSlam(atk, def, this.hitDamageMult(atk, def), this.hitStunMult(def), (dmg) => {
                       if (def._botAI) def._botAI.onHit();
+                      if (dmg >= 50) this.flash = Math.max(this.flash, 0.3);
                       if (this.isTiebreaker) this.tiebreakerRedDamage += dmg;
                   });
-                  this.combat.checkDashHit(atk, def, damageTakenMult, stunMult, (dmg) => {
+                  this.combat.checkDashHit(atk, def, this.hitDamageMult(atk, def), this.hitStunMult(def), (dmg) => {
                       if (def._botAI) def._botAI.onHit();
+                      if (dmg >= 50) this.flash = Math.max(this.flash, 0.3);
                       if (this.isTiebreaker) this.tiebreakerRedDamage += dmg;
                   });
               }
@@ -5111,12 +5711,14 @@
                   const def = this.redTeam[j];
                   if (def.hp <= 0) continue;
   
-                  this.combat.checkAirSlam(atk, def, damageDealtMult, 1.0, (dmg) => {
+                  this.combat.checkAirSlam(atk, def, this.hitDamageMult(atk, def), this.hitStunMult(def), (dmg) => {
                       if (def._botAI) def._botAI.onHit();
+                      if (dmg >= 50) this.flash = Math.max(this.flash, 0.3);
                       if (this.isTiebreaker) this.tiebreakerBlueDamage += dmg;
                   });
-                  this.combat.checkDashHit(atk, def, damageDealtMult, 1.0, (dmg) => {
+                  this.combat.checkDashHit(atk, def, this.hitDamageMult(atk, def), this.hitStunMult(def), (dmg) => {
                       if (def._botAI) def._botAI.onHit();
+                      if (dmg >= 50) this.flash = Math.max(this.flash, 0.3);
                       if (this.isTiebreaker) this.tiebreakerBlueDamage += dmg;
                   });
               }
@@ -5130,6 +5732,7 @@
               const f = this.allFighters[i];
               if (f.hp <= 0 && !f.isDead) {
                   f.isDead = true;
+                  this.flash = 0.55;
                   f.stats.deaths = (f.stats.deaths || 0) + 1;
                   sound.playDashHit();
                   this.particles.addHitSparks(f.x + f.w / 2, f.y + f.h / 2, 22, "#e74c3c");
@@ -5139,7 +5742,7 @@
                   if (isRedFighter) {
                       this.scoreBlue++;
                       this.particles.addFloatingText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, "#ff2244", true, 1.3);
-                      const killer = this.blueTeam.find(b => b.hp > 0) || this.player;
+                      const killer = this.findKiller(f, this.blueTeam);
                       if (killer && killer.stats) killer.stats.kills++;
   
                       // In single-player bot games & 1v1 duels, killing the bot immediately wins the match!
@@ -5150,7 +5753,7 @@
                   } else {
                       this.scoreRed++;
                       this.particles.addFloatingText(f.x + f.w / 2, f.y - 12, `${f.name} ELIMINATED!`, "#ff2244", true, 1.3);
-                      const killer = this.redTeam.find(r => r.hp > 0) || this.bot;
+                      const killer = this.findKiller(f, this.redTeam);
                       if (killer && killer.stats) killer.stats.kills++;
   
                       // In single-player bot games, player death immediately ends the match!
@@ -5208,6 +5811,10 @@
               }
           }
   
+          if (this.mode === "online" && this.onlineRole === "host") {
+              online.send(this.buildSnapshot());
+          }
+  
           // 3. Process Tiebreaker Timer (10 Seconds, Whoever Dealt Most Damage Wins)
           if (this.isTiebreaker) {
               this.tiebreakerTimer--;
@@ -5225,9 +5832,30 @@
           }
       }
   
+      // Whoever landed the final hit gets the KO (falls back to the nearest living opponent)
+      findKiller(victim, opposingTeam) {
+          const hitter = victim.lastHitBy;
+          victim.lastHitBy = null;
+          if (hitter && opposingTeam.includes(hitter)) return hitter;
+          let nearest = null;
+          let best = Infinity;
+          for (const o of opposingTeam) {
+              if (o.hp <= 0) continue;
+              const d = Math.abs(o.x - victim.x);
+              if (d < best) { best = d; nearest = o; }
+          }
+          return nearest;
+      }
+  
       finishMatch(isPlayerWin) {
           this.state = "gameover";
-          this.winnerTeam = isPlayerWin ? "blue" : "red";
+          if (this.mode === "online") {
+              // isPlayerWin is from this browser's point of view
+              const otherTeam = this.localFighter.team === "blue" ? "red" : "blue";
+              this.winnerTeam = isPlayerWin ? this.localFighter.team : otherTeam;
+          } else {
+              this.winnerTeam = isPlayerWin ? "blue" : "red";
+          }
           if (isPlayerWin) sound.playWin(); else sound.playLoss();
   
           // Calculate missed mace slams, missed dashes, and missed arrows for all fighters
@@ -5248,11 +5876,16 @@
   
           // Scale reward economy
           if (this.isTeamMatch) {
-              this.lastRewardInfo = auth.recordArenaMatchResult(isPlayerWin, this.matchType);
+              this.lastRewardInfo = auth.recordArenaMatchResult(isPlayerWin, this.matchType, this.player.stats);
           } else {
-              if (this.mode !== "pvp") {
+              if (this.mode !== "pvp" && this.mode !== "online") {
                   this.lastRewardInfo = auth.recordMatchResult(isPlayerWin, this.mode, this.player.stats);
               }
+          }
+  
+          if (this.mode === "online" && this.onlineRole === "host") {
+              online.send({ t: "snap", f: [this.packFighter(this.player), this.packFighter(this.bot)], a: [], m: this.matchFrames });
+              online.send({ t: "end", w: this.winnerTeam, stats: this.allFighters.map(f => f.stats) });
           }
   
           if (this.uiCallbacks.onStateChanged) {
@@ -5272,11 +5905,18 @@
           this.renderer.drawBackground();
           this.renderer.drawPlatforms();
   
-          const botMeta = MODE_METADATA[this.mode] || MODE_METADATA.normal;
+          const botMeta = this.mode === "online"
+              ? { ...(MODE_METADATA.pvp || MODE_METADATA.normal), name: "Online Duel" }
+              : (MODE_METADATA[this.mode] || MODE_METADATA.normal);
           const botColor = botMeta.color;
   
+          // Ground shadows under fighters
+          for (let i = 0; i < this.allFighters.length; i++) {
+              this.renderer.drawFighterShadow(this.allFighters[i]);
+          }
+  
           // Render all fighters
-          const isMultiplayer = this.isTeamMatch || this.mode === "pvp";
+          const isMultiplayer = this.isTeamMatch || this.mode === "pvp" || this.mode === "online";
           for (let i = 0; i < this.allFighters.length; i++) {
               const f = this.allFighters[i];
               this.renderer.drawFighter(f, botColor, isMultiplayer);
@@ -5301,8 +5941,12 @@
                   this.tiebreakerRedDamage, this.tiebreakerBlueDamage
               );
           } else {
-              const p1Label = this.mode === "pvp" ? "PLAYER 1" : (this.playerName || "YOU");
-              const p2Label = this.mode === "pvp" ? "PLAYER 2" : (this.bot.name || "BOT");
+              let p1Label = this.mode === "pvp" ? "PLAYER 1" : (this.playerName || "YOU");
+              let p2Label = this.mode === "pvp" ? "PLAYER 2" : (this.bot.name || "BOT");
+              if (this.mode === "online") {
+                  p1Label = this.player.name + (this.localFighter === this.player ? " (YOU)" : "");
+                  p2Label = this.bot.name + (this.localFighter === this.bot ? " (YOU)" : "");
+              }
               this.renderer.drawHUD(
                   this.player, this.bot, botColor, botMeta.name, p1Label, p2Label,
                   this.scoreRed, this.scoreBlue,
@@ -5312,10 +5956,38 @@
               );
           }
   
+          if (this.state === "play") this.renderer.drawLoadoutHotbar(this.localFighter);
+  
+          // Hit / KO flash, fading out
+          if (this.flash > 0) {
+              this.renderer.drawFlash(this.flash);
+              this.flash = Math.max(0, this.flash - 0.04);
+          }
+  
+          // Bow aim line toward the mouse
+          const aiming = this.usesMouseAim();
+          const cursor = aiming ? "crosshair" : "";
+          if (this.canvas.style.cursor !== cursor) this.canvas.style.cursor = cursor;
+          if (aiming) this.drawAimLine(ctx, this.localFighter);
+  
           this.renderer.drawControlsHint(this.mode === "pvp", this.matchFrames);
   
           // Game Over: the Smash-style results screen is an HTML overlay (see UIManager.openResultsScreen)
   
+          ctx.restore();
+      }
+  
+      drawAimLine(ctx, f) {
+          const angle = this.aimAngleFor(f);
+          const cx = f.x + f.w / 2;
+          const cy = f.y + f.h / 2;
+          const ready = f.arrowCooldown <= 0;
+          ctx.save();
+          ctx.fillStyle = ready ? "rgba(255, 255, 255, 0.85)" : "rgba(255, 255, 255, 0.3)";
+          // Dotted pixel line, like a Minecraft bow trajectory hint
+          for (let d = 22; d <= 70; d += 8) {
+              ctx.fillRect(Math.round(cx + Math.cos(angle) * d) - 1, Math.round(cy + Math.sin(angle) * d) - 1, 3, 3);
+          }
           ctx.restore();
       }
   
@@ -5324,15 +5996,14 @@
           let accumulator = 0;
           const FIXED_DT = 1000 / 60; // 60Hz physics timestep (16.6667ms)
   
-          const loop = (currentTime) => {
+          const step = (currentTime) => {
               let frameTime = currentTime - lastTime;
               if (frameTime > 100) frameTime = 100; // Cap to avoid spiral of death on backgrounding
+              if (frameTime < 0) frameTime = 0;
               lastTime = currentTime;
   
               accumulator += frameTime;
-              // Schedule the next frame first and guard each step, so a single
-              // runtime error can never stop the loop and freeze the game.
-              this.animFrameId = requestAnimationFrame(loop);
+              // Guard each step, so a single runtime error can never stop the loop and freeze the game.
               try {
                   while (accumulator >= FIXED_DT) {
                       this.update();
@@ -5349,10 +6020,24 @@
               }
           };
   
+          const loop = (currentTime) => {
+              this.animFrameId = requestAnimationFrame(loop);
+              step(currentTime);
+          };
           this.animFrameId = requestAnimationFrame(loop);
+  
+          // Browsers pause requestAnimationFrame in background tabs. Keep online matches
+          // running (and in sync for the other player) when this tab is hidden.
+          this.hiddenTimer = setInterval(() => {
+              if (document.hidden && this.mode === "online") step(performance.now());
+          }, FIXED_DT);
       }
   
       stop() {
+          if (this.hiddenTimer) {
+              clearInterval(this.hiddenTimer);
+              this.hiddenTimer = null;
+          }
           if (this.animFrameId) {
               cancelAnimationFrame(this.animFrameId);
               this.animFrameId = null;
@@ -5546,6 +6231,26 @@
           }
   
           // Theme / Biome Toggle (Overworld -> Nether -> End)
+          // Settings dropdown in the header
+          const settingsBtn = document.getElementById("btn-settings");
+          const settingsMenu = document.getElementById("settings-menu");
+          if (settingsBtn && settingsMenu) {
+              const setOpen = (open) => {
+                  settingsMenu.classList.toggle("hidden", !open);
+                  settingsBtn.setAttribute("aria-expanded", open ? "true" : "false");
+              };
+              settingsBtn.addEventListener("click", (e) => {
+                  e.stopPropagation();
+                  setOpen(settingsMenu.classList.contains("hidden"));
+              });
+              document.addEventListener("click", (e) => {
+                  if (!settingsMenu.contains(e.target) && e.target !== settingsBtn) setOpen(false);
+              });
+              document.addEventListener("keydown", (e) => {
+                  if (e.key === "Escape") setOpen(false);
+              });
+          }
+  
           this.themeBtn = document.getElementById("btn-theme");
           this.currentBiome = "overworld";
           if (this.themeBtn) {
@@ -5704,7 +6409,7 @@
   
       updateMuteButton(isMuted) {
           if (!this.muteBtn) return;
-          this.muteBtn.textContent = isMuted ? "Unmute" : "Sound On";
+          this.muteBtn.textContent = isMuted ? "Sound: Off" : "Sound: On";
       }
   
       // ==========================================
@@ -5712,6 +6417,12 @@
       // ==========================================
   
       setupAuthUI() {
+          // Refresh the profile screen after Google's sign-in popup finishes
+          auth.onGoogleSignIn = () => {
+              sound.playClick();
+              if (this.authModal && !this.authModal.classList.contains("hidden")) this.renderAuthModalContent();
+          };
+  
           auth.onUserChanged((user) => {
               this.updateHeaderProfileBadge(user);
               if (this.goldDisplay) {
@@ -5798,21 +6509,17 @@
                       this.renderAuthModalContent();
                   });
               } else {
-                  googleSection.innerHTML = `
-                      <button id="btn-google-signin" class="btn-google-signin">
-                          <svg class="google-icon" viewBox="0 0 24 24" width="18" height="18">
-                              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                          </svg>
-                          <span>Sign in with Google</span>
-                      </button>
-                      <p class="google-disclaimer">Link your Google account to sync your profile across devices.</p>
-                  `;
-                  document.getElementById("btn-google-signin")?.addEventListener("click", () => {
-                      this.triggerGoogleSignInFlow();
-                  });
+                  if (auth.isGoogleConfigured()) {
+                      googleSection.innerHTML = `
+                          <div id="google-signin-button" class="google-signin-button">Loading Google sign-in...</div>
+                          <p class="google-disclaimer">Sign in with your Google account. Your progress is saved in this browser.</p>
+                      `;
+                      auth.renderGoogleButton(document.getElementById("google-signin-button"));
+                  } else {
+                      googleSection.innerHTML = `
+                          <p class="google-disclaimer">Google sign-in isn't set up yet.</p>
+                      `;
+                  }
               }
           }
   
@@ -5903,86 +6610,31 @@
                           <span class="cs-label">Win Rate</span>
                       </div>
                       <div class="career-stat-card">
-                          <span class="cs-val">${s.slamsLanded}</span>
-                          <span class="cs-label">Mace Slams</span>
+                          <span class="cs-val">${s.matches || 0}</span>
+                          <span class="cs-label">Matches</span>
                       </div>
                       <div class="career-stat-card">
-                          <span class="cs-val" style="color:#e67e22">${s.maxSlamDamage.toFixed(0)}</span>
+                          <span class="cs-val" style="color:#ff7675">${s.kills || 0}</span>
+                          <span class="cs-label">Total KOs</span>
+                      </div>
+                      <div class="career-stat-card">
+                          <span class="cs-val">${Math.round(s.damageDealt || 0)}</span>
+                          <span class="cs-label">Damage Dealt</span>
+                      </div>
+                      <div class="career-stat-card">
+                          <span class="cs-val">${s.bestStreak || 0}</span>
+                          <span class="cs-label">Best Win Streak</span>
+                      </div>
+                      <div class="career-stat-card">
+                          <span class="cs-val">${s.slamsLanded || 0}</span>
+                          <span class="cs-label">Slams Landed</span>
+                      </div>
+                      <div class="career-stat-card">
+                          <span class="cs-val" style="color:#e67e22">${Math.round(s.maxSlamDamage || 0)}</span>
                           <span class="cs-label">Max Slam DMG</span>
                       </div>
                   </div>
               `;
-          }
-      }
-  
-      triggerGoogleSignInFlow() {
-          sound.playClick();
-          if (window.google && window.google.accounts && window.GOOGLE_CLIENT_ID) {
-              try {
-                  window.google.accounts.id.prompt();
-                  return;
-              } catch (e) {
-                  console.warn("GIS prompt fallback:", e);
-              }
-          }
-  
-          const googleMockModal = document.getElementById("google-mock-modal");
-          if (googleMockModal) {
-              googleMockModal.classList.remove("hidden");
-              this.setupGoogleMockOptions();
-          }
-      }
-  
-      setupGoogleMockOptions() {
-          const demoAccounts = [
-              { name: "Steve Gamer", email: "steve.craft@gmail.com", avatar: "https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=100&auto=format&fit=crop&q=80" },
-              { name: "Alex Champion", email: "alex.aerial@gmail.com", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" }
-          ];
-  
-          const container = document.getElementById("google-account-list");
-          if (!container) return;
-  
-          container.innerHTML = "";
-          demoAccounts.forEach((acc) => {
-              const item = document.createElement("div");
-              item.className = "google-acc-row";
-              item.innerHTML = `
-                  <img src="${acc.avatar}" alt="${acc.name}" class="google-acc-img">
-                  <div class="google-acc-text">
-                      <div class="google-acc-name">${acc.name}</div>
-                      <div class="google-acc-email">${acc.email}</div>
-                  </div>
-              `;
-              item.addEventListener("click", () => {
-                  auth.signInWithGoogleData({
-                      id: Math.floor(Math.random() * 1000000).toString(),
-                      name: acc.name,
-                      email: acc.email,
-                      picture: acc.avatar
-                  });
-                  document.getElementById("google-mock-modal")?.classList.add("hidden");
-                  sound.playClick();
-                  this.renderAuthModalContent();
-              });
-              container.appendChild(item);
-          });
-  
-          const customBtn = document.getElementById("btn-custom-google-signin");
-          const customInput = document.getElementById("input-custom-google-email");
-          if (customBtn && customInput) {
-              customBtn.onclick = () => {
-                  const email = customInput.value.trim() || "player@gmail.com";
-                  const handle = email.split("@")[0] || "GooglePlayer";
-                  auth.signInWithGoogleData({
-                      id: Math.floor(Math.random() * 1000000).toString(),
-                      name: handle,
-                      email: email,
-                      picture: null
-                  });
-                  document.getElementById("google-mock-modal")?.classList.add("hidden");
-                  sound.playClick();
-                  this.renderAuthModalContent();
-              };
           }
       }
   
@@ -6072,14 +6724,23 @@
                   const w = WEAPON_TYPES[weaponId];
                   if (weaponId === equipped) {
                       slot.classList.add("active");
+                  } else if (weaponId === user.secondaryWeapon) {
+                      slot.classList.add("secondary");
                   }
-                  slot.title = `${w.name} (${weaponId === equipped ? 'Equipped' : 'Click to Equip'})`;
+                  slot.title = `${w.name}: ${weaponId === equipped ? 'Slot 1' : (weaponId === user.secondaryWeapon ? 'Slot 2' : 'click = Slot 1, right-click = Slot 2')}`;
                   slot.innerHTML = `
                       ${weaponIconHTML(weaponId, 28)}
                       <span class="mc-slot-num">${i + 1}</span>
                   `;
                   slot.addEventListener("click", () => {
-                      auth.equipWeapon(weaponId);
+                      auth.equipWeapon(weaponId, 1);
+                      sound.playClick();
+                      this.renderHotbarSlots();
+                      this.renderWeaponsModalContent();
+                  });
+                  slot.addEventListener("contextmenu", (e) => {
+                      e.preventDefault();
+                      auth.equipWeapon(weaponId, 2);
                       sound.playClick();
                       this.renderHotbarSlots();
                       this.renderWeaponsModalContent();
@@ -6210,7 +6871,9 @@
           // Weapons Catalog
           Object.values(WEAPON_TYPES).forEach(w => {
               const isUnlocked = user.unlockedWeapons.includes(w.id);
-              const isEquipped = user.equippedWeapon === w.id;
+              const inSlot1 = user.equippedWeapon === w.id;
+              const inSlot2 = user.secondaryWeapon === w.id;
+              const isEquipped = inSlot1 || inSlot2;
   
               const card = document.createElement("div");
               card.className = `weapon-shop-card ${isEquipped ? 'equipped' : ''}`;
@@ -6225,10 +6888,14 @@
                           </div>
                       </div>
                       <div class="ws-right">
-                          ${isEquipped ? 
-                              `<span class="badge-equipped">EQUIPPED</span>` :
-                              (isUnlocked ? 
-                                  `<button class="btn-ctrl btn-equip-weap" data-id="${w.id}">Equip</button>` :
+                          ${inSlot1 ?
+                              `<span class="badge-equipped">SLOT 1</span>` :
+                            inSlot2 ?
+                              `<span class="badge-equipped badge-slot2">SLOT 2</span>
+                               <button class="btn-ctrl btn-clear-slot2" title="Remove from slot 2">Unequip</button>` :
+                              (isUnlocked ?
+                                  `<button class="btn-ctrl btn-equip-weap" data-id="${w.id}" data-slot="1" title="Main weapon">Slot 1</button>
+                                   <button class="btn-ctrl btn-equip-weap" data-id="${w.id}" data-slot="2" title="Second weapon (press Q in a match to swap)">Slot 2</button>` :
                                   `<button class="btn-ctrl btn-unlock-weap ${gold >= w.baseCost ? 'btn-can-buy' : ''}" data-id="${w.id}" data-cost="${w.baseCost}" ${gold < w.baseCost ? 'disabled' : ''}>
                                       ${gold >= w.baseCost ? '⭐ ' : ''}Unlock (${w.baseCost} G)
                                   </button>`
@@ -6249,9 +6916,18 @@
           });
   
           // Attach Equip / Unlock handlers
+          container.querySelectorAll(".btn-clear-slot2").forEach(btn => {
+              btn.onclick = () => {
+                  auth.clearSecondaryWeapon();
+                  sound.playClick();
+                  this.renderHotbarSlots();
+                  this.renderWeaponsModalContent();
+              };
+          });
+  
           container.querySelectorAll(".btn-equip-weap").forEach(btn => {
               btn.onclick = () => {
-                  auth.equipWeapon(btn.dataset.id);
+                  auth.equipWeapon(btn.dataset.id, parseInt(btn.dataset.slot) || 1);
                   sound.playClick();
                   this.renderHotbarSlots();
                   this.renderWeaponsModalContent();
@@ -6373,6 +7049,7 @@
                   if (status) status.textContent = "";
                   document.getElementById("private-room-panel").classList.remove("hidden");
                   sound.playClick();
+                  this.hostOnlineRoom(code);
               };
           }
   
@@ -6386,15 +7063,6 @@
               linkInput.addEventListener("click", () => linkInput.select());
           }
   
-          // Launch Private Match button
-          const btnLaunchPrivate = document.getElementById("btn-launch-private");
-          if (btnLaunchPrivate) {
-              btnLaunchPrivate.onclick = () => {
-                  this.arenaModal.classList.add("hidden");
-                  this.launchArenaMatchWithLoading(this.selectedArenaMode, this.selectedArenaWeapon);
-              };
-          }
-  
           // Join Private Room button
           const btnJoin = document.getElementById("btn-join-private");
           const joinInput = document.getElementById("input-join-code");
@@ -6406,11 +7074,122 @@
                       return;
                   }
                   joinInput.value = code;
-                  sound.playWin();
-                  this.arenaModal.classList.add("hidden");
-                  this.launchArenaMatchWithLoading(this.selectedArenaMode, this.selectedArenaWeapon);
+                  sound.playClick();
+                  this.joinOnlineRoom(code);
               };
           }
+  
+          online.onMessage = (msg) => this.handleOnlineMessage(msg);
+          online.onDisconnect = (reason) => this.handleOnlineDisconnect(reason);
+      }
+  
+      // ==========================================
+      // ONLINE (PEER-TO-PEER) LOBBY
+      // ==========================================
+  
+      setOnlineStatus(text, isError = false) {
+          const el = document.getElementById("online-status");
+          if (!el) return;
+          el.textContent = text;
+          el.classList.toggle("error", isError);
+      }
+  
+      myOnlineInfo() {
+          const user = auth.getUser();
+          return {
+              name: (user.username || "Player").slice(0, 20),
+              skin: user.skinId || "steve",
+              weapon: this.selectedArenaWeapon || user.equippedWeapon || "mace",
+              weapon2: (user.secondaryWeapon && user.secondaryWeapon !== (this.selectedArenaWeapon || user.equippedWeapon))
+                  ? user.secondaryWeapon
+                  : (user.equippedWeapon !== this.selectedArenaWeapon ? user.equippedWeapon : null),
+              upgrades: user.weaponUpgrades || {}
+          };
+      }
+  
+      hostOnlineRoom(code) {
+          this.setOnlineStatus("Opening room...");
+          online.host(code, () => {
+              // A friend connected; wait for their hello with their fighter info
+              this.setOnlineStatus("Friend connected! Starting...");
+          }, (err) => this.setOnlineStatus(err, true));
+          // Room is ready to share once the peer registers
+          if (online.peer) {
+              online.peer.on("open", () => this.setOnlineStatus("Room open. Waiting for your friend to join..."));
+          }
+      }
+  
+      joinOnlineRoom(code) {
+          this.setOnlineStatus("Connecting to your friend's room...");
+          online.join(code, () => {
+              this.setOnlineStatus("Connected! Starting...");
+              online.send({ t: "hello", info: this.myOnlineInfo() });
+          }, (err) => this.setOnlineStatus(err, true));
+      }
+  
+      startOnlineFromMessage(role, hostInfo, guestInfo) {
+          if (this.arenaModal) this.arenaModal.classList.add("hidden");
+          if (this.statsModal) this.statsModal.classList.add("hidden");
+          this.hideResultsScreen();
+          this.setOnlineStatus("");
+          this.game.startOnlineMatch(role, hostInfo, guestInfo);
+      }
+  
+      hostStartOnlineMatch() {
+          const hostInfo = this.myOnlineInfo();
+          const guestInfo = this.onlineGuestInfo || { name: "Guest" };
+          online.send({ t: "start", host: hostInfo, guest: guestInfo });
+          this.startOnlineFromMessage("host", hostInfo, guestInfo);
+      }
+  
+      handleOnlineMessage(msg) {
+          if (msg.t === "hello" && online.role === "host") {
+              this.onlineGuestInfo = msg.info || {};
+              this.hostStartOnlineMatch();
+          } else if (msg.t === "start" && online.role === "guest") {
+              this.startOnlineFromMessage("guest", msg.host, msg.guest);
+          } else if (msg.t === "rematch" && online.role === "host") {
+              this.hostStartOnlineMatch();
+          } else {
+              this.game.handleNetMessage(msg);
+          }
+      }
+  
+      handleOnlineDisconnect(reason) {
+          if (this.game.mode === "online" && this.game.state !== "menu") {
+              if (this.statsModal) this.statsModal.classList.add("hidden");
+              this.game.goHome();
+              this.showToast(reason);
+          } else {
+              this.setOnlineStatus(reason, true);
+          }
+      }
+  
+      onlineRematch() {
+          if (this.game.state !== "gameover") return;
+          if (online.role === "host") {
+              this.hostStartOnlineMatch();
+          } else if (online.isConnected()) {
+              online.send({ t: "rematch" });
+              const btn = document.getElementById("btn-results-again");
+              if (btn) btn.textContent = "Waiting for host...";
+          }
+      }
+  
+      showToast(text) {
+          let toast = document.getElementById("game-toast");
+          if (!toast) {
+              toast = document.createElement("div");
+              toast.id = "game-toast";
+              toast.className = "game-toast";
+              toast.setAttribute("role", "status");
+              const container = document.getElementById("arena-container") || document.body;
+              container.appendChild(toast);
+          }
+          toast.textContent = text;
+          toast.classList.add("show");
+          clearTimeout(this.toastTimer);
+          this.toastTimer = setTimeout(() => toast.classList.remove("show"), 4000);
       }
   
       // Shareable invite link for a private room, e.g. https://site/index.html?room=MACE-ABCD-123
@@ -6713,7 +7492,7 @@
   
       handleHomeClick() {
           const inMatch = (this.game.state === "play" || this.game.state === "paused");
-          const isMultiplayer = this.game.isTeamMatch || this.game.mode === "pvp";
+          const isMultiplayer = this.game.isTeamMatch || this.game.mode === "pvp" || this.game.mode === "online";
   
           if (inMatch && isMultiplayer) {
               if (this.resignModal) {
@@ -6736,6 +7515,10 @@
       }
   
       triggerMatchmakingRestart() {
+          if (this.game.mode === "online") {
+              this.onlineRematch();
+              return;
+          }
           sound.playClick();
           this.hideResultsScreen();
           if (this.statsModal) this.statsModal.classList.add("hidden");
@@ -7201,14 +7984,18 @@
           if (!this.statsModal) return;
   
           const p1 = this.game.player;
-          const p2 = this.game.bot;
+          // In team matches the head-to-head compares you with the best opponent
+          const p2 = this.game.isTeamMatch
+              ? this.game.redTeam.slice().sort((a, b) => (b.stats.kills - a.stats.kills) || (b.stats.damageDealt - a.stats.damageDealt))[0]
+              : this.game.bot;
           const statsBody = document.getElementById("stats-body");
           if (!statsBody) return;
   
           const highest = this.game.highestJumper || p1;
           const isTiebreaker = this.game.isTiebreaker;
-          const isPlayerWin = this.game.winnerTeam === "blue";
-          const winner = isPlayerWin ? (p1.name || "Steve") : (p2.name || "Opponent");
+          const isPlayerWin = this.game.winnerTeam === (this.game.localFighter || p1).team;
+          let winner = this.game.winnerTeam === "blue" ? (p1.name || "Steve") : (p2.name || "Opponent");
+          if (this.game.isTeamMatch) winner = this.game.winnerTeam === "blue" ? "Blue Team" : "Red Team";
           const rewardInfo = this.game.lastRewardInfo;
   
           // Calculate Combat Performance Rating (S+, S, A, B, C, D)
@@ -7591,6 +8378,8 @@
               winnerName = isPlayerWin ? "BLUE TEAM" : "RED TEAM";
           } else if (g.mode === "pvp") {
               winnerName = isPlayerWin ? "PLAYER 1" : "PLAYER 2";
+          } else if (g.mode === "online") {
+              winnerName = isPlayerWin ? (g.player.name || "HOST") : (g.bot.name || "GUEST");
           } else {
               winnerName = isPlayerWin ? (g.player.name || "YOU") : (g.bot.name || "BOT");
           }
@@ -7605,7 +8394,9 @@
                   : `${g.matchType.toUpperCase()} • Blue ${g.scoreBlue} - Red ${g.scoreRed}`;
           } else {
               const modeMeta = MODE_METADATA[g.mode] || {};
-              subEl.textContent = g.mode === "pvp" ? "Local 1v1 Duel" : `1v1 vs ${modeMeta.name || "Bot"}`;
+              subEl.textContent = g.mode === "pvp" ? "Local 1v1 Duel"
+                  : g.mode === "online" ? (g.winnerTeam === g.localFighter.team ? "Online 1v1 • You won!" : "Online 1v1 • Good game!")
+                  : `1v1 vs ${modeMeta.name || "Bot"}`;
           }
   
           // Placement order: winning team first, then by KOs, then damage dealt
@@ -7630,7 +8421,7 @@
               // Teams share a placement (whole winning team is 1st), solo duels rank individually
               const place = g.isTeamMatch ? (teamOf(f) === g.winnerTeam ? 1 : 2) : i + 1;
               const team = teamOf(f);
-              const isYou = f === g.player;
+              const isYou = f === (g.localFighter || g.player);
               const wep = WEAPON_TYPES[f.weaponId] || WEAPON_TYPES.mace;
               return `
                   <div class="rs-card rs-${team} ${place === 1 ? "rs-first" : ""} ${isYou ? "rs-you" : ""}" style="animation-delay:${0.15 + i * 0.08}s">
@@ -7646,6 +8437,9 @@
                   </div>
               `;
           }).join("");
+  
+          const againBtn = document.getElementById("btn-results-again");
+          if (againBtn) againBtn.textContent = g.mode === "online" ? "Rematch (R)" : "Play Again (R)";
   
           const fightersEl = document.getElementById("results-fighters");
           fightersEl.classList.toggle("compact", compact);

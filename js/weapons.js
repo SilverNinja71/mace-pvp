@@ -30,7 +30,7 @@ export const WEAPON_TYPES = {
                 name: "Density V",
                 desc: "Increases slam damage multiplier from greater heights.",
                 maxLevel: 5,
-                costPerLevel: 150,
+                costPerLevel: 300,
                 apply: (stats, lvl) => { stats.slamPower += lvl * 0.15; stats.slamMaxDmg += lvl * 15; }
             },
             {
@@ -38,7 +38,7 @@ export const WEAPON_TYPES = {
                 name: "Wind Burst III",
                 desc: "Launches you significantly higher into the air after landing a hit.",
                 maxLevel: 3,
-                costPerLevel: 200,
+                costPerLevel: 400,
                 apply: (stats, lvl) => { stats.hitLaunch -= lvl * 1.8; }
             },
             {
@@ -46,7 +46,7 @@ export const WEAPON_TYPES = {
                 name: "Breach IV",
                 desc: "Ignores a portion of opponent damage reduction and armor.",
                 maxLevel: 4,
-                costPerLevel: 180,
+                costPerLevel: 360,
                 apply: (stats, lvl) => { stats.breachArmor = lvl * 0.1; }
             }
         ]
@@ -58,7 +58,7 @@ export const WEAPON_TYPES = {
         icon: "",
         category: "Wind Charge",
         desc: "Super-fast wind dashes on ground and air. Pierces through incoming attacks.",
-        baseCost: 200,
+        baseCost: 400,
         unlockedByDefault: true,
         stats: {
             damage: 20,
@@ -77,7 +77,7 @@ export const WEAPON_TYPES = {
                 name: "Impaling V",
                 desc: "Increases spear dash strike damage.",
                 maxLevel: 5,
-                costPerLevel: 140,
+                costPerLevel: 280,
                 apply: (stats, lvl) => { stats.dashDamage += lvl * 4; }
             },
             {
@@ -85,7 +85,7 @@ export const WEAPON_TYPES = {
                 name: "Piercing IV",
                 desc: "Increases dash velocity and distance.",
                 maxLevel: 4,
-                costPerLevel: 175,
+                costPerLevel: 350,
                 apply: (stats, lvl) => { stats.dashSpeed += lvl * 2; stats.dashDistance += lvl * 1; }
             },
             {
@@ -93,7 +93,7 @@ export const WEAPON_TYPES = {
                 name: "Breeze Agility",
                 desc: "Reduces dash cooldown time.",
                 maxLevel: 3,
-                costPerLevel: 220,
+                costPerLevel: 440,
                 apply: (stats, lvl) => { stats.attackCooldown -= lvl * 5; }
             }
         ]
@@ -105,7 +105,7 @@ export const WEAPON_TYPES = {
         icon: "",
         category: "Blade Slice",
         desc: "Shorter, precision dash slice that deals massive swift slash damage.",
-        baseCost: 350,
+        baseCost: 700,
         unlockedByDefault: false,
         stats: {
             damage: 32,
@@ -124,7 +124,7 @@ export const WEAPON_TYPES = {
                 name: "Sharpness V",
                 desc: "Significantly enhances blade slice damage.",
                 maxLevel: 5,
-                costPerLevel: 180,
+                costPerLevel: 360,
                 apply: (stats, lvl) => { stats.dashDamage += lvl * 6; stats.damage += lvl * 5; }
             },
             {
@@ -132,7 +132,7 @@ export const WEAPON_TYPES = {
                 name: "Knockback II",
                 desc: "Sends enemies flying further across the arena.",
                 maxLevel: 3,
-                costPerLevel: 160,
+                costPerLevel: 320,
                 apply: (stats, lvl) => { stats.knockbackMult = 1.0 + lvl * 0.35; }
             },
             {
@@ -140,7 +140,7 @@ export const WEAPON_TYPES = {
                 name: "Sweeping Edge III",
                 desc: "Widens the horizontal hit area of your blade slice.",
                 maxLevel: 3,
-                costPerLevel: 210,
+                costPerLevel: 420,
                 apply: (stats, lvl) => { stats.range += lvl * 8; }
             }
         ]
@@ -152,7 +152,7 @@ export const WEAPON_TYPES = {
         icon: "",
         category: "Martial Brawl",
         desc: "Pure close-quarters Steve punches! Does brutal damage in hand-to-hand combat.",
-        baseCost: 150,
+        baseCost: 300,
         unlockedByDefault: false,
         stats: {
             damage: 42,
@@ -171,7 +171,7 @@ export const WEAPON_TYPES = {
                 name: "Strength II",
                 desc: "Potion of Strength power! Heavily boosts fist impact damage.",
                 maxLevel: 5,
-                costPerLevel: 160,
+                costPerLevel: 320,
                 apply: (stats, lvl) => { stats.dashDamage += lvl * 7; stats.damage += lvl * 6; }
             },
             {
@@ -179,7 +179,7 @@ export const WEAPON_TYPES = {
                 name: "Haste Beacon",
                 desc: "Reduces attack cooldown for rapid-fire punch barrages.",
                 maxLevel: 4,
-                costPerLevel: 180,
+                costPerLevel: 360,
                 apply: (stats, lvl) => { stats.attackCooldown -= lvl * 3; }
             },
             {
@@ -187,7 +187,7 @@ export const WEAPON_TYPES = {
                 name: "Heavy Fist Impact",
                 desc: "Increases stun duration dealt to struck opponents.",
                 maxLevel: 3,
-                costPerLevel: 200,
+                costPerLevel: 400,
                 apply: (stats, lvl) => { stats.stunBonus = lvl * 8; }
             }
         ]
@@ -199,7 +199,7 @@ export const WEAPON_TYPES = {
         icon: "",
         category: "Ranged Marksman",
         desc: "Fires deadly arrows from afar. Dash key shoots arrows with a reload cooldown.",
-        baseCost: 500,
+        baseCost: 1000,
         unlockedByDefault: false,
         stats: {
             damage: 18,
@@ -221,7 +221,7 @@ export const WEAPON_TYPES = {
                 name: "Power V",
                 desc: "Greatly increases arrow projectile damage.",
                 maxLevel: 5,
-                costPerLevel: 200,
+                costPerLevel: 400,
                 apply: (stats, lvl) => { stats.arrowDamage += lvl * 7; }
             },
             {
@@ -229,7 +229,7 @@ export const WEAPON_TYPES = {
                 name: "Infinity / Quick Charge",
                 desc: "Dramatically reduces bow reload time between shots.",
                 maxLevel: 4,
-                costPerLevel: 220,
+                costPerLevel: 440,
                 apply: (stats, lvl) => { stats.reloadTime = Math.max(18, stats.reloadTime - lvl * 7); }
             },
             {
@@ -237,7 +237,7 @@ export const WEAPON_TYPES = {
                 name: "Punch II",
                 desc: "Adds strong knockback to arrows.",
                 maxLevel: 3,
-                costPerLevel: 180,
+                costPerLevel: 360,
                 apply: (stats, lvl) => { stats.arrowKnockback = 1.0 + lvl * 0.4; }
             }
         ]
@@ -275,12 +275,14 @@ export class ArrowManager {
         this.arrows = [];
     }
 
-    spawnArrow(x, y, facing, ownerId, ownerTeam, damage = 30, speed = 16, knockbackMult = 1.0) {
+    // aimAngle (radians) fires toward a point; without it the arrow flies straight ahead
+    spawnArrow(x, y, facing, ownerId, ownerTeam, damage = 30, speed = 16, knockbackMult = 1.0, aimAngle = null) {
+        const aimed = aimAngle !== null && aimAngle !== undefined;
         this.arrows.push({
             x,
             y,
-            vx: facing * speed,
-            vy: -1.2, // slight upward arc
+            vx: aimed ? Math.cos(aimAngle) * speed : facing * speed,
+            vy: aimed ? Math.sin(aimAngle) * speed : -1.2, // slight upward arc
             gravity: 0.15,
             facing,
             ownerId,
@@ -336,18 +338,20 @@ export class ArrowManager {
                     a.y >= f.y && a.y <= f.y + f.h &&
                     f.hitCooldown <= 0
                 ) {
-                    // Hit fighter!
+                    // Hit fighter! (stats count only the HP actually removed)
+                    const dealt = Math.min(a.damage, Math.max(0, f.hp));
                     f.hp -= a.damage;
-                    f.stats.damageTaken += a.damage;
+                    f.stats.damageTaken += dealt;
                     f.hitCooldown = 20;
                     f.stun = 25;
                     f.xVel = a.facing * 7 * (a.knockbackMult || 1.0);
                     f.yVel = -5;
 
                     const shooter = fighters.find(fl => fl.id === a.ownerId);
+                    if (shooter) f.lastHitBy = shooter;
                     if (shooter) {
                         shooter.stats.arrowsHit++;
-                        shooter.stats.damageDealt += a.damage;
+                        shooter.stats.damageDealt += dealt;
                     }
 
                     if (onHitCallback) {
