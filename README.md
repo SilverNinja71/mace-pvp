@@ -38,7 +38,8 @@ You can launch or share the game immediately in multiple ways:
 | **Move Left / Right** | <kbd>A</kbd> / <kbd>D</kbd> or <kbd>←</kbd> / <kbd>→</kbd> | Run across platforms |
 | **Jump / Double Jump** | <kbd>W</kbd> or <kbd>↑</kbd> | Tap once to jump, tap in air for double jump |
 | **Spear Dash** | <kbd>Space</kbd> | High-speed horizontal burst (ground or air). Can dash mid-slam! |
-| **Class** | Inventory | Normal, Shadow (invisible 4s every 15s, faster while invisible), Lightning (slams add 18-22 stun frames) or Energy (0.5s dash cooldown, air re-dash, half dash damage). |
+| **Weapon & Class** | <kbd>I</kbd> | Pick your weapon(s) from a dropdown and your class from a grid: Normal, Shadow, Lightning, Energy, Potionmaster, Pyro, Void Walker or Buddha. |
+| **Buddha Size** | <kbd>B</kbd> | Buddha class: grow big (1.3x damage, much bigger hitbox) or shrink back. |
 | **Swap Weapon** | <kbd>Q</kbd> | Switch between your two loadout weapons (set Slot 1 / Slot 2 in the Inventory). |
 | **Aim Bow** | Mouse | With the bow, <kbd>Space</kbd> or left-click fires toward the cursor. |
 | **Mace Slam** | <kbd>S</kbd> or <kbd>↓</kbd> | Dive downwards at terminal velocity. Hits harder from greater heights! |

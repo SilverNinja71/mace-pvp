@@ -3149,3 +3149,283 @@ input, textarea, .selectable {
 @media (max-width: 520px) {
     .class-picker { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ==========================================
+   SIMPLE HOME SCREEN
+   ========================================== */
+.home-simple {
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    padding-bottom: 6px;
+}
+
+.home-top-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.home-top-row .home-profile-banner {
+    margin: 0;
+}
+
+.home-loadout-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    text-align: left;
+    background: #1e3a6e;
+    border: 3px solid #000;
+    box-shadow: inset 3px 3px 0 #3a63a8, inset -3px -3px 0 #0c1d3d, 0 4px 0 #0c1d3d;
+    color: #fff;
+    cursor: pointer;
+    font-family: var(--font-body);
+}
+
+.home-loadout-btn:hover { background: #26498a; }
+
+.home-loadout-label {
+    display: block;
+    font-family: var(--font-pixel);
+    font-size: 11px;
+}
+
+.home-loadout-summary {
+    display: block;
+    font-size: 19px;
+    color: #9fd8ff;
+}
+
+.home-section-title {
+    font-family: var(--font-pixel);
+    font-size: 12px;
+    color: #fff;
+    text-shadow: 2px 2px 0 #000;
+    margin-top: 4px;
+}
+
+.home-section-title span {
+    font-family: var(--font-body);
+    font-size: 18px;
+    color: #7dff9a;
+    margin-left: 8px;
+}
+
+/* Bot difficulty cards: compact, one click to play */
+.home-simple .mode-cards-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    max-width: none;
+}
+
+.home-simple .mode-card {
+    padding: 8px 8px 8px 14px;
+    gap: 2px;
+}
+
+.home-simple .mode-card .card-badge {
+    align-self: flex-start;
+    font-size: 15px;
+}
+
+.home-simple .mode-card .card-title {
+    margin: 4px 0 2px;
+}
+
+.home-simple .mode-card .card-sub {
+    margin: 0;
+    font-size: 16px;
+}
+
+.home-big-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.home-big-btn {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 10px;
+    border: 3px solid #000;
+    color: #fff;
+    cursor: pointer;
+    text-align: left;
+    font-family: var(--font-body);
+    position: relative;
+    top: 0;
+}
+
+.home-big-btn b {
+    font-family: var(--font-pixel);
+    font-weight: normal;
+    font-size: 12px;
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.6);
+}
+
+.home-big-btn small {
+    font-size: 17px;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.home-big-btn:active { top: 3px; }
+.big-ranked { background: #8a6a12; box-shadow: inset 3px 3px 0 #c9a23a, inset -3px -3px 0 #4a3808, 0 4px 0 #2a2004; }
+.big-online { background: #1c7a4a; box-shadow: inset 3px 3px 0 #3fb97a, inset -3px -3px 0 #0c3f24, 0 4px 0 #082414; }
+.big-local { background: #6a2a8a; box-shadow: inset 3px 3px 0 #9a5ac0, inset -3px -3px 0 #3a1050, 0 4px 0 #22082f; }
+.big-ranked:hover { background: #a07c18; }
+.big-online:hover { background: #239058; }
+.big-local:hover { background: #7c34a0; }
+
+@media (max-width: 640px) {
+    .home-top-row,
+    .home-big-row { grid-template-columns: 1fr; }
+    .home-simple .mode-cards-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Ranked / Online views of the arena window */
+.modal-arena-card[data-view="ranked"] .arena-online-only,
+.modal-arena-card[data-view="online"] .arena-ranked-only {
+    display: none !important;
+}
+
+.modal-arena-card .arena-actions-split {
+    grid-template-columns: 1fr;
+}
+
+/* ==========================================
+   LOADOUT WINDOW (press I)
+   ========================================== */
+.loadout-card {
+    max-width: 560px;
+    width: 100%;
+}
+
+.loadout-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.loadout-tab {
+    padding: 10px;
+    font-family: var(--font-pixel);
+    font-size: 12px;
+    color: #ddd;
+    background: var(--panel-light);
+    border: 3px solid #000;
+    cursor: pointer;
+}
+
+.loadout-tab.active {
+    background: var(--grass);
+    color: #fff;
+    box-shadow: inset 3px 3px 0 #8fd16a, inset -3px -3px 0 #2f5f1f;
+}
+
+.loadout-panel.hidden { display: none; }
+
+.lo-label {
+    display: block;
+    font-size: 19px;
+    color: #fff;
+    margin: 8px 0 4px;
+}
+
+.lo-label span { color: var(--text-muted); font-size: 17px; }
+
+.lo-select {
+    width: 100%;
+    padding: 8px 10px;
+    font-family: var(--font-body);
+    font-size: 20px;
+    color: #fff;
+    background: #1e1e1e;
+    border: 3px solid #000;
+    cursor: pointer;
+}
+
+.lo-shop-btn {
+    margin-top: 12px;
+    width: 100%;
+}
+
+.lo-class-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    max-height: min(52vh, 230px);
+    overflow-y: auto;
+}
+
+.loadout-card {
+    max-height: calc(100% - 16px);
+    overflow-y: auto;
+}
+
+.lo-class-card {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px;
+    text-align: left;
+    background: #262626;
+    border: 3px solid #000;
+    border-left: 8px solid #777;
+    color: #fff;
+    cursor: pointer;
+    font-family: var(--font-body);
+}
+
+.lo-class-card:hover { background: #303030; }
+
+.lo-class-card.selected {
+    background: #34402c;
+    outline: 3px solid #fff;
+    outline-offset: -3px;
+}
+
+.lo-class-name {
+    font-family: var(--font-pixel);
+    font-size: 11px;
+}
+
+.lo-class-desc {
+    font-size: 16px;
+    color: var(--text-muted);
+    line-height: 1.1;
+}
+
+.lo-class-card.class-shadow { border-left-color: #8a5fd0; }
+.lo-class-card.class-lightning { border-left-color: #f2c94c; }
+.lo-class-card.class-energy { border-left-color: #2fc4e0; }
+.lo-class-card.class-potion { border-left-color: #6ad04a; }
+.lo-class-card.class-pyro { border-left-color: #ff6e14; }
+.lo-class-card.class-void { border-left-color: #b45cff; }
+.lo-class-card.class-buddha { border-left-color: #ffb43a; }
+
+.lo-done {
+    margin-top: 12px;
+    width: 100%;
+}
+
+@media (max-width: 520px) {
+    .lo-class-grid { grid-template-columns: 1fr; }
+}
+
+/* Results card class tags for the new classes */
+.rs-class-potion { background: #4f9a36; }
+.rs-class-pyro { background: #c4500f; }
+.rs-class-void { background: #7a3fbf; }
+.rs-class-buddha { background: #b8801f; }
+
+/* Anything marked hidden stays hidden (some panels had no rule of their own) */
+.hidden {
+    display: none !important;
+}

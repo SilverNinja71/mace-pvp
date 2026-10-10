@@ -20,7 +20,7 @@
   // Walking speed for human players (bots use speed / runSpeed in BOT_SETTINGS)
   const PLAYER_MOVE_SPEED = 4.2;
   
-  // Player classes (picked in the Inventory). Times are in frames (60 = 1 second at full speed).
+  // Player classes (press I to pick). Times are in frames (60 = 1 second at full speed).
   const CLASSES = {
       normal: {
           name: "Normal",
@@ -28,22 +28,58 @@
       },
       shadow: {
           name: "Shadow",
-          desc: "Turns invisible to enemies for 4 seconds every 15 seconds and moves 25% faster while invisible.",
-          invisCycle: 15 * 60,
-          invisTime: 4 * 60,
-          invisSpeedMult: 1.25
+          desc: "After 22s visible you turn invisible to enemies for 6s: 25% faster and 1.2x damage. When it ends you teleport back to your spawn.",
+          invisCycle: 28 * 60,
+          invisTime: 6 * 60,
+          invisSpeedMult: 1.25,
+          invisDamageMult: 1.2
       },
       lightning: {
           name: "Lightning",
-          desc: "Mace slams stun for the normal time plus a random 18-22 extra frames.",
-          stunBonusMin: 18,
-          stunBonusMax: 22
+          desc: "Mace slams stun 6-10 frames longer, and each slam has a 5% chance to call down a lightning bolt for +20 damage.",
+          stunBonusMin: 6,
+          stunBonusMax: 10,
+          boltChance: 0.05,
+          boltDamage: 20
       },
       energy: {
           name: "Energy",
-          desc: "Half-second dash cooldown and you can dash again in the air, but dashes do half damage.",
-          dashCooldown: 30,
-          dashDamageMult: 0.5
+          desc: "Dash again in the air (slightly weaker dashes). Speed boost starts at 25% and grows while you run (max 60%); jumping or standing still drains it.",
+          dashCooldown: 40,
+          dashDamageMult: 0.85,
+          boostStart: 0.25,
+          boostMax: 0.60,
+          runFrames: 20,
+          runGain: 0.01,
+          jumpLoss: 0.05,
+          stillFrames: 60,
+          stillLoss: 0.01
+      },
+      potion: {
+          name: "Potionmaster",
+          desc: "Your hits: 25% chance to slow (half speed, 3s), 20% to poison (1 damage every 0.5s for 2s), 5% to blind (2s).",
+          slowChance: 0.25, slowTime: 180,
+          poisonChance: 0.2, poisonTime: 120, poisonTick: 30,
+          blindChance: 0.05, blindTime: 120
+      },
+      pyro: {
+          name: "Pyro",
+          desc: "Your hits have a 25% chance to set enemies on fire for 5s: 2 damage per second, and each burn freezes them briefly.",
+          fireChance: 0.25, fireTime: 300, fireTick: 60, fireDamage: 2, fireFreeze: 15
+      },
+      void: {
+          name: "Void Walker",
+          desc: "Every 7-20 seconds you teleport high above a random enemy, ready to slam. No warning.",
+          minDelay: 420,
+          maxDelay: 1200
+      },
+      buddha: {
+          name: "Buddha",
+          desc: "Press B to grow big or shrink back. While big you deal 1.3x damage at the same speed, but your body is twice as big and much easier to hit.",
+          bigScale: 2,            // body (hitbox) is 2x as big...
+          attackReachScale: 1.4,  // ...but attacks only reach 1.4x as far
+          bigDamageMult: 1.3,
+          toggleCooldown: 30
       }
   };
   
@@ -1688,6 +1724,19 @@
                   if (!parsed.classId) parsed.classId = "normal";
                   if (!parsed.unlockedWeapons) parsed.unlockedWeapons = ["mace", "spear"];
                   if (!parsed.weaponUpgrades) parsed.weaponUpgrades = {};
+                  // Weapons no longer have stats: refund any enchantment upgrades once
+                  if (!parsed.upgradesRefunded) {
+                      let refund = 0;
+                      Object.values(WEAPON_TYPES).forEach(w => (w.upgrades || []).forEach(u => {
+                          const lvl = parsed.weaponUpgrades[u.id] || 0;
+                          refund += u.costPerLevel * lvl * (lvl + 1) / 2;
+                      }));
+                      parsed.gold = (parsed.gold || 0) + refund;
+                      parsed.weaponUpgrades = {};
+                      parsed.upgradesRefunded = true;
+                      // Save right away so a reload can never refund twice
+                      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+                  }
                   if (!parsed.skinId) parsed.skinId = "steve";
                   if (!parsed.unlockedSkins) parsed.unlockedSkins = ["steve", "alex"];
                   if (parsed.friends === undefined) {
@@ -2747,8 +2796,7 @@
   
           // Class (see CLASSES in config.js)
           this.classId = "normal";
-          this.shadowTimer = 0;
-          this.invis = false;
+          this.resetClassState();
   
           // State Flags
           this.onGround = false;
@@ -2800,13 +2848,72 @@
   
       setClass(classId) {
           this.classId = CLASSES[classId] ? classId : "normal";
-          this.shadowTimer = 0;
-          this.invis = false;
+          this.resetClassState();
       }
   
-      // Walking speed multiplier from the class (Shadow is faster while invisible)
+      // Clears class timers and status effects (new match, respawn, class change)
+      resetClassState() {
+          this.shadowTimer = 0;
+          this.invis = false;
+          this.energyBoost = CLASSES.energy.boostStart;
+          this.runFrames = 0;
+          this.stillFrames = 0;
+          this.voidTimer = this.nextVoidDelay();
+          this.sizeCooldown = 0;
+          this.setBig(false);
+          // Status effects from enemy Potionmaster / Pyro hits
+          this.slowT = 0;
+          this.poisonT = 0;
+          this.blindT = 0;
+          this.fireT = 0;
+          this.freezeT = 0;
+          this.dotSource = null;
+      }
+  
+      nextVoidDelay() {
+          const v = CLASSES.void;
+          return v.minDelay + Math.floor(Math.random() * (v.maxDelay - v.minDelay + 1));
+      }
+  
+      // Walking speed multiplier from the class (slow is applied in physics for everyone)
       moveSpeedMult() {
-          return this.classId === "shadow" && this.invis ? CLASSES.shadow.invisSpeedMult : 1;
+          if (this.classId === "shadow" && this.invis) return CLASSES.shadow.invisSpeedMult;
+          if (this.classId === "energy") return 1 + this.energyBoost;
+          return 1;
+      }
+  
+      // Damage multiplier from the class (invisible Shadow, big Buddha)
+      classDamageMult() {
+          if (this.classId === "shadow" && this.invis) return CLASSES.shadow.invisDamageMult;
+          if (this.classId === "buddha" && this.big) return CLASSES.buddha.bigDamageMult;
+          return 1;
+      }
+  
+      // Buddha: switch between normal and big size (feet stay on the ground)
+      setBig(big) {
+          const size = big ? 25 * CLASSES.buddha.bigScale : 25;
+          if (this.w !== undefined && this.w !== size) {
+              const cx = this.x + this.w / 2;
+              const feet = this.y + this.h;
+              this.w = size;
+              this.h = size;
+              this.x = Math.max(0, Math.min(ARENA_CONFIG.width - size, cx - size / 2));
+              this.y = feet - size;
+          } else {
+              this.w = size;
+              this.h = size;
+          }
+          this.big = big;
+      }
+  
+      toggleSize() {
+          if (this.classId !== "buddha" || this.hp <= 0 || this.sizeCooldown > 0) return false;
+          this.setBig(!this.big);
+          this.sizeCooldown = CLASSES.buddha.toggleCooldown;
+          this.squashX = 1.2;
+          this.squashY = 0.85;
+          sound.playSlamStart();
+          return true;
       }
   
       // Two-weapon loadout: primary + optional secondary, swapped with swapWeapon()
@@ -2839,8 +2946,11 @@
       }
   
       reset(x, facing, maxHp = 100) {
+          this.resetClassState();
           this.x = x;
           this.y = 300;
+          this.spawnX = x;
+          this.spawnY = 300;
           this.xVel = 0;
           this.yVel = 0;
           this.onGround = false;
@@ -2871,8 +2981,6 @@
   
           this.isDead = false;
           this.lastHitBy = null;
-          this.shadowTimer = 0;
-          this.invis = false;
           this.stats = {
               kills: 0,
               damageDealt: 0,
@@ -2892,8 +3000,13 @@
       }
   
       respawn(x, y) {
+          const classId = this.classId;
+          this.resetClassState();
+          this.classId = classId;
           this.x = x;
           this.y = y;
+          this.spawnX = x;
+          this.spawnY = y;
           this.xVel = 0;
           this.yVel = 0;
           this.hp = this.maxHp;
@@ -2912,6 +3025,7 @@
   
       // Jump / Double Jump execution with Input Buffering
       jump() {
+          if (this.freezeT > 0) return false;
           if (this.stun > 0 || this.dashing) {
               // Buffer jump while recovering from stun or dash
               this.jumpBuffer = 6;
@@ -2922,6 +3036,9 @@
               const isDoubleJump = !this.onGround && this.coyoteTimer <= 0;
   
               this.yVel = CORE_PHYSICS.jumpPower;
+              if (this.classId === "energy") {
+                  this.energyBoost = Math.max(0, Math.round((this.energyBoost - CLASSES.energy.jumpLoss) * 100) / 100);
+              }
   
               if (isDoubleJump) {
                   this.jumpsLeft--;
@@ -2947,6 +3064,7 @@
   
       // Dash / Weapon Attack execution with Input Buffering
       dash(customSpeed = null, isAttack = true, customCooldown = null, arrowManager = null) {
+          if (this.freezeT > 0) return false;
           if (this.stun > 0) {
               if (this.stun <= 5) this.dashBuffer = 6;
               return false;
@@ -2955,8 +3073,8 @@
           const speed = customSpeed ?? (this.weaponStats.dashSpeed || CORE_PHYSICS.dashSpeed);
           let cooldown = customCooldown ?? (this.weaponStats.attackCooldown || CORE_PHYSICS.dashCooldown);
           if (this.classId === "energy") {
-              // Energy: short cooldown and air dashes recharge (no one-dash-per-jump limit)
-              cooldown = Math.min(cooldown, CLASSES.energy.dashCooldown);
+              // Energy: air dashes recharge (no one-dash-per-jump limit) on a 0.75s cooldown
+              cooldown = Math.max(cooldown, CLASSES.energy.dashCooldown);
               if (!this.dashing) this.dashReady = true;
           }
           const duration = this.weaponStats.dashDistance || CORE_PHYSICS.dashTime;
@@ -2977,7 +3095,7 @@
                       this.facing,
                       this.id,
                       this.team,
-                      this.weaponStats.arrowDamage || 30,
+                      (this.weaponStats.arrowDamage || 30) * this.classDamageMult(),
                       this.weaponStats.arrowSpeed || 16,
                       this.weaponStats.arrowKnockback || 1.0,
                       aimed ? aim : null
@@ -3035,6 +3153,7 @@
   
       // Slam execution
       slam() {
+          if (this.freezeT > 0) return false;
           if (this.stun > 0 || this.onGround || this.slamming || this.dashing) return false;
   
           this.slamming = true;
@@ -3082,6 +3201,78 @@
           return false;
       }
   
+      // Per-frame class abilities and status effects (runs on whoever simulates the match)
+      updateClassAndStatus() {
+          if (this.sizeCooldown > 0) this.sizeCooldown--;
+  
+          // Shadow: 20s visible, then 8s invisible; when it ends, teleport back to spawn
+          if (this.classId === "shadow") {
+              const cls = CLASSES.shadow;
+              const wasInvis = this.invis;
+              this.shadowTimer++;
+              this.invis = (this.shadowTimer % cls.invisCycle) >= cls.invisCycle - cls.invisTime;
+              if (wasInvis && !this.invis && this.spawnX !== undefined) {
+                  this.x = this.spawnX;
+                  this.y = this.spawnY;
+                  this.xVel = 0;
+                  this.yVel = 0;
+                  this.dashing = false;
+                  this.slamming = false;
+                  this.onGround = false;
+              }
+          } else {
+              this.invis = false;
+          }
+  
+          // Energy: boost grows while running on the ground, drains while standing still
+          if (this.classId === "energy" && this.onGround && !this.dashing) {
+              const cls = CLASSES.energy;
+              if (Math.abs(this.xVel) > 1) {
+                  this.stillFrames = 0;
+                  if (++this.runFrames >= cls.runFrames) {
+                      this.runFrames = 0;
+                      this.energyBoost = Math.min(cls.boostMax, Math.round((this.energyBoost + cls.runGain) * 100) / 100);
+                  }
+              } else if (Math.abs(this.xVel) < 0.3) {
+                  this.runFrames = 0;
+                  if (++this.stillFrames >= cls.stillFrames) {
+                      this.stillFrames = 0;
+                      this.energyBoost = Math.max(0, Math.round((this.energyBoost - cls.stillLoss) * 100) / 100);
+                  }
+              }
+          }
+  
+          // Status effects
+          if (this.slowT > 0) this.slowT--;
+          if (this.blindT > 0) this.blindT--;
+          if (this.freezeT > 0) this.freezeT--;
+          if (this.poisonT > 0) {
+              this.poisonT--;
+              if (this.poisonT % CLASSES.potion.poisonTick === 0) this.takeTickDamage(1);
+          }
+          if (this.fireT > 0) {
+              const cls = CLASSES.pyro;
+              this.fireT--;
+              if (this.fireT % cls.fireTick === 0) {
+                  this.takeTickDamage(cls.fireDamage);
+                  this.freezeT = cls.fireFreeze;
+                  this.dashing = false;
+                  this.dashAttack = false;
+              }
+          }
+      }
+  
+      // Poison / burn damage, credited to whoever applied it
+      takeTickDamage(amount) {
+          const dealt = Math.min(amount, Math.max(0, this.hp));
+          this.hp -= amount;
+          this.stats.damageTaken += dealt;
+          if (this.dotSource) {
+              this.dotSource.stats.damageDealt += dealt;
+              this.lastHitBy = this.dotSource;
+          }
+      }
+  
       // Core physics step
       updatePhysics(platforms, particleManager = null, arrowManager = null) {
           if (this.hp <= 0) return;
@@ -3095,14 +3286,7 @@
   
           if (this.swapCooldown > 0) this.swapCooldown--;
   
-          // Shadow: invisible for the last 4 seconds of every 15-second cycle
-          if (this.classId === "shadow") {
-              const cls = CLASSES.shadow;
-              this.shadowTimer++;
-              this.invis = (this.shadowTimer % cls.invisCycle) >= cls.invisCycle - cls.invisTime;
-          } else {
-              this.invis = false;
-          }
+          this.updateClassAndStatus();
   
           // Arrow cooldown countdown
           if (this.arrowCooldown > 0) {
@@ -3188,8 +3372,12 @@
           const prevBottom = this.y + this.h;
           const wasGrounded = this.onGround;
   
+          // Burn freeze: can't move. Slow: half speed (dashes and knockback are unaffected)
+          if (this.freezeT > 0 && !this.dashing && this.stun <= 0) this.xVel = 0;
+          const slowMult = this.slowT > 0 && !this.dashing && this.stun <= 0 ? 0.5 : 1;
+  
           // Apply movement
-          this.x += this.xVel;
+          this.x += this.xVel * slowMult;
           this.y += this.yVel;
   
           // Coyote time countdown
@@ -3592,16 +3780,52 @@
   class CombatEngine {
       constructor(particleManager) {
           this.particles = particleManager;
+          this.bolts = []; // Lightning class bolts being drawn: { x, y, life }
       }
   
-      // Resolves direct mid-air mace slam
-      // Lightning class: mace slams add 18-22 random extra stun frames (shown as a popup)
+      // Lightning class: mace slams add 18-22 extra stun frames, and 5% of slams call down a bolt (+20 damage)
       lightningStun(attacker, defender) {
           if (attacker.classId !== "lightning") return 0;
           const cls = CLASSES.lightning;
           const extra = cls.stunBonusMin + Math.floor(Math.random() * (cls.stunBonusMax - cls.stunBonusMin + 1));
           this.particles.addFloatingText(defender.x + defender.w / 2, defender.y - 14, `+${extra} stun`, "#ffe14a", false, 1.0);
+          if (Math.random() < cls.boltChance && defender.hp > 0) {
+              const dealt = Math.min(cls.boltDamage, Math.max(0, defender.hp));
+              defender.hp -= cls.boltDamage;
+              defender.stats.damageTaken += dealt;
+              attacker.stats.damageDealt += dealt;
+              defender.lastHitBy = attacker;
+              this.bolts.push({ x: defender.x + defender.w / 2, y: defender.y + defender.h, life: 24 });
+              this.particles.addFloatingText(defender.x + defender.w / 2, defender.y - 30, `LIGHTNING! +${cls.boltDamage}`, "#ffff6e", true, 1.2);
+              this.particles.triggerShake(8, 10);
+          }
           return extra;
+      }
+  
+      // Potionmaster / Pyro: chance-based status effects on every hit (mace, dash or arrow)
+      applyHitEffects(attacker, defender) {
+          if (!attacker || defender.hp <= 0) return;
+          const popup = (text, color, i) => this.particles.addFloatingText(defender.x + defender.w / 2, defender.y - 14 - i * 14, text, color, false, 1.0);
+          let n = 0;
+          if (attacker.classId === "potion") {
+              const cls = CLASSES.potion;
+              if (Math.random() < cls.slowChance) { defender.slowT = cls.slowTime; popup("SLOWED", "#5aa0ff", n++); }
+              if (Math.random() < cls.poisonChance) { defender.poisonT = cls.poisonTime; defender.dotSource = attacker; popup("POISONED", "#50dc50", n++); }
+              if (Math.random() < cls.blindChance) { defender.blindT = cls.blindTime; popup("BLINDED", "#d2d2d2", n++); }
+          } else if (attacker.classId === "pyro") {
+              const cls = CLASSES.pyro;
+              if (Math.random() < cls.fireChance) { defender.fireT = cls.fireTime; defender.dotSource = attacker; popup("ON FIRE!", "#ff6e14", n++); }
+          }
+      }
+  
+      // The part of a fighter that can land hits. A big Buddha's body is huge (easy to hit),
+      // but its attacks only reach a little farther than normal.
+      attackBox(f) {
+          if (f.classId === "buddha" && f.big) {
+              const size = 25 * CLASSES.buddha.attackReachScale;
+              return { x: f.x + (f.w - size) / 2, y: f.y + f.h - size, w: size, h: size };
+          }
+          return f;
       }
   
       // Applies damage and returns how much HP was actually removed (no overkill in stats)
@@ -3610,9 +3834,11 @@
           defender.hp -= amount;
           defender.stats.damageTaken += dealt;
           defender.lastHitBy = attacker;
+          this.applyHitEffects(attacker, defender);
           return dealt;
       }
   
+      // Resolves direct mid-air mace slam
       checkAirSlam(attacker, defender, damageMultiplier, stunMultiplier, onDefenderHit = null) {
           if (!attacker.slamming || attacker.dashing) return false;
           if (defender.hp <= 0 || defender.hitCooldown > 0) return false;
@@ -3620,18 +3846,19 @@
           if (attacker.team && defender.team && attacker.team === defender.team) return false;
   
           const wStats = attacker.weaponStats || {};
+          const ab = this.attackBox(attacker);
           const slamScale = wStats.slamPower || CORE_PHYSICS.slamHeightScale;
           const slamMaxDmg = wStats.slamMaxDmg || CORE_PHYSICS.slamMaxDamage;
           const hitLaunch = wStats.hitLaunch || CORE_PHYSICS.hitLaunch;
   
           // Bounding box collision
           if (
-              attacker.x < defender.x + defender.w &&
-              attacker.x + attacker.w > defender.x &&
-              attacker.y < defender.y + defender.h &&
-              attacker.y + attacker.h > defender.y
+              ab.x < defender.x + defender.w &&
+              ab.x + ab.w > defender.x &&
+              ab.y < defender.y + defender.h &&
+              ab.y + ab.h > defender.y
           ) {
-              const heightDifference = defender.y - attacker.y;
+              const heightDifference = defender.y - ab.y;
               let slamDamage = CORE_PHYSICS.slamMinDamage + heightDifference * slamScale;
               slamDamage = Math.max(CORE_PHYSICS.slamMinDamage, Math.min(slamMaxDmg, slamDamage));
   
@@ -3712,7 +3939,7 @@
   
           if (
               distance <= CORE_PHYSICS.slamRadius &&
-              Math.abs(attacker.y - defender.y) < 40 &&
+              Math.abs((attacker.y + attacker.h) - (defender.y + defender.h)) < 40 && // compare feet (sizes differ)
               defender.hp > 0 &&
               defender.hitCooldown <= 0
           ) {
@@ -3751,6 +3978,7 @@
           if (defender.hp <= 0 || defender.hitCooldown > 0) return false;
           if (attacker.team && defender.team && attacker.team === defender.team) return false;
   
+          const ab = this.attackBox(attacker);
           const wStats = attacker.weaponStats || {};
           let baseDmg = wStats.dashDamage || CORE_PHYSICS.dashDamage;
           if (attacker.classId === "energy") baseDmg *= CLASSES.energy.dashDamageMult;
@@ -3759,10 +3987,10 @@
           const rangeExtra = (wStats.range && wStats.range > 25) ? (wStats.range - 25) : 0;
   
           if (
-              attacker.x - rangeExtra < defender.x + defender.w &&
-              attacker.x + attacker.w + rangeExtra > defender.x &&
-              attacker.y < defender.y + defender.h &&
-              attacker.y + attacker.h > defender.y
+              ab.x - rangeExtra < defender.x + defender.w &&
+              ab.x + ab.w + rangeExtra > defender.x &&
+              ab.y < defender.y + defender.h &&
+              ab.y + ab.h > defender.y
           ) {
               const finalDamage = baseDmg * damageMultiplier;
               const dealt = this.applyDamage(attacker, defender, finalDamage);
@@ -4769,11 +4997,22 @@
           ctx.scale(f.squashX || 1.0, f.squashY || 1.0);
           ctx.translate(-centerX, -centerY);
   
+          // Skins are drawn at 25px; a big Buddha is the same art scaled up
+          const scale = f.w / 25;
+          const df = scale !== 1 ? { ...f, w: 25, h: 25 } : f;
+          ctx.save();
+          if (scale !== 1) {
+              ctx.translate(f.x, f.y);
+              ctx.scale(scale, scale);
+              ctx.translate(-f.x, -f.y);
+          }
+  
           // Draw weapon
-          this.drawWeapons(f, alpha);
+          this.drawWeapons(df, alpha);
   
           // Draw skin / block face
-          this.drawSkin(f, alpha);
+          this.drawSkin(df, alpha);
+          ctx.restore(); // outlines below use the real (possibly big) size
           ctx.globalAlpha = alpha;
   
           // Team highlight border and aura (Blue vs Red)
@@ -4950,12 +5189,58 @@
       }
   
       // Standard 1v1 HUD
+      // Glows for status effects: burning (pulsing red), poisoned (green), slowed (blue)
+      drawStatusEffects(f) {
+          if (f.hp <= 0) return;
+          const ctx = this.ctx;
+          const pulse = 0.5 + 0.5 * Math.sin(this.frameCount * 0.35);
+          ctx.save();
+          if (f.fireT > 0) {
+              ctx.fillStyle = `rgba(255, ${80 + Math.round(pulse * 60)}, 20, ${0.25 + pulse * 0.25})`;
+              ctx.fillRect(f.x - 3, f.y - 3, f.w + 6, f.h + 6);
+              ctx.fillStyle = "#ffb43a";
+              for (let i = 0; i < 3; i++) {
+                  const fx = f.x + ((this.frameCount * 3 + i * 9) % f.w);
+                  ctx.fillRect(Math.round(fx), Math.round(f.y - 4 - ((this.frameCount + i * 7) % 8)), 3, 3);
+              }
+          }
+          if (f.poisonT > 0) {
+              ctx.strokeStyle = "rgba(80, 220, 80, 0.85)";
+              ctx.lineWidth = 2;
+              ctx.strokeRect(f.x - 4, f.y - 4, f.w + 8, f.h + 8);
+          }
+          if (f.slowT > 0) {
+              ctx.fillStyle = "rgba(90, 160, 255, 0.3)";
+              ctx.fillRect(f.x, f.y + f.h - 6, f.w, 6);
+          }
+          ctx.restore();
+      }
+  
+      // Blocky Minecraft-style lightning bolt from the sky down to (x, y)
+      drawLightningBolt(bolt) {
+          const ctx = this.ctx;
+          const alpha = Math.min(1, bolt.life / 12);
+          ctx.save();
+          ctx.fillStyle = `rgba(255, 255, 255, ${0.25 * alpha})`;
+          ctx.fillRect(-20, -20, this.width + 40, this.height + 40);
+          let x = bolt.x;
+          for (let y = 0; y < bolt.y; y += 12) {
+              const nx = bolt.x + (((y * 37 + bolt.x * 13) % 21) - 10);
+              ctx.fillStyle = `rgba(255, 250, 160, ${alpha})`;
+              ctx.fillRect(Math.round(Math.min(x, nx)) - 3, y, Math.abs(nx - x) + 6, 14);
+              ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+              ctx.fillRect(Math.round(nx) - 1, y, 3, 14);
+              x = nx;
+          }
+          ctx.restore();
+      }
+  
       // Class name + ability status for the local player, above the weapon hotbar
       drawClassStatus(f) {
-          if (!f || !f.classId || f.classId === "normal" || f.hp <= 0) return;
+          if (!f || f.hp <= 0) return;
           const ctx = this.ctx;
           const secs = (frames) => (frames / (60 * GAME_SPEED)).toFixed(1);
-          let text = CLASSES[f.classId].name.toUpperCase();
+          let text = f.classId && f.classId !== "normal" ? CLASSES[f.classId].name.toUpperCase() : "";
           let color = "#ffffff";
           if (f.classId === "shadow") {
               const cls = CLASSES.shadow;
@@ -4967,22 +5252,45 @@
                   text += ` · invisible in ${secs(cls.invisCycle - cls.invisTime - t)}s`;
               }
           } else if (f.classId === "lightning") {
-              text += " · slams add extra stun";
+              text += " · slams stun longer";
               color = "#ffe14a";
           } else if (f.classId === "energy") {
-              text += " · fast air dashes";
+              text += ` · speed +${Math.round((f.energyBoost || 0) * 100)}%`;
               color = "#7ff0ff";
+          } else if (f.classId === "potion") {
+              text += " · hits slow, poison, blind";
+              color = "#9ae66e";
+          } else if (f.classId === "pyro") {
+              text += " · hits can burn";
+              color = "#ff8a3a";
+          } else if (f.classId === "void") {
+              text += " · teleports above enemies";
+              color = "#c08cff";
+          } else if (f.classId === "buddha") {
+              text += f.big ? " · BIG (B to shrink)" : " · B to grow";
+              color = "#ffd27a";
           }
+          // Status effects on you
+          const status = [];
+          if (f.slowT > 0) status.push("SLOWED");
+          if (f.poisonT > 0) status.push("POISONED");
+          if (f.fireT > 0) status.push("ON FIRE");
+          if (f.blindT > 0) status.push("BLIND");
           ctx.save();
           ctx.font = "16px VT323, monospace";
           ctx.textAlign = "left";
           ctx.textBaseline = "middle";
-          const y = this.height - 58;
           ctx.strokeStyle = "#000000";
           ctx.lineWidth = 3;
-          ctx.strokeText(text, 14, y);
-          ctx.fillStyle = color;
-          ctx.fillText(text, 14, y);
+          const lines = [];
+          if (status.length) lines.push([status.join(", "), "#ff7675"]);
+          if (text) lines.push([text, color]);
+          lines.reverse().forEach(([line, col], i) => {
+              const y = this.height - 58 - i * 16;
+              ctx.strokeText(line, 14, y);
+              ctx.fillStyle = col;
+              ctx.fillText(line, 14, y);
+          });
           ctx.restore();
       }
   
@@ -5399,7 +5707,7 @@
           auth.onUserChanged((user) => {
               this.playerName = user.username;
               this.player.name = user.username;
-              this.player.setLoadout(user.equippedWeapon || "mace", user.secondaryWeapon, user.weaponUpgrades || {});
+              this.player.setLoadout(user.equippedWeapon || "mace", user.secondaryWeapon);
               this.player.setSkin(user.skinId || "steve");
               this.player.setClass(user.classId || "normal");
           });
@@ -5436,7 +5744,7 @@
   
           const isBot = (mode !== "pvp" && mode !== "arena");
           this.player.reset(150, 1, maxHp);
-          this.player.setLoadout(user.equippedWeapon || "mace", user.secondaryWeapon, user.weaponUpgrades || {});
+          this.player.setLoadout(user.equippedWeapon || "mace", user.secondaryWeapon);
           this.player.setSkin(user.skinId || "steve");
           this.player.setClass(user.classId || "normal");
           this.player.setTeam("blue"); // PLAYER IS ALWAYS BLUE
@@ -5584,7 +5892,9 @@
       packFighter(f) {
           const r = (n) => Math.round(n * 10) / 10;
           return [r(f.x), r(f.y), r(f.xVel), r(f.yVel), f.facing, r(f.hp), r(f.ghostHp),
-              r(f.squashX), r(f.squashY), f.dashing ? 1 : 0, f.slamming ? 1 : 0, f.maxHp, f.weaponId, f.invis ? 1 : 0];
+              r(f.squashX), r(f.squashY), f.dashing ? 1 : 0, f.slamming ? 1 : 0, f.maxHp, f.weaponId, f.invis ? 1 : 0,
+              (f.slowT > 0 ? 1 : 0) | (f.poisonT > 0 ? 2 : 0) | (f.fireT > 0 ? 4 : 0) | (f.blindT > 0 ? 8 : 0) | (f.freezeT > 0 ? 16 : 0),
+              f.big ? 1 : 0, Math.round(f.energyBoost * 100), f.shadowTimer];
       }
   
       unpackFighter(f, d) {
@@ -5595,6 +5905,19 @@
           f.maxHp = d[11];
           if (d[12] && d[12] !== f.weaponId) f.setWeapon(d[12], {});
           f.invis = !!d[13];
+          // Status effects (guests only need on/off for drawing)
+          const fx = d[14] || 0;
+          f.slowT = fx & 1 ? 1 : 0;
+          f.poisonT = fx & 2 ? 1 : 0;
+          f.fireT = fx & 4 ? 1 : 0;
+          f.blindT = fx & 8 ? 1 : 0;
+          f.freezeT = fx & 16 ? 1 : 0;
+          if (!!d[15] !== !!f.big) {
+              f.setBig(!!d[15]);
+              [f.x, f.y] = d; // keep the host's exact position after resizing
+          }
+          if (d[16] !== undefined) f.energyBoost = d[16] / 100;
+          if (d[17] !== undefined) f.shadowTimer = d[17];
           // Recreate hit effects locally from health changes
           if (f.hp < prevHp - 0.01 && prevHp > 0) {
               const dmg = prevHp - Math.max(0, f.hp);
@@ -5616,6 +5939,7 @@
               f: this.allFighters.map(f => this.packFighter(f)),
               a: this.arrowManager.arrows.map(a => [Math.round(a.x), Math.round(a.y), a.vx, a.vy, a.stuck ? 1 : 0, a.facing]),
               m: this.matchFrames,
+              b: this.combat.bolts.map(bo => [Math.round(bo.x), Math.round(bo.y), bo.life]),
               sc: [this.scoreBlue, this.scoreRed, this.isTiebreaker ? 1 : 0, this.tiebreakerTimer,
                   Math.round(this.tiebreakerBlueDamage), Math.round(this.tiebreakerRedDamage)]
           };
@@ -5629,6 +5953,7 @@
                   x, y, vx, vy, facing, stuck: !!stuck, gravity: 0, life: 60
               }));
               this.matchFrames = msg.m;
+              if (msg.b) this.combat.bolts = msg.b.map(([x, y, life]) => ({ x, y, life }));
               if (msg.sc) {
                   [this.scoreBlue, this.scoreRed] = msg.sc;
                   this.isTiebreaker = !!msg.sc[2];
@@ -5648,6 +5973,7 @@
               }
               if (msg.a === "slam") f.slam();
               if (msg.a === "swap") f.swapWeapon();
+              if (msg.a === "size") f.toggleSize();
           } else if (msg.t === "end" && this.isOnlineGuest() && this.state === "play") {
               msg.stats.forEach((st, i) => { this.allFighters[i].stats = st; });
               this.finishMatch(msg.w === this.localFighter.team);
@@ -5676,7 +6002,7 @@
                   this.player.reset(data.x, data.facing, data.maxHp);
                   // Arena pick is the primary; the loadout's other weapon is the secondary
                   const second = user.secondaryWeapon !== selectedWeaponId ? user.secondaryWeapon : (user.equippedWeapon !== selectedWeaponId ? user.equippedWeapon : null);
-                  this.player.setLoadout(selectedWeaponId, second, user.weaponUpgrades || {});
+                  this.player.setLoadout(selectedWeaponId, second);
                   this.player.setSkin(user.skinId || "steve");
                   this.player.setClass(user.classId || "normal");
                   this.player.setTeam("blue");
@@ -5829,6 +6155,7 @@
           if (action === "jump") f.jump();
           if (action === "slam") f.slam();
           if (action === "swap") f.swapWeapon();
+          if (action === "size") f.toggleSize();
       }
   
       // Space / left-click attack for the local fighter (bow shots go toward the mouse)
@@ -5965,6 +6292,7 @@
                   if (e.code === "Space") this.localAttack();
                   if (e.code === "ArrowDown" || e.code === "KeyS") online.send({ t: "act", a: "slam" });
                   if (e.code === "KeyQ") online.send({ t: "act", a: "swap" });
+                  if (e.code === "KeyB") online.send({ t: "act", a: "size" });
                   return;
               }
   
@@ -5979,6 +6307,11 @@
               // --- Swap between your two loadout weapons ---
               if (e.code === "KeyQ") {
                   this.localFighter.swapWeapon();
+              }
+  
+              // --- Buddha class: grow big / shrink ---
+              if (e.code === "KeyB") {
+                  this.localFighter.toggleSize();
               }
   
               // --- Player 1 Weapon Attack / Dash / Bow Shoot ---
@@ -6086,6 +6419,35 @@
           }
       }
   
+      // Void Walker: every 7-20s, teleport high above a random living enemy
+      updateVoidWalkers() {
+          for (const f of this.allFighters) {
+              if (f.classId !== "void" || f.hp <= 0) continue;
+              if (--f.voidTimer > 0) continue;
+              f.voidTimer = f.nextVoidDelay();
+              const foes = this.allFighters.filter(o => o.team !== f.team && o.hp > 0);
+              if (!foes.length) continue;
+              const target = foes[Math.floor(Math.random() * foes.length)];
+              this.particles.addDust(f.x + f.w / 2, f.y + f.h / 2, 12);
+              f.x = Math.max(0, Math.min(ARENA_CONFIG.width - f.w, target.x + target.w / 2 - f.w / 2));
+              f.y = Math.max(0, target.y - (5 + Math.random()) * f.h);
+              f.xVel = 0;
+              f.yVel = 0;
+              f.dashing = false;
+              f.slamming = false;
+              f.onGround = false;
+              f.coyoteTimer = 0;
+              this.particles.addShockwave(f.x + f.w / 2, f.y + f.h / 2, 30, "#b45cff", 3);
+          }
+      }
+  
+      updateBolts() {
+          const bolts = this.combat.bolts;
+          for (let i = bolts.length - 1; i >= 0; i--) {
+              if (--bolts[i].life <= 0) bolts.splice(i, 1);
+          }
+      }
+  
       // Difficulty multipliers only apply to the single opponent bot in solo modes.
       // Arena teams, local PvP and online play are always even.
       isDifficultyBot(f) {
@@ -6095,6 +6457,7 @@
       // damageMult = how hard the bot hits, damageTaken = how much damage the bot takes
       hitDamageMult(attacker, defender) {
           let mult = 1;
+          mult *= attacker.classDamageMult(); // invisible Shadow / big Buddha
           if (this.isDifficultyBot(attacker)) mult *= this.botParams.damageMult ?? 1;
           if (this.isDifficultyBot(defender)) mult *= this.botParams.damageTaken ?? 1;
           return mult;
@@ -6131,7 +6494,8 @@
               let minDist = Infinity;
               for (let j = 0; j < opposingTeam.length; j++) {
                   const t = opposingTeam[j];
-                  if (t.hp > 0 && !t.invis) { // bots lose track of invisible Shadows
+                  // Bots lose track of invisible Shadows, and can't see anyone while blinded
+                  if (t.hp > 0 && !t.invis && fighter.blindT <= 0) {
                       const dist = Math.abs(t.x - fighter.x);
                       if (dist < minDist) {
                           minDist = dist;
@@ -6221,9 +6585,11 @@
               this.particles.triggerShake(4, 6);
   
               if (hitFighter._botAI) hitFighter._botAI.onHit();
+              const arrowShooter = this.allFighters.find(f => f.id === arrow.ownerId);
+              if (arrowShooter) this.combat.applyHitEffects(arrowShooter, hitFighter);
   
               if (this.isTiebreaker) {
-                  const shooter = this.allFighters.find(f => f.id === arrow.ownerId);
+                  const shooter = arrowShooter;
                   if (shooter) {
                       if (shooter.team === "red" || (!shooter.team && shooter === this.player)) {
                           this.tiebreakerRedDamage += arrowDmg;
@@ -6274,6 +6640,9 @@
                   });
               }
           }
+  
+          this.updateVoidWalkers();
+          this.updateBolts();
   
           // Particles & Camera Shake
           this.particles.update();
@@ -6479,17 +6848,30 @@
               } else {
                   this.renderer.drawFighter(f, botColor, isMultiplayer);
               }
+              this.renderer.drawStatusEffects(f);
               const indR = f.team === "red" ? 255 : (f.team === "blue" ? 30 : 46);
               const indG = f.team === "red" ? 71 : (f.team === "blue" ? 144 : 204);
               const indB = f.team === "red" ? 87 : (f.team === "blue" ? 255 : 113);
               this.renderer.drawOffscreenIndicator(f, indR, indG, indB, f.name);
           }
   
+          // Lightning class bolts
+          for (const bolt of this.combat.bolts) this.renderer.drawLightningBolt(bolt);
+  
           // Render Flying Arrows
           this.arrowManager.draw(ctx);
   
           // Particle FX & floating combat text
           this.particles.draw(ctx);
+  
+          // Blinded by a Potionmaster: everything goes dark except yourself
+          const viewer = this.localFighter;
+          if (viewer && viewer.blindT > 0 && viewer.hp > 0 && this.state === "play" && this.mode !== "pvp") {
+              ctx.fillStyle = "rgba(0, 0, 0, 0.94)";
+              ctx.fillRect(-20, -20, this.renderer.width + 40, this.renderer.height + 40);
+              this.renderer.drawFighter(viewer, botColor, isMultiplayer);
+              this.renderer.drawStatusEffects(viewer);
+          }
   
           // HUD & Controls Hint with Score and Tiebreaker Status
           if (this.isTeamMatch) {
@@ -6740,8 +7122,9 @@
           this.modeCardsContainer.innerHTML = "";
           if (this.modeCardsVersus) this.modeCardsVersus.innerHTML = "";
   
-          const modes = ["practice", "easy", "normal", "pro", "god", "pvp", "custom"];
-          const versusModes = ["pvp", "custom"];
+          // Local 2-Player has its own big button on the home screen
+          const modes = ["practice", "easy", "normal", "pro", "god", "custom"];
+          const versusModes = [];
   
           modes.forEach((modeKey) => {
               const meta = MODE_METADATA[modeKey];
@@ -6750,14 +7133,9 @@
               const card = document.createElement("div");
               card.className = `mode-card mode-${modeKey}`;
               card.innerHTML = `
-                  <div class="card-header">
-                      <span class="card-badge" style="background:${meta.rgb}">${meta.badge}</span>
-                      <span class="card-hotkey">[ ${meta.hotkey} ]</span>
-                  </div>
-                  <h3 class="card-title">${meta.name}</h3>
+                  <span class="card-badge" style="background:${meta.rgb}">${meta.difficultyLabel || meta.badge}</span>
+                  <h3 class="card-title">${meta.name.replace(" Mode", "")}</h3>
                   <p class="card-sub">${meta.sub}</p>
-                  <p class="card-desc">${meta.desc}</p>
-                  <button class="btn-play-mode" style="border-color:${meta.rgb}">SELECT MODE</button>
               `;
   
               card.addEventListener("click", () => {
@@ -6877,17 +7255,19 @@
           this.homeInventoryBtn = document.getElementById("btn-home-inventory");
           this.inventoryModal = document.getElementById("inventory-modal");
   
-          if (this.inventoryBtn) this.inventoryBtn.addEventListener("click", () => this.openInventoryModal());
-          if (this.homeInventoryBtn) this.homeInventoryBtn.addEventListener("click", () => this.openInventoryModal());
+          if (this.inventoryBtn) this.inventoryBtn.addEventListener("click", () => this.openLoadoutModal());
+          if (this.homeInventoryBtn) this.homeInventoryBtn.addEventListener("click", () => this.openLoadoutModal());
   
+          // Press I anywhere to pick your weapon and class
           window.addEventListener("keydown", (e) => {
               if (e.key === "i" || e.key === "I") {
                   const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : "";
-                  if (activeTag !== "input" && activeTag !== "textarea") {
-                      this.toggleInventoryModal();
+                  if (activeTag !== "input" && activeTag !== "textarea" && activeTag !== "select") {
+                      this.toggleLoadoutModal();
                   }
               }
           });
+          this.setupLoadoutUI();
   
           // Navigation buttons
           if (this.homeBtn) this.homeBtn.addEventListener("click", () => this.handleHomeClick());
@@ -6920,6 +7300,14 @@
           });
   
           // Home screen arena banner
+          // Home screen: Ranked / Online / Local 2-Player
+          const rankedBtn = document.getElementById("home-ranked-btn");
+          if (rankedBtn) rankedBtn.addEventListener("click", () => this.openArenaModal("ranked"));
+          const onlineBtn = document.getElementById("home-online-btn");
+          if (onlineBtn) onlineBtn.addEventListener("click", () => this.openArenaModal("online"));
+          const localBtn = document.getElementById("home-local-btn");
+          if (localBtn) localBtn.addEventListener("click", () => this.launchMatchWithLoading("pvp"));
+  
           const arenaBanner = document.getElementById("home-arena-banner");
           if (arenaBanner) arenaBanner.addEventListener("click", () => this.openArenaModal());
   
@@ -6996,9 +7384,7 @@
   
               // Dynamically refresh open inventory tab so buy buttons update to gold
               if (this.inventoryModal && !this.inventoryModal.classList.contains("hidden")) {
-                  if (this.tabCraft && this.tabCraft.classList.contains("active")) {
-                      this.renderCraftingTabContent();
-                  } else if (this.tabSkins && this.tabSkins.classList.contains("active")) {
+                  if (this.tabSkins && this.tabSkins.classList.contains("active")) {
                       this.renderSkinsModalContent();
                   } else {
                       this.renderWeaponsModalContent();
@@ -7017,7 +7403,17 @@
           return "steve";
       }
   
+      updateHomeLoadoutSummary(user) {
+          const el = document.getElementById("home-loadout-summary");
+          if (!el) return;
+          const w1 = WEAPON_TYPES[user.equippedWeapon] || WEAPON_TYPES.mace;
+          const w2 = user.secondaryWeapon && WEAPON_TYPES[user.secondaryWeapon];
+          const cls = CLASSES[user.classId] || CLASSES.normal;
+          el.textContent = `${w1.name}${w2 ? " + " + w2.name : ""} · ${cls.name}`;
+      }
+  
       updateHomeProfile(user) {
+          this.updateHomeLoadoutSummary(user);
           const cube = document.getElementById("home-cube");
           if (cube) cube.innerHTML = cubeHTML(this.avatarHeadId(user), 56);
           const name = document.getElementById("hp-name");
@@ -7208,15 +7604,12 @@
   
       setupInventoryUI() {
           this.tabWeapons = document.getElementById("tab-inv-weapons");
-          this.tabCraft = document.getElementById("tab-inv-craft");
           this.tabSkins = document.getElementById("tab-inv-skins");
   
           this.panelWeapons = document.getElementById("inv-panel-weapons");
-          this.panelCraft = document.getElementById("inv-panel-craft");
           this.panelSkins = document.getElementById("inv-panel-skins");
   
           this.tabWeapons?.addEventListener("click", () => this.switchInventoryTab("weapons"));
-          this.tabCraft?.addEventListener("click", () => this.switchInventoryTab("craft"));
           this.tabSkins?.addEventListener("click", () => this.switchInventoryTab("skins"));
       }
   
@@ -7224,24 +7617,119 @@
       setupSkinsUI() {}
   
       switchInventoryTab(tab) {
-          [this.tabWeapons, this.tabCraft, this.tabSkins].forEach(t => t?.classList.remove("active"));
-          [this.panelWeapons, this.panelCraft, this.panelSkins].forEach(p => p?.classList.add("hidden"));
+          [this.tabWeapons, this.tabSkins].forEach(t => t?.classList.remove("active"));
+          [this.panelWeapons, this.panelSkins].forEach(p => p?.classList.add("hidden"));
   
-          if (tab === "craft") {
-              this.tabCraft?.classList.add("active");
-              this.panelCraft?.classList.remove("hidden");
-              this.renderCraftingTabContent();
-          } else if (tab === "skins") {
+          if (tab === "skins") {
               this.tabSkins?.classList.add("active");
               this.panelSkins?.classList.remove("hidden");
               this.renderSkinsModalContent();
           } else {
               this.tabWeapons?.classList.add("active");
               this.panelWeapons?.classList.remove("hidden");
-              this.renderHotbarSlots();
               this.renderWeaponsModalContent();
           }
           sound.playClick();
+      }
+  
+      // ==========================================
+      // LOADOUT (press I): weapon dropdowns + class grid
+      // ==========================================
+  
+      setupLoadoutUI() {
+          this.loadoutModal = document.getElementById("loadout-modal");
+          if (!this.loadoutModal) return;
+          document.getElementById("lo-tab-weapon").onclick = () => this.switchLoadoutTab("weapon");
+          document.getElementById("lo-tab-class").onclick = () => this.switchLoadoutTab("class");
+          document.getElementById("lo-done").onclick = () => this.closeLoadoutModal();
+          document.getElementById("lo-open-shop").onclick = () => {
+              this.closeLoadoutModal();
+              this.openInventoryModal("weapons");
+          };
+          const w1 = document.getElementById("lo-weapon1");
+          const w2 = document.getElementById("lo-weapon2");
+          w1.onchange = () => {
+              auth.equipWeapon(w1.value, 1);
+              sound.playClick();
+              this.renderLoadoutWeapons();
+          };
+          w2.onchange = () => {
+              if (w2.value === "none") auth.clearSecondaryWeapon();
+              else auth.equipWeapon(w2.value, 2);
+              sound.playClick();
+              this.renderLoadoutWeapons();
+          };
+      }
+  
+      openLoadoutModal(tab = "weapon") {
+          if (!this.loadoutModal) return;
+          this.loadoutModal.classList.remove("hidden");
+          this.switchLoadoutTab(tab, true);
+          sound.playClick();
+      }
+  
+      closeLoadoutModal() {
+          if (!this.loadoutModal) return;
+          this.loadoutModal.classList.add("hidden");
+          sound.playClick();
+      }
+  
+      toggleLoadoutModal() {
+          if (!this.loadoutModal) return;
+          if (this.loadoutModal.classList.contains("hidden")) this.openLoadoutModal();
+          else this.closeLoadoutModal();
+      }
+  
+      switchLoadoutTab(tab, silent = false) {
+          const isClass = tab === "class";
+          const tw = document.getElementById("lo-tab-weapon");
+          const tc = document.getElementById("lo-tab-class");
+          tw.classList.toggle("active", !isClass);
+          tc.classList.toggle("active", isClass);
+          tw.setAttribute("aria-selected", String(!isClass));
+          tc.setAttribute("aria-selected", String(isClass));
+          document.getElementById("lo-panel-weapon").classList.toggle("hidden", isClass);
+          document.getElementById("lo-panel-class").classList.toggle("hidden", !isClass);
+          // Weapon picks are saved the moment they change, so switching tabs keeps them
+          if (isClass) this.renderLoadoutClasses();
+          else this.renderLoadoutWeapons();
+          if (!silent) sound.playClick();
+      }
+  
+      renderLoadoutWeapons() {
+          const user = auth.getUser();
+          const unlocked = user.unlockedWeapons || ["mace", "spear"];
+          const option = (w, selected) => {
+              const owned = unlocked.includes(w.id);
+              return `<option value="${w.id}" ${selected ? "selected" : ""} ${owned ? "" : "disabled"}>${w.name}${owned ? "" : ` (locked: ${w.baseCost} gold)`}</option>`;
+          };
+          const all = Object.values(WEAPON_TYPES);
+          document.getElementById("lo-weapon1").innerHTML = all.map(w => option(w, w.id === user.equippedWeapon)).join("");
+          document.getElementById("lo-weapon2").innerHTML =
+              `<option value="none" ${user.secondaryWeapon ? "" : "selected"}>None</option>` +
+              all.filter(w => w.id !== user.equippedWeapon).map(w => option(w, w.id === user.secondaryWeapon)).join("");
+      }
+  
+      renderLoadoutClasses() {
+          const grid = document.getElementById("lo-class-grid");
+          const current = auth.getUser().classId || "normal";
+          grid.innerHTML = Object.entries(CLASSES).map(([id, c]) => `
+              <button type="button" class="lo-class-card class-${id} ${id === current ? "selected" : ""}" role="radio" aria-checked="${id === current}" data-class="${id}">
+                  <span class="lo-class-name">${c.name}</span>
+                  <span class="lo-class-desc">${c.desc}</span>
+              </button>
+          `).join("");
+          grid.querySelectorAll(".lo-class-card").forEach(card => {
+              card.onclick = () => {
+                  auth.setClass(card.dataset.class);
+                  sound.playClick();
+                  grid.querySelectorAll(".lo-class-card").forEach(c => {
+                      const on = c === card;
+                      c.classList.toggle("selected", on);
+                      c.setAttribute("aria-checked", String(on));
+                  });
+              };
+          });
       }
   
       openInventoryModal(tab = "weapons") {
@@ -7268,185 +7756,9 @@
           this.openInventoryModal("skins");
       }
   
-      // Minecraft Hotbar & Blank Inventory Slots
-      renderHotbarSlots() {
-          const container = document.getElementById("mc-hotbar-slots");
-          if (!container) return;
-          container.innerHTML = "";
-  
-          const user = auth.getUser();
-          const unlocked = user.unlockedWeapons || ["mace", "spear"];
-          const equipped = user.equippedWeapon || "mace";
-  
-          // Render 9 slots (Minecraft standard hotbar)
-          for (let i = 0; i < 9; i++) {
-              const slot = document.createElement("div");
-              slot.className = "mc-slot";
-              const weaponId = unlocked[i];
-  
-              if (weaponId && WEAPON_TYPES[weaponId]) {
-                  const w = WEAPON_TYPES[weaponId];
-                  if (weaponId === equipped) {
-                      slot.classList.add("active");
-                  } else if (weaponId === user.secondaryWeapon) {
-                      slot.classList.add("secondary");
-                  }
-                  slot.title = `${w.name}: ${weaponId === equipped ? 'Slot 1' : (weaponId === user.secondaryWeapon ? 'Slot 2' : 'click = Slot 1, right-click = Slot 2')}`;
-                  slot.innerHTML = `
-                      ${weaponIconHTML(weaponId, 28)}
-                      <span class="mc-slot-num">${i + 1}</span>
-                  `;
-                  slot.addEventListener("click", () => {
-                      auth.equipWeapon(weaponId, 1);
-                      sound.playClick();
-                      this.renderHotbarSlots();
-                      this.renderWeaponsModalContent();
-                  });
-                  slot.addEventListener("contextmenu", (e) => {
-                      e.preventDefault();
-                      auth.equipWeapon(weaponId, 2);
-                      sound.playClick();
-                      this.renderHotbarSlots();
-                      this.renderWeaponsModalContent();
-                  });
-              } else {
-                  slot.classList.add("empty");
-                  slot.title = `Blank Inventory Slot ${i + 1}`;
-                  slot.innerHTML = `<span class="mc-slot-num" style="opacity:0.35;">${i + 1}</span>`;
-              }
-              container.appendChild(slot);
-          }
-      }
-  
-      // Minecraft 3x3 Crafting Table & Enchanting Station
-      renderCraftingTabContent() {
-          const user = auth.getUser();
-          const equipped = user.equippedWeapon || "mace";
-          const w = WEAPON_TYPES[equipped] || WEAPON_TYPES.mace;
-  
-          // Center slot holds the equipped weapon
-          const centerSlot = document.getElementById("craft-center-slot");
-          if (centerSlot) {
-              centerSlot.innerHTML = `${weaponIconHTML(equipped, 32)}`;
-              centerSlot.title = `Current Weapon: ${w.name}`;
-          }
-  
-          // Result slot holds the upgraded / enchanted result
-          const resultSlot = document.getElementById("craft-result-slot");
-          if (resultSlot) {
-              resultSlot.innerHTML = `
-                  <div style="position:relative; display:flex; align-items:center; justify-content:center; width:100%; height:100%;">
-                      ${weaponIconHTML(equipped, 40)}
-                      <span style="position:absolute; bottom:2px; right:3px; font-size:10px; color:#55ff55; font-weight:bold; text-shadow:1px 1px 0 #000;">ENCH</span>
-                  </div>
-              `;
-              resultSlot.title = `Enchanted ${w.name}`;
-          }
-  
-          // Populate surrounding crafting slots with authentic Minecraft ingredients
-          const craftSlots = document.querySelectorAll(".crafting-3x3 .c-slot:not(.c-slot-center)");
-          const ingredients = ["Lapis", "Breeze", "Amethyst", "Diamond", "Gold", "Obsidian", "Netherite", "Emerald"];
-          craftSlots.forEach((slot, idx) => {
-              if (!slot.innerHTML) {
-                  const ingName = ingredients[idx % ingredients.length];
-                  slot.title = `Crafting Catalyst: ${ingName}`;
-                  slot.innerHTML = `<span style="font-size:9px; color:#aaa; font-family:var(--font-pixel); text-shadow:1px 1px 0 #000;">${ingName[0]}</span>`;
-              }
-          });
-  
-          // Populate Enchantment Upgrades for the equipped weapon
-          const container = document.getElementById("crafting-upgrades-container");
-          if (!container) return;
-          container.innerHTML = "";
-  
-          const gold = user.gold || 0;
-  
-          const infoCard = document.createElement("div");
-          infoCard.className = "weapon-shop-card equipped";
-          infoCard.innerHTML = `
-              <div class="weapon-shop-header">
-                  <div class="ws-left">
-                      <span class="ws-icon">${weaponIconHTML(w.id, 32)}</span>
-                      <div>
-                          <div class="ws-title">${w.name} (Active in Crafting Grid)</div>
-                          <div class="ws-cat">Tier Upgrades & Enchantments Table</div>
-                      </div>
-                  </div>
-                  <div class="ws-right">
-                      <span class="badge-equipped">IN CRAFTING BENCH</span>
-                  </div>
-              </div>
-              <div class="ws-desc">Select enchantments below to upgrade damage, wind propulsion and knockback for this weapon using Gold.</div>
-          `;
-          container.appendChild(infoCard);
-  
-          if (w.upgrades && w.upgrades.length > 0) {
-              w.upgrades.forEach(u => {
-                  const curLvl = user.weaponUpgrades[u.id] || 0;
-                  const isMax = curLvl >= u.maxLevel;
-                  const cost = u.costPerLevel * (curLvl + 1);
-  
-                  const upgCard = document.createElement("div");
-                  upgCard.className = "weapon-shop-card";
-                  upgCard.innerHTML = `
-                      <div class="weapon-shop-header">
-                          <div class="ws-left">
-                              <div>
-                                  <div class="ws-title" style="color:#55ff55;">${u.name}</div>
-                                  <div class="ws-cat">Tier ${curLvl}/${u.maxLevel}</div>
-                              </div>
-                          </div>
-                          <div class="ws-right">
-                              ${isMax ? 
-                                  `<span class="badge-max">MAX ENCHANTED</span>` : 
-                                  `<button class="btn-ctrl btn-craft-upgrade ${gold >= cost ? 'btn-can-buy' : ''}" data-upg="${u.id}" data-cost="${cost}" ${gold < cost ? 'disabled' : ''}>
-                                      ${gold >= cost ? '⭐ ' : ''}Enchant (${cost} G)
-                                  </button>`
-                              }
-                          </div>
-                      </div>
-                      <div class="ws-desc">${u.desc}</div>
-                  `;
-                  container.appendChild(upgCard);
-              });
-  
-              container.querySelectorAll(".btn-craft-upgrade").forEach(btn => {
-                  btn.onclick = () => {
-                      const res = auth.upgradeWeapon(btn.dataset.upg, parseInt(btn.dataset.cost));
-                      if (res.success) {
-                          sound.playWin();
-                          this.renderCraftingTabContent();
-                      } else {
-                          alert(res.error);
-                      }
-                  };
-              });
-          }
-      }
-  
-      // Class picker (Normal / Shadow / Lightning / Energy) at the top of the Inventory
-      renderClassPicker() {
-          const box = document.getElementById("class-picker");
-          const desc = document.getElementById("class-desc");
-          if (!box) return;
-          const current = auth.getUser().classId || "normal";
-          box.innerHTML = Object.entries(CLASSES).map(([id, c]) =>
-              `<button type="button" class="btn-ctrl class-btn class-${id} ${id === current ? "selected" : ""}" role="radio" aria-checked="${id === current}" data-class="${id}">${c.name}</button>`
-          ).join("");
-          if (desc) desc.textContent = CLASSES[current].desc;
-          box.querySelectorAll(".class-btn").forEach(btn => {
-              btn.onclick = () => {
-                  auth.setClass(btn.dataset.class);
-                  sound.playClick();
-                  this.renderClassPicker();
-              };
-          });
-      }
-  
       renderWeaponsModalContent() {
           const container = document.getElementById("weapons-list-container");
           if (!container) return;
-          this.renderClassPicker();
   
           const user = auth.getUser();
           const gold = user.gold || 0;
@@ -7488,12 +7800,6 @@
                       </div>
                   </div>
                   <div class="ws-desc">${w.desc}</div>
-                  <div class="ws-stats-row">
-                      <span>Base DMG: <b>${w.stats.dashDamage}</b></span>
-                      <span>Speed: <b>${w.stats.dashSpeed}</b></span>
-                      <span>Recovery: <b>${w.stats.attackCooldown}f</b></span>
-                      ${w.stats.arrowDamage ? `<span>Arrow DMG: <b>${w.stats.arrowDamage}</b></span>` : ''}
-                  </div>
               `;
   
               container.appendChild(card);
@@ -7504,7 +7810,6 @@
               btn.onclick = () => {
                   auth.clearSecondaryWeapon();
                   sound.playClick();
-                  this.renderHotbarSlots();
                   this.renderWeaponsModalContent();
               };
           });
@@ -7513,7 +7818,6 @@
               btn.onclick = () => {
                   auth.equipWeapon(btn.dataset.id, parseInt(btn.dataset.slot) || 1);
                   sound.playClick();
-                  this.renderHotbarSlots();
                   this.renderWeaponsModalContent();
               };
           });
@@ -7523,8 +7827,7 @@
                   const res = auth.unlockWeapon(btn.dataset.id, parseInt(btn.dataset.cost));
                   if (res.success) {
                       sound.playWin();
-                      this.renderHotbarSlots();
-                      this.renderWeaponsModalContent();
+                          this.renderWeaponsModalContent();
                   } else {
                       alert(res.error);
                   }
@@ -7599,16 +7902,6 @@
                   document.querySelectorAll(".arena-mode-pill").forEach(p => p.classList.remove("active"));
                   pill.classList.add("active");
                   this.selectedArenaMode = pill.dataset.mode;
-                  sound.playClick();
-              });
-          });
-  
-          // Weapon select cards in arena
-          document.querySelectorAll(".arena-wep-card").forEach(card => {
-              card.addEventListener("click", () => {
-                  document.querySelectorAll(".arena-wep-card").forEach(c => c.classList.remove("selected"));
-                  card.classList.add("selected");
-                  this.selectedArenaWeapon = card.dataset.wep;
                   sound.playClick();
               });
           });
@@ -7690,7 +7983,7 @@
               weapon2: (user.secondaryWeapon && user.secondaryWeapon !== (this.selectedArenaWeapon || user.equippedWeapon))
                   ? user.secondaryWeapon
                   : (user.equippedWeapon !== this.selectedArenaWeapon ? user.equippedWeapon : null),
-              upgrades: user.weaponUpgrades || {},
+              upgrades: {},
               cls: user.classId || "normal"
           };
       }
@@ -7931,11 +8224,23 @@
           if (!code) return;
           const joinInput = document.getElementById("input-join-code");
           if (joinInput) joinInput.value = code;
-          this.openArenaModal();
+          this.openArenaModal("online");
       }
   
-      openArenaModal() {
+      // view: "ranked" (vs bots, earns RP) or "online" (play friends with a link)
+      openArenaModal(view = "ranked") {
           if (!this.arenaModal) return;
+          const card = this.arenaModal.querySelector(".modal-arena-card");
+          if (card) card.dataset.view = view;
+          const title = document.getElementById("arena-modal-title");
+          if (title) title.textContent = view === "online" ? "Play Friends Online" : "Ranked";
+          // Online rooms go up to 2v2
+          if (view === "online" && this.selectedArenaMode === "5v5") {
+              const pill = this.arenaModal.querySelector('.arena-mode-pill[data-mode="2v2"]');
+              if (pill) pill.click();
+          }
+          // Your weapon comes from the loadout (I menu)
+          this.selectedArenaWeapon = auth.getUser().equippedWeapon || "mace";
           this.renderArenaHubContent();
           this.arenaModal.classList.remove("hidden");
           sound.playClick();
@@ -8188,97 +8493,10 @@
       // ==========================================
       // MATCHUP LOADING / VS SCREEN (Who vs Who & Ranks)
       // ==========================================
+      // Matches start instantly: close menus and go (no countdown screen)
       showMatchLoadingScreen(matchConfig, onStartCallback) {
-          const modal = document.getElementById("match-loading-modal");
-          if (!modal) {
-              onStartCallback();
-              return;
-          }
-  
-          // Close all other overlays so loading stage is pristine
           document.querySelectorAll(".overlay, .modal-backdrop").forEach(m => m.classList.add("hidden"));
-          modal.classList.remove("hidden");
-          sound.playClick();
-  
-          const badgeEl = document.getElementById("ml-match-badge");
-          const countEl = document.getElementById("ml-countdown-num");
-          const fillEl = document.getElementById("ml-progress-fill");
-          const blueRosterEl = document.getElementById("ml-blue-roster");
-          const redRosterEl = document.getElementById("ml-red-roster");
-          const skipBtn = document.getElementById("btn-skip-loading");
-  
-          if (badgeEl) badgeEl.textContent = matchConfig.title || "ARENA MATCH";
-  
-          const renderRoster = (fighters, container) => {
-              if (!container) return;
-              container.innerHTML = fighters.map(f => {
-                  const weaponData = WEAPON_TYPES[f.weaponId] || WEAPON_TYPES.mace;
-                  const tierColor = f.tierColor || "#f1c40f";
-                  const rankText = f.rank || "Bronze I";
-                  return `
-                      <div class="ml-fighter-item ${f.isPlayer ? 'is-player-item' : ''}">
-                          <div class="ml-avatar-box">
-                              ${headImgHTML(f.skinId || 'steve', 32)}
-                          </div>
-                          <div class="ml-info-box">
-                              <div class="ml-name-row">
-                                  <span class="ml-fighter-name">${f.name || 'Fighter'}</span>
-                                  ${f.isPlayer ? '<span class="ml-you-badge">YOU</span>' : ''}
-                              </div>
-                              <div class="ml-detail-row">
-                                  <span class="ml-weapon-tag">${weaponIconHTML(f.weaponId || 'mace', 16)} ${weaponData.name}</span>
-                                  <span class="ml-rank-pill" style="border-color:${tierColor}; background:rgba(0,0,0,0.45);">
-                                      <span class="tier-pip" style="background:${tierColor}"></span> ${rankText}
-                                  </span>
-                              </div>
-                          </div>
-                      </div>
-                  `;
-              }).join("");
-          };
-  
-          renderRoster(matchConfig.blueTeam || [], blueRosterEl);
-          renderRoster(matchConfig.redTeam || [], redRosterEl);
-  
-          let countdown = 3;
-          let progress = 0;
-          if (countEl) countEl.textContent = countdown;
-          if (fillEl) fillEl.style.width = "0%";
-  
-          let isFinished = false;
-          let timerInterval = null;
-          let progressInterval = null;
-  
-          const finishLoading = () => {
-              if (isFinished) return;
-              isFinished = true;
-              if (timerInterval) clearInterval(timerInterval);
-              if (progressInterval) clearInterval(progressInterval);
-              modal.classList.add("hidden");
-              sound.playDoubleJump();
-              onStartCallback();
-          };
-  
-          if (skipBtn) {
-              skipBtn.onclick = () => finishLoading();
-          }
-  
-          progressInterval = setInterval(() => {
-              progress += 3;
-              if (fillEl) fillEl.style.width = `${Math.min(100, progress)}%`;
-          }, 50);
-  
-          timerInterval = setInterval(() => {
-              countdown--;
-              if (countdown > 0) {
-                  if (countEl) countEl.textContent = countdown;
-                  sound.playClick();
-              } else {
-                  if (countEl) countEl.textContent = "FIGHT!";
-                  sound.playDash();
-                  setTimeout(() => finishLoading(), 350);
-              }
-          }, 750);
+          onStartCallback();
       }
   
       launchMatchWithLoading(modeKey, customOverrides = null) {

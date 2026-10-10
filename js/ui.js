@@ -135,8 +135,9 @@ export class UIManager {
         this.modeCardsContainer.innerHTML = "";
         if (this.modeCardsVersus) this.modeCardsVersus.innerHTML = "";
 
-        const modes = ["practice", "easy", "normal", "pro", "god", "pvp", "custom"];
-        const versusModes = ["pvp", "custom"];
+        // Local 2-Player has its own big button on the home screen
+        const modes = ["practice", "easy", "normal", "pro", "god", "custom"];
+        const versusModes = [];
 
         modes.forEach((modeKey) => {
             const meta = MODE_METADATA[modeKey];
@@ -145,14 +146,9 @@ export class UIManager {
             const card = document.createElement("div");
             card.className = `mode-card mode-${modeKey}`;
             card.innerHTML = `
-                <div class="card-header">
-                    <span class="card-badge" style="background:${meta.rgb}">${meta.badge}</span>
-                    <span class="card-hotkey">[ ${meta.hotkey} ]</span>
-                </div>
-                <h3 class="card-title">${meta.name}</h3>
+                <span class="card-badge" style="background:${meta.rgb}">${meta.difficultyLabel || meta.badge}</span>
+                <h3 class="card-title">${meta.name.replace(" Mode", "")}</h3>
                 <p class="card-sub">${meta.sub}</p>
-                <p class="card-desc">${meta.desc}</p>
-                <button class="btn-play-mode" style="border-color:${meta.rgb}">SELECT MODE</button>
             `;
 
             card.addEventListener("click", () => {
@@ -272,17 +268,19 @@ export class UIManager {
         this.homeInventoryBtn = document.getElementById("btn-home-inventory");
         this.inventoryModal = document.getElementById("inventory-modal");
 
-        if (this.inventoryBtn) this.inventoryBtn.addEventListener("click", () => this.openInventoryModal());
-        if (this.homeInventoryBtn) this.homeInventoryBtn.addEventListener("click", () => this.openInventoryModal());
+        if (this.inventoryBtn) this.inventoryBtn.addEventListener("click", () => this.openLoadoutModal());
+        if (this.homeInventoryBtn) this.homeInventoryBtn.addEventListener("click", () => this.openLoadoutModal());
 
+        // Press I anywhere to pick your weapon and class
         window.addEventListener("keydown", (e) => {
             if (e.key === "i" || e.key === "I") {
                 const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : "";
-                if (activeTag !== "input" && activeTag !== "textarea") {
-                    this.toggleInventoryModal();
+                if (activeTag !== "input" && activeTag !== "textarea" && activeTag !== "select") {
+                    this.toggleLoadoutModal();
                 }
             }
         });
+        this.setupLoadoutUI();
 
         // Navigation buttons
         if (this.homeBtn) this.homeBtn.addEventListener("click", () => this.handleHomeClick());
@@ -315,6 +313,14 @@ export class UIManager {
         });
 
         // Home screen arena banner
+        // Home screen: Ranked / Online / Local 2-Player
+        const rankedBtn = document.getElementById("home-ranked-btn");
+        if (rankedBtn) rankedBtn.addEventListener("click", () => this.openArenaModal("ranked"));
+        const onlineBtn = document.getElementById("home-online-btn");
+        if (onlineBtn) onlineBtn.addEventListener("click", () => this.openArenaModal("online"));
+        const localBtn = document.getElementById("home-local-btn");
+        if (localBtn) localBtn.addEventListener("click", () => this.launchMatchWithLoading("pvp"));
+
         const arenaBanner = document.getElementById("home-arena-banner");
         if (arenaBanner) arenaBanner.addEventListener("click", () => this.openArenaModal());
 
@@ -391,9 +397,7 @@ export class UIManager {
 
             // Dynamically refresh open inventory tab so buy buttons update to gold
             if (this.inventoryModal && !this.inventoryModal.classList.contains("hidden")) {
-                if (this.tabCraft && this.tabCraft.classList.contains("active")) {
-                    this.renderCraftingTabContent();
-                } else if (this.tabSkins && this.tabSkins.classList.contains("active")) {
+                if (this.tabSkins && this.tabSkins.classList.contains("active")) {
                     this.renderSkinsModalContent();
                 } else {
                     this.renderWeaponsModalContent();
@@ -412,7 +416,17 @@ export class UIManager {
         return "steve";
     }
 
+    updateHomeLoadoutSummary(user) {
+        const el = document.getElementById("home-loadout-summary");
+        if (!el) return;
+        const w1 = WEAPON_TYPES[user.equippedWeapon] || WEAPON_TYPES.mace;
+        const w2 = user.secondaryWeapon && WEAPON_TYPES[user.secondaryWeapon];
+        const cls = CLASSES[user.classId] || CLASSES.normal;
+        el.textContent = `${w1.name}${w2 ? " + " + w2.name : ""} · ${cls.name}`;
+    }
+
     updateHomeProfile(user) {
+        this.updateHomeLoadoutSummary(user);
         const cube = document.getElementById("home-cube");
         if (cube) cube.innerHTML = cubeHTML(this.avatarHeadId(user), 56);
         const name = document.getElementById("hp-name");
@@ -603,15 +617,12 @@ export class UIManager {
 
     setupInventoryUI() {
         this.tabWeapons = document.getElementById("tab-inv-weapons");
-        this.tabCraft = document.getElementById("tab-inv-craft");
         this.tabSkins = document.getElementById("tab-inv-skins");
 
         this.panelWeapons = document.getElementById("inv-panel-weapons");
-        this.panelCraft = document.getElementById("inv-panel-craft");
         this.panelSkins = document.getElementById("inv-panel-skins");
 
         this.tabWeapons?.addEventListener("click", () => this.switchInventoryTab("weapons"));
-        this.tabCraft?.addEventListener("click", () => this.switchInventoryTab("craft"));
         this.tabSkins?.addEventListener("click", () => this.switchInventoryTab("skins"));
     }
 
@@ -619,24 +630,119 @@ export class UIManager {
     setupSkinsUI() {}
 
     switchInventoryTab(tab) {
-        [this.tabWeapons, this.tabCraft, this.tabSkins].forEach(t => t?.classList.remove("active"));
-        [this.panelWeapons, this.panelCraft, this.panelSkins].forEach(p => p?.classList.add("hidden"));
+        [this.tabWeapons, this.tabSkins].forEach(t => t?.classList.remove("active"));
+        [this.panelWeapons, this.panelSkins].forEach(p => p?.classList.add("hidden"));
 
-        if (tab === "craft") {
-            this.tabCraft?.classList.add("active");
-            this.panelCraft?.classList.remove("hidden");
-            this.renderCraftingTabContent();
-        } else if (tab === "skins") {
+        if (tab === "skins") {
             this.tabSkins?.classList.add("active");
             this.panelSkins?.classList.remove("hidden");
             this.renderSkinsModalContent();
         } else {
             this.tabWeapons?.classList.add("active");
             this.panelWeapons?.classList.remove("hidden");
-            this.renderHotbarSlots();
             this.renderWeaponsModalContent();
         }
         sound.playClick();
+    }
+
+    // ==========================================
+    // LOADOUT (press I): weapon dropdowns + class grid
+    // ==========================================
+
+    setupLoadoutUI() {
+        this.loadoutModal = document.getElementById("loadout-modal");
+        if (!this.loadoutModal) return;
+        document.getElementById("lo-tab-weapon").onclick = () => this.switchLoadoutTab("weapon");
+        document.getElementById("lo-tab-class").onclick = () => this.switchLoadoutTab("class");
+        document.getElementById("lo-done").onclick = () => this.closeLoadoutModal();
+        document.getElementById("lo-open-shop").onclick = () => {
+            this.closeLoadoutModal();
+            this.openInventoryModal("weapons");
+        };
+        const w1 = document.getElementById("lo-weapon1");
+        const w2 = document.getElementById("lo-weapon2");
+        w1.onchange = () => {
+            auth.equipWeapon(w1.value, 1);
+            sound.playClick();
+            this.renderLoadoutWeapons();
+        };
+        w2.onchange = () => {
+            if (w2.value === "none") auth.clearSecondaryWeapon();
+            else auth.equipWeapon(w2.value, 2);
+            sound.playClick();
+            this.renderLoadoutWeapons();
+        };
+    }
+
+    openLoadoutModal(tab = "weapon") {
+        if (!this.loadoutModal) return;
+        this.loadoutModal.classList.remove("hidden");
+        this.switchLoadoutTab(tab, true);
+        sound.playClick();
+    }
+
+    closeLoadoutModal() {
+        if (!this.loadoutModal) return;
+        this.loadoutModal.classList.add("hidden");
+        sound.playClick();
+    }
+
+    toggleLoadoutModal() {
+        if (!this.loadoutModal) return;
+        if (this.loadoutModal.classList.contains("hidden")) this.openLoadoutModal();
+        else this.closeLoadoutModal();
+    }
+
+    switchLoadoutTab(tab, silent = false) {
+        const isClass = tab === "class";
+        const tw = document.getElementById("lo-tab-weapon");
+        const tc = document.getElementById("lo-tab-class");
+        tw.classList.toggle("active", !isClass);
+        tc.classList.toggle("active", isClass);
+        tw.setAttribute("aria-selected", String(!isClass));
+        tc.setAttribute("aria-selected", String(isClass));
+        document.getElementById("lo-panel-weapon").classList.toggle("hidden", isClass);
+        document.getElementById("lo-panel-class").classList.toggle("hidden", !isClass);
+        // Weapon picks are saved the moment they change, so switching tabs keeps them
+        if (isClass) this.renderLoadoutClasses();
+        else this.renderLoadoutWeapons();
+        if (!silent) sound.playClick();
+    }
+
+    renderLoadoutWeapons() {
+        const user = auth.getUser();
+        const unlocked = user.unlockedWeapons || ["mace", "spear"];
+        const option = (w, selected) => {
+            const owned = unlocked.includes(w.id);
+            return `<option value="${w.id}" ${selected ? "selected" : ""} ${owned ? "" : "disabled"}>${w.name}${owned ? "" : ` (locked: ${w.baseCost} gold)`}</option>`;
+        };
+        const all = Object.values(WEAPON_TYPES);
+        document.getElementById("lo-weapon1").innerHTML = all.map(w => option(w, w.id === user.equippedWeapon)).join("");
+        document.getElementById("lo-weapon2").innerHTML =
+            `<option value="none" ${user.secondaryWeapon ? "" : "selected"}>None</option>` +
+            all.filter(w => w.id !== user.equippedWeapon).map(w => option(w, w.id === user.secondaryWeapon)).join("");
+    }
+
+    renderLoadoutClasses() {
+        const grid = document.getElementById("lo-class-grid");
+        const current = auth.getUser().classId || "normal";
+        grid.innerHTML = Object.entries(CLASSES).map(([id, c]) => `
+            <button type="button" class="lo-class-card class-${id} ${id === current ? "selected" : ""}" role="radio" aria-checked="${id === current}" data-class="${id}">
+                <span class="lo-class-name">${c.name}</span>
+                <span class="lo-class-desc">${c.desc}</span>
+            </button>
+        `).join("");
+        grid.querySelectorAll(".lo-class-card").forEach(card => {
+            card.onclick = () => {
+                auth.setClass(card.dataset.class);
+                sound.playClick();
+                grid.querySelectorAll(".lo-class-card").forEach(c => {
+                    const on = c === card;
+                    c.classList.toggle("selected", on);
+                    c.setAttribute("aria-checked", String(on));
+                });
+            };
+        });
     }
 
     openInventoryModal(tab = "weapons") {
@@ -663,185 +769,9 @@ export class UIManager {
         this.openInventoryModal("skins");
     }
 
-    // Minecraft Hotbar & Blank Inventory Slots
-    renderHotbarSlots() {
-        const container = document.getElementById("mc-hotbar-slots");
-        if (!container) return;
-        container.innerHTML = "";
-
-        const user = auth.getUser();
-        const unlocked = user.unlockedWeapons || ["mace", "spear"];
-        const equipped = user.equippedWeapon || "mace";
-
-        // Render 9 slots (Minecraft standard hotbar)
-        for (let i = 0; i < 9; i++) {
-            const slot = document.createElement("div");
-            slot.className = "mc-slot";
-            const weaponId = unlocked[i];
-
-            if (weaponId && WEAPON_TYPES[weaponId]) {
-                const w = WEAPON_TYPES[weaponId];
-                if (weaponId === equipped) {
-                    slot.classList.add("active");
-                } else if (weaponId === user.secondaryWeapon) {
-                    slot.classList.add("secondary");
-                }
-                slot.title = `${w.name}: ${weaponId === equipped ? 'Slot 1' : (weaponId === user.secondaryWeapon ? 'Slot 2' : 'click = Slot 1, right-click = Slot 2')}`;
-                slot.innerHTML = `
-                    ${weaponIconHTML(weaponId, 28)}
-                    <span class="mc-slot-num">${i + 1}</span>
-                `;
-                slot.addEventListener("click", () => {
-                    auth.equipWeapon(weaponId, 1);
-                    sound.playClick();
-                    this.renderHotbarSlots();
-                    this.renderWeaponsModalContent();
-                });
-                slot.addEventListener("contextmenu", (e) => {
-                    e.preventDefault();
-                    auth.equipWeapon(weaponId, 2);
-                    sound.playClick();
-                    this.renderHotbarSlots();
-                    this.renderWeaponsModalContent();
-                });
-            } else {
-                slot.classList.add("empty");
-                slot.title = `Blank Inventory Slot ${i + 1}`;
-                slot.innerHTML = `<span class="mc-slot-num" style="opacity:0.35;">${i + 1}</span>`;
-            }
-            container.appendChild(slot);
-        }
-    }
-
-    // Minecraft 3x3 Crafting Table & Enchanting Station
-    renderCraftingTabContent() {
-        const user = auth.getUser();
-        const equipped = user.equippedWeapon || "mace";
-        const w = WEAPON_TYPES[equipped] || WEAPON_TYPES.mace;
-
-        // Center slot holds the equipped weapon
-        const centerSlot = document.getElementById("craft-center-slot");
-        if (centerSlot) {
-            centerSlot.innerHTML = `${weaponIconHTML(equipped, 32)}`;
-            centerSlot.title = `Current Weapon: ${w.name}`;
-        }
-
-        // Result slot holds the upgraded / enchanted result
-        const resultSlot = document.getElementById("craft-result-slot");
-        if (resultSlot) {
-            resultSlot.innerHTML = `
-                <div style="position:relative; display:flex; align-items:center; justify-content:center; width:100%; height:100%;">
-                    ${weaponIconHTML(equipped, 40)}
-                    <span style="position:absolute; bottom:2px; right:3px; font-size:10px; color:#55ff55; font-weight:bold; text-shadow:1px 1px 0 #000;">ENCH</span>
-                </div>
-            `;
-            resultSlot.title = `Enchanted ${w.name}`;
-        }
-
-        // Populate surrounding crafting slots with authentic Minecraft ingredients
-        const craftSlots = document.querySelectorAll(".crafting-3x3 .c-slot:not(.c-slot-center)");
-        const ingredients = ["Lapis", "Breeze", "Amethyst", "Diamond", "Gold", "Obsidian", "Netherite", "Emerald"];
-        craftSlots.forEach((slot, idx) => {
-            if (!slot.innerHTML) {
-                const ingName = ingredients[idx % ingredients.length];
-                slot.title = `Crafting Catalyst: ${ingName}`;
-                slot.innerHTML = `<span style="font-size:9px; color:#aaa; font-family:var(--font-pixel); text-shadow:1px 1px 0 #000;">${ingName[0]}</span>`;
-            }
-        });
-
-        // Populate Enchantment Upgrades for the equipped weapon
-        const container = document.getElementById("crafting-upgrades-container");
-        if (!container) return;
-        container.innerHTML = "";
-
-        const gold = user.gold || 0;
-
-        const infoCard = document.createElement("div");
-        infoCard.className = "weapon-shop-card equipped";
-        infoCard.innerHTML = `
-            <div class="weapon-shop-header">
-                <div class="ws-left">
-                    <span class="ws-icon">${weaponIconHTML(w.id, 32)}</span>
-                    <div>
-                        <div class="ws-title">${w.name} (Active in Crafting Grid)</div>
-                        <div class="ws-cat">Tier Upgrades & Enchantments Table</div>
-                    </div>
-                </div>
-                <div class="ws-right">
-                    <span class="badge-equipped">IN CRAFTING BENCH</span>
-                </div>
-            </div>
-            <div class="ws-desc">Select enchantments below to upgrade damage, wind propulsion and knockback for this weapon using Gold.</div>
-        `;
-        container.appendChild(infoCard);
-
-        if (w.upgrades && w.upgrades.length > 0) {
-            w.upgrades.forEach(u => {
-                const curLvl = user.weaponUpgrades[u.id] || 0;
-                const isMax = curLvl >= u.maxLevel;
-                const cost = u.costPerLevel * (curLvl + 1);
-
-                const upgCard = document.createElement("div");
-                upgCard.className = "weapon-shop-card";
-                upgCard.innerHTML = `
-                    <div class="weapon-shop-header">
-                        <div class="ws-left">
-                            <div>
-                                <div class="ws-title" style="color:#55ff55;">${u.name}</div>
-                                <div class="ws-cat">Tier ${curLvl}/${u.maxLevel}</div>
-                            </div>
-                        </div>
-                        <div class="ws-right">
-                            ${isMax ? 
-                                `<span class="badge-max">MAX ENCHANTED</span>` : 
-                                `<button class="btn-ctrl btn-craft-upgrade ${gold >= cost ? 'btn-can-buy' : ''}" data-upg="${u.id}" data-cost="${cost}" ${gold < cost ? 'disabled' : ''}>
-                                    ${gold >= cost ? '⭐ ' : ''}Enchant (${cost} G)
-                                </button>`
-                            }
-                        </div>
-                    </div>
-                    <div class="ws-desc">${u.desc}</div>
-                `;
-                container.appendChild(upgCard);
-            });
-
-            container.querySelectorAll(".btn-craft-upgrade").forEach(btn => {
-                btn.onclick = () => {
-                    const res = auth.upgradeWeapon(btn.dataset.upg, parseInt(btn.dataset.cost));
-                    if (res.success) {
-                        sound.playWin();
-                        this.renderCraftingTabContent();
-                    } else {
-                        alert(res.error);
-                    }
-                };
-            });
-        }
-    }
-
-    // Class picker (Normal / Shadow / Lightning / Energy) at the top of the Inventory
-    renderClassPicker() {
-        const box = document.getElementById("class-picker");
-        const desc = document.getElementById("class-desc");
-        if (!box) return;
-        const current = auth.getUser().classId || "normal";
-        box.innerHTML = Object.entries(CLASSES).map(([id, c]) =>
-            `<button type="button" class="btn-ctrl class-btn class-${id} ${id === current ? "selected" : ""}" role="radio" aria-checked="${id === current}" data-class="${id}">${c.name}</button>`
-        ).join("");
-        if (desc) desc.textContent = CLASSES[current].desc;
-        box.querySelectorAll(".class-btn").forEach(btn => {
-            btn.onclick = () => {
-                auth.setClass(btn.dataset.class);
-                sound.playClick();
-                this.renderClassPicker();
-            };
-        });
-    }
-
     renderWeaponsModalContent() {
         const container = document.getElementById("weapons-list-container");
         if (!container) return;
-        this.renderClassPicker();
 
         const user = auth.getUser();
         const gold = user.gold || 0;
@@ -883,12 +813,6 @@ export class UIManager {
                     </div>
                 </div>
                 <div class="ws-desc">${w.desc}</div>
-                <div class="ws-stats-row">
-                    <span>Base DMG: <b>${w.stats.dashDamage}</b></span>
-                    <span>Speed: <b>${w.stats.dashSpeed}</b></span>
-                    <span>Recovery: <b>${w.stats.attackCooldown}f</b></span>
-                    ${w.stats.arrowDamage ? `<span>Arrow DMG: <b>${w.stats.arrowDamage}</b></span>` : ''}
-                </div>
             `;
 
             container.appendChild(card);
@@ -899,7 +823,6 @@ export class UIManager {
             btn.onclick = () => {
                 auth.clearSecondaryWeapon();
                 sound.playClick();
-                this.renderHotbarSlots();
                 this.renderWeaponsModalContent();
             };
         });
@@ -908,7 +831,6 @@ export class UIManager {
             btn.onclick = () => {
                 auth.equipWeapon(btn.dataset.id, parseInt(btn.dataset.slot) || 1);
                 sound.playClick();
-                this.renderHotbarSlots();
                 this.renderWeaponsModalContent();
             };
         });
@@ -918,8 +840,7 @@ export class UIManager {
                 const res = auth.unlockWeapon(btn.dataset.id, parseInt(btn.dataset.cost));
                 if (res.success) {
                     sound.playWin();
-                    this.renderHotbarSlots();
-                    this.renderWeaponsModalContent();
+                        this.renderWeaponsModalContent();
                 } else {
                     alert(res.error);
                 }
@@ -994,16 +915,6 @@ export class UIManager {
                 document.querySelectorAll(".arena-mode-pill").forEach(p => p.classList.remove("active"));
                 pill.classList.add("active");
                 this.selectedArenaMode = pill.dataset.mode;
-                sound.playClick();
-            });
-        });
-
-        // Weapon select cards in arena
-        document.querySelectorAll(".arena-wep-card").forEach(card => {
-            card.addEventListener("click", () => {
-                document.querySelectorAll(".arena-wep-card").forEach(c => c.classList.remove("selected"));
-                card.classList.add("selected");
-                this.selectedArenaWeapon = card.dataset.wep;
                 sound.playClick();
             });
         });
@@ -1085,7 +996,7 @@ export class UIManager {
             weapon2: (user.secondaryWeapon && user.secondaryWeapon !== (this.selectedArenaWeapon || user.equippedWeapon))
                 ? user.secondaryWeapon
                 : (user.equippedWeapon !== this.selectedArenaWeapon ? user.equippedWeapon : null),
-            upgrades: user.weaponUpgrades || {},
+            upgrades: {},
             cls: user.classId || "normal"
         };
     }
@@ -1326,11 +1237,23 @@ export class UIManager {
         if (!code) return;
         const joinInput = document.getElementById("input-join-code");
         if (joinInput) joinInput.value = code;
-        this.openArenaModal();
+        this.openArenaModal("online");
     }
 
-    openArenaModal() {
+    // view: "ranked" (vs bots, earns RP) or "online" (play friends with a link)
+    openArenaModal(view = "ranked") {
         if (!this.arenaModal) return;
+        const card = this.arenaModal.querySelector(".modal-arena-card");
+        if (card) card.dataset.view = view;
+        const title = document.getElementById("arena-modal-title");
+        if (title) title.textContent = view === "online" ? "Play Friends Online" : "Ranked";
+        // Online rooms go up to 2v2
+        if (view === "online" && this.selectedArenaMode === "5v5") {
+            const pill = this.arenaModal.querySelector('.arena-mode-pill[data-mode="2v2"]');
+            if (pill) pill.click();
+        }
+        // Your weapon comes from the loadout (I menu)
+        this.selectedArenaWeapon = auth.getUser().equippedWeapon || "mace";
         this.renderArenaHubContent();
         this.arenaModal.classList.remove("hidden");
         sound.playClick();
@@ -1583,97 +1506,10 @@ export class UIManager {
     // ==========================================
     // MATCHUP LOADING / VS SCREEN (Who vs Who & Ranks)
     // ==========================================
+    // Matches start instantly: close menus and go (no countdown screen)
     showMatchLoadingScreen(matchConfig, onStartCallback) {
-        const modal = document.getElementById("match-loading-modal");
-        if (!modal) {
-            onStartCallback();
-            return;
-        }
-
-        // Close all other overlays so loading stage is pristine
         document.querySelectorAll(".overlay, .modal-backdrop").forEach(m => m.classList.add("hidden"));
-        modal.classList.remove("hidden");
-        sound.playClick();
-
-        const badgeEl = document.getElementById("ml-match-badge");
-        const countEl = document.getElementById("ml-countdown-num");
-        const fillEl = document.getElementById("ml-progress-fill");
-        const blueRosterEl = document.getElementById("ml-blue-roster");
-        const redRosterEl = document.getElementById("ml-red-roster");
-        const skipBtn = document.getElementById("btn-skip-loading");
-
-        if (badgeEl) badgeEl.textContent = matchConfig.title || "ARENA MATCH";
-
-        const renderRoster = (fighters, container) => {
-            if (!container) return;
-            container.innerHTML = fighters.map(f => {
-                const weaponData = WEAPON_TYPES[f.weaponId] || WEAPON_TYPES.mace;
-                const tierColor = f.tierColor || "#f1c40f";
-                const rankText = f.rank || "Bronze I";
-                return `
-                    <div class="ml-fighter-item ${f.isPlayer ? 'is-player-item' : ''}">
-                        <div class="ml-avatar-box">
-                            ${headImgHTML(f.skinId || 'steve', 32)}
-                        </div>
-                        <div class="ml-info-box">
-                            <div class="ml-name-row">
-                                <span class="ml-fighter-name">${f.name || 'Fighter'}</span>
-                                ${f.isPlayer ? '<span class="ml-you-badge">YOU</span>' : ''}
-                            </div>
-                            <div class="ml-detail-row">
-                                <span class="ml-weapon-tag">${weaponIconHTML(f.weaponId || 'mace', 16)} ${weaponData.name}</span>
-                                <span class="ml-rank-pill" style="border-color:${tierColor}; background:rgba(0,0,0,0.45);">
-                                    <span class="tier-pip" style="background:${tierColor}"></span> ${rankText}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join("");
-        };
-
-        renderRoster(matchConfig.blueTeam || [], blueRosterEl);
-        renderRoster(matchConfig.redTeam || [], redRosterEl);
-
-        let countdown = 3;
-        let progress = 0;
-        if (countEl) countEl.textContent = countdown;
-        if (fillEl) fillEl.style.width = "0%";
-
-        let isFinished = false;
-        let timerInterval = null;
-        let progressInterval = null;
-
-        const finishLoading = () => {
-            if (isFinished) return;
-            isFinished = true;
-            if (timerInterval) clearInterval(timerInterval);
-            if (progressInterval) clearInterval(progressInterval);
-            modal.classList.add("hidden");
-            sound.playDoubleJump();
-            onStartCallback();
-        };
-
-        if (skipBtn) {
-            skipBtn.onclick = () => finishLoading();
-        }
-
-        progressInterval = setInterval(() => {
-            progress += 3;
-            if (fillEl) fillEl.style.width = `${Math.min(100, progress)}%`;
-        }, 50);
-
-        timerInterval = setInterval(() => {
-            countdown--;
-            if (countdown > 0) {
-                if (countEl) countEl.textContent = countdown;
-                sound.playClick();
-            } else {
-                if (countEl) countEl.textContent = "FIGHT!";
-                sound.playDash();
-                setTimeout(() => finishLoading(), 350);
-            }
-        }, 750);
+        onStartCallback();
     }
 
     launchMatchWithLoading(modeKey, customOverrides = null) {

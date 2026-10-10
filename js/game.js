@@ -4,7 +4,7 @@
 // Arrows projectile system, and 1v1 / 2v2 / 5v5 Team Arena matches
 // ==========================================
 
-import { ARENA_CONFIG, PLATFORMS_CONFIG, BOT_SETTINGS, MODE_METADATA, getBotParamsForMode, GAME_SPEED, PLAYER_MOVE_SPEED } from './config.js';
+import { ARENA_CONFIG, PLATFORMS_CONFIG, BOT_SETTINGS, MODE_METADATA, getBotParamsForMode, GAME_SPEED, PLAYER_MOVE_SPEED, CLASSES } from './config.js';
 import { sound } from './audio.js';
 import { ParticleManager } from './particles.js';
 import { Fighter } from './entity.js';
@@ -84,7 +84,7 @@ export class Game {
         auth.onUserChanged((user) => {
             this.playerName = user.username;
             this.player.name = user.username;
-            this.player.setLoadout(user.equippedWeapon || "mace", user.secondaryWeapon, user.weaponUpgrades || {});
+            this.player.setLoadout(user.equippedWeapon || "mace", user.secondaryWeapon);
             this.player.setSkin(user.skinId || "steve");
             this.player.setClass(user.classId || "normal");
         });
@@ -121,7 +121,7 @@ export class Game {
 
         const isBot = (mode !== "pvp" && mode !== "arena");
         this.player.reset(150, 1, maxHp);
-        this.player.setLoadout(user.equippedWeapon || "mace", user.secondaryWeapon, user.weaponUpgrades || {});
+        this.player.setLoadout(user.equippedWeapon || "mace", user.secondaryWeapon);
         this.player.setSkin(user.skinId || "steve");
         this.player.setClass(user.classId || "normal");
         this.player.setTeam("blue"); // PLAYER IS ALWAYS BLUE
@@ -269,7 +269,9 @@ export class Game {
     packFighter(f) {
         const r = (n) => Math.round(n * 10) / 10;
         return [r(f.x), r(f.y), r(f.xVel), r(f.yVel), f.facing, r(f.hp), r(f.ghostHp),
-            r(f.squashX), r(f.squashY), f.dashing ? 1 : 0, f.slamming ? 1 : 0, f.maxHp, f.weaponId, f.invis ? 1 : 0];
+            r(f.squashX), r(f.squashY), f.dashing ? 1 : 0, f.slamming ? 1 : 0, f.maxHp, f.weaponId, f.invis ? 1 : 0,
+            (f.slowT > 0 ? 1 : 0) | (f.poisonT > 0 ? 2 : 0) | (f.fireT > 0 ? 4 : 0) | (f.blindT > 0 ? 8 : 0) | (f.freezeT > 0 ? 16 : 0),
+            f.big ? 1 : 0, Math.round(f.energyBoost * 100), f.shadowTimer];
     }
 
     unpackFighter(f, d) {
@@ -280,6 +282,19 @@ export class Game {
         f.maxHp = d[11];
         if (d[12] && d[12] !== f.weaponId) f.setWeapon(d[12], {});
         f.invis = !!d[13];
+        // Status effects (guests only need on/off for drawing)
+        const fx = d[14] || 0;
+        f.slowT = fx & 1 ? 1 : 0;
+        f.poisonT = fx & 2 ? 1 : 0;
+        f.fireT = fx & 4 ? 1 : 0;
+        f.blindT = fx & 8 ? 1 : 0;
+        f.freezeT = fx & 16 ? 1 : 0;
+        if (!!d[15] !== !!f.big) {
+            f.setBig(!!d[15]);
+            [f.x, f.y] = d; // keep the host's exact position after resizing
+        }
+        if (d[16] !== undefined) f.energyBoost = d[16] / 100;
+        if (d[17] !== undefined) f.shadowTimer = d[17];
         // Recreate hit effects locally from health changes
         if (f.hp < prevHp - 0.01 && prevHp > 0) {
             const dmg = prevHp - Math.max(0, f.hp);
@@ -301,6 +316,7 @@ export class Game {
             f: this.allFighters.map(f => this.packFighter(f)),
             a: this.arrowManager.arrows.map(a => [Math.round(a.x), Math.round(a.y), a.vx, a.vy, a.stuck ? 1 : 0, a.facing]),
             m: this.matchFrames,
+            b: this.combat.bolts.map(bo => [Math.round(bo.x), Math.round(bo.y), bo.life]),
             sc: [this.scoreBlue, this.scoreRed, this.isTiebreaker ? 1 : 0, this.tiebreakerTimer,
                 Math.round(this.tiebreakerBlueDamage), Math.round(this.tiebreakerRedDamage)]
         };
@@ -314,6 +330,7 @@ export class Game {
                 x, y, vx, vy, facing, stuck: !!stuck, gravity: 0, life: 60
             }));
             this.matchFrames = msg.m;
+            if (msg.b) this.combat.bolts = msg.b.map(([x, y, life]) => ({ x, y, life }));
             if (msg.sc) {
                 [this.scoreBlue, this.scoreRed] = msg.sc;
                 this.isTiebreaker = !!msg.sc[2];
@@ -333,6 +350,7 @@ export class Game {
             }
             if (msg.a === "slam") f.slam();
             if (msg.a === "swap") f.swapWeapon();
+            if (msg.a === "size") f.toggleSize();
         } else if (msg.t === "end" && this.isOnlineGuest() && this.state === "play") {
             msg.stats.forEach((st, i) => { this.allFighters[i].stats = st; });
             this.finishMatch(msg.w === this.localFighter.team);
@@ -361,7 +379,7 @@ export class Game {
                 this.player.reset(data.x, data.facing, data.maxHp);
                 // Arena pick is the primary; the loadout's other weapon is the secondary
                 const second = user.secondaryWeapon !== selectedWeaponId ? user.secondaryWeapon : (user.equippedWeapon !== selectedWeaponId ? user.equippedWeapon : null);
-                this.player.setLoadout(selectedWeaponId, second, user.weaponUpgrades || {});
+                this.player.setLoadout(selectedWeaponId, second);
                 this.player.setSkin(user.skinId || "steve");
                 this.player.setClass(user.classId || "normal");
                 this.player.setTeam("blue");
@@ -514,6 +532,7 @@ export class Game {
         if (action === "jump") f.jump();
         if (action === "slam") f.slam();
         if (action === "swap") f.swapWeapon();
+        if (action === "size") f.toggleSize();
     }
 
     // Space / left-click attack for the local fighter (bow shots go toward the mouse)
@@ -650,6 +669,7 @@ export class Game {
                 if (e.code === "Space") this.localAttack();
                 if (e.code === "ArrowDown" || e.code === "KeyS") online.send({ t: "act", a: "slam" });
                 if (e.code === "KeyQ") online.send({ t: "act", a: "swap" });
+                if (e.code === "KeyB") online.send({ t: "act", a: "size" });
                 return;
             }
 
@@ -664,6 +684,11 @@ export class Game {
             // --- Swap between your two loadout weapons ---
             if (e.code === "KeyQ") {
                 this.localFighter.swapWeapon();
+            }
+
+            // --- Buddha class: grow big / shrink ---
+            if (e.code === "KeyB") {
+                this.localFighter.toggleSize();
             }
 
             // --- Player 1 Weapon Attack / Dash / Bow Shoot ---
@@ -771,6 +796,35 @@ export class Game {
         }
     }
 
+    // Void Walker: every 7-20s, teleport high above a random living enemy
+    updateVoidWalkers() {
+        for (const f of this.allFighters) {
+            if (f.classId !== "void" || f.hp <= 0) continue;
+            if (--f.voidTimer > 0) continue;
+            f.voidTimer = f.nextVoidDelay();
+            const foes = this.allFighters.filter(o => o.team !== f.team && o.hp > 0);
+            if (!foes.length) continue;
+            const target = foes[Math.floor(Math.random() * foes.length)];
+            this.particles.addDust(f.x + f.w / 2, f.y + f.h / 2, 12);
+            f.x = Math.max(0, Math.min(ARENA_CONFIG.width - f.w, target.x + target.w / 2 - f.w / 2));
+            f.y = Math.max(0, target.y - (5 + Math.random()) * f.h);
+            f.xVel = 0;
+            f.yVel = 0;
+            f.dashing = false;
+            f.slamming = false;
+            f.onGround = false;
+            f.coyoteTimer = 0;
+            this.particles.addShockwave(f.x + f.w / 2, f.y + f.h / 2, 30, "#b45cff", 3);
+        }
+    }
+
+    updateBolts() {
+        const bolts = this.combat.bolts;
+        for (let i = bolts.length - 1; i >= 0; i--) {
+            if (--bolts[i].life <= 0) bolts.splice(i, 1);
+        }
+    }
+
     // Difficulty multipliers only apply to the single opponent bot in solo modes.
     // Arena teams, local PvP and online play are always even.
     isDifficultyBot(f) {
@@ -780,6 +834,7 @@ export class Game {
     // damageMult = how hard the bot hits, damageTaken = how much damage the bot takes
     hitDamageMult(attacker, defender) {
         let mult = 1;
+        mult *= attacker.classDamageMult(); // invisible Shadow / big Buddha
         if (this.isDifficultyBot(attacker)) mult *= this.botParams.damageMult ?? 1;
         if (this.isDifficultyBot(defender)) mult *= this.botParams.damageTaken ?? 1;
         return mult;
@@ -816,7 +871,8 @@ export class Game {
             let minDist = Infinity;
             for (let j = 0; j < opposingTeam.length; j++) {
                 const t = opposingTeam[j];
-                if (t.hp > 0 && !t.invis) { // bots lose track of invisible Shadows
+                // Bots lose track of invisible Shadows, and can't see anyone while blinded
+                if (t.hp > 0 && !t.invis && fighter.blindT <= 0) {
                     const dist = Math.abs(t.x - fighter.x);
                     if (dist < minDist) {
                         minDist = dist;
@@ -906,9 +962,11 @@ export class Game {
             this.particles.triggerShake(4, 6);
 
             if (hitFighter._botAI) hitFighter._botAI.onHit();
+            const arrowShooter = this.allFighters.find(f => f.id === arrow.ownerId);
+            if (arrowShooter) this.combat.applyHitEffects(arrowShooter, hitFighter);
 
             if (this.isTiebreaker) {
-                const shooter = this.allFighters.find(f => f.id === arrow.ownerId);
+                const shooter = arrowShooter;
                 if (shooter) {
                     if (shooter.team === "red" || (!shooter.team && shooter === this.player)) {
                         this.tiebreakerRedDamage += arrowDmg;
@@ -959,6 +1017,9 @@ export class Game {
                 });
             }
         }
+
+        this.updateVoidWalkers();
+        this.updateBolts();
 
         // Particles & Camera Shake
         this.particles.update();
@@ -1164,17 +1225,30 @@ export class Game {
             } else {
                 this.renderer.drawFighter(f, botColor, isMultiplayer);
             }
+            this.renderer.drawStatusEffects(f);
             const indR = f.team === "red" ? 255 : (f.team === "blue" ? 30 : 46);
             const indG = f.team === "red" ? 71 : (f.team === "blue" ? 144 : 204);
             const indB = f.team === "red" ? 87 : (f.team === "blue" ? 255 : 113);
             this.renderer.drawOffscreenIndicator(f, indR, indG, indB, f.name);
         }
 
+        // Lightning class bolts
+        for (const bolt of this.combat.bolts) this.renderer.drawLightningBolt(bolt);
+
         // Render Flying Arrows
         this.arrowManager.draw(ctx);
 
         // Particle FX & floating combat text
         this.particles.draw(ctx);
+
+        // Blinded by a Potionmaster: everything goes dark except yourself
+        const viewer = this.localFighter;
+        if (viewer && viewer.blindT > 0 && viewer.hp > 0 && this.state === "play" && this.mode !== "pvp") {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.94)";
+            ctx.fillRect(-20, -20, this.renderer.width + 40, this.renderer.height + 40);
+            this.renderer.drawFighter(viewer, botColor, isMultiplayer);
+            this.renderer.drawStatusEffects(viewer);
+        }
 
         // HUD & Controls Hint with Score and Tiebreaker Status
         if (this.isTeamMatch) {

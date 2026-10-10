@@ -16,7 +16,7 @@ export const GAME_SPEED = 0.85;
 // Walking speed for human players (bots use speed / runSpeed in BOT_SETTINGS)
 export const PLAYER_MOVE_SPEED = 4.2;
 
-// Player classes (picked in the Inventory). Times are in frames (60 = 1 second at full speed).
+// Player classes (press I to pick). Times are in frames (60 = 1 second at full speed).
 export const CLASSES = {
     normal: {
         name: "Normal",
@@ -24,22 +24,58 @@ export const CLASSES = {
     },
     shadow: {
         name: "Shadow",
-        desc: "Turns invisible to enemies for 4 seconds every 15 seconds and moves 25% faster while invisible.",
-        invisCycle: 15 * 60,
-        invisTime: 4 * 60,
-        invisSpeedMult: 1.25
+        desc: "After 22s visible you turn invisible to enemies for 6s: 25% faster and 1.2x damage. When it ends you teleport back to your spawn.",
+        invisCycle: 28 * 60,
+        invisTime: 6 * 60,
+        invisSpeedMult: 1.25,
+        invisDamageMult: 1.2
     },
     lightning: {
         name: "Lightning",
-        desc: "Mace slams stun for the normal time plus a random 18-22 extra frames.",
-        stunBonusMin: 18,
-        stunBonusMax: 22
+        desc: "Mace slams stun 6-10 frames longer, and each slam has a 5% chance to call down a lightning bolt for +20 damage.",
+        stunBonusMin: 6,
+        stunBonusMax: 10,
+        boltChance: 0.05,
+        boltDamage: 20
     },
     energy: {
         name: "Energy",
-        desc: "Half-second dash cooldown and you can dash again in the air, but dashes do half damage.",
-        dashCooldown: 30,
-        dashDamageMult: 0.5
+        desc: "Dash again in the air (slightly weaker dashes). Speed boost starts at 25% and grows while you run (max 60%); jumping or standing still drains it.",
+        dashCooldown: 40,
+        dashDamageMult: 0.85,
+        boostStart: 0.25,
+        boostMax: 0.60,
+        runFrames: 20,
+        runGain: 0.01,
+        jumpLoss: 0.05,
+        stillFrames: 60,
+        stillLoss: 0.01
+    },
+    potion: {
+        name: "Potionmaster",
+        desc: "Your hits: 25% chance to slow (half speed, 3s), 20% to poison (1 damage every 0.5s for 2s), 5% to blind (2s).",
+        slowChance: 0.25, slowTime: 180,
+        poisonChance: 0.2, poisonTime: 120, poisonTick: 30,
+        blindChance: 0.05, blindTime: 120
+    },
+    pyro: {
+        name: "Pyro",
+        desc: "Your hits have a 25% chance to set enemies on fire for 5s: 2 damage per second, and each burn freezes them briefly.",
+        fireChance: 0.25, fireTime: 300, fireTick: 60, fireDamage: 2, fireFreeze: 15
+    },
+    void: {
+        name: "Void Walker",
+        desc: "Every 7-20 seconds you teleport high above a random enemy, ready to slam. No warning.",
+        minDelay: 420,
+        maxDelay: 1200
+    },
+    buddha: {
+        name: "Buddha",
+        desc: "Press B to grow big or shrink back. While big you deal 1.3x damage at the same speed, but your body is twice as big and much easier to hit.",
+        bigScale: 2,            // body (hitbox) is 2x as big...
+        attackReachScale: 1.4,  // ...but attacks only reach 1.4x as far
+        bigDamageMult: 1.3,
+        toggleCooldown: 30
     }
 };
 

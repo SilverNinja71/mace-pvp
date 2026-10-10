@@ -1,4 +1,5 @@
 import { GOOGLE_CLIENT_ID } from './config.js';
+import { WEAPON_TYPES } from './weapons.js';
 // ==========================================
 // SPEAR-MACE PVP - Authentication, Economy & Profile Manager
 // Handles Google Sign-In, Gold Currency, Minecraft Weapons Arsenal,
@@ -57,6 +58,19 @@ export class AuthManager {
                 if (!parsed.classId) parsed.classId = "normal";
                 if (!parsed.unlockedWeapons) parsed.unlockedWeapons = ["mace", "spear"];
                 if (!parsed.weaponUpgrades) parsed.weaponUpgrades = {};
+                // Weapons no longer have stats: refund any enchantment upgrades once
+                if (!parsed.upgradesRefunded) {
+                    let refund = 0;
+                    Object.values(WEAPON_TYPES).forEach(w => (w.upgrades || []).forEach(u => {
+                        const lvl = parsed.weaponUpgrades[u.id] || 0;
+                        refund += u.costPerLevel * lvl * (lvl + 1) / 2;
+                    }));
+                    parsed.gold = (parsed.gold || 0) + refund;
+                    parsed.weaponUpgrades = {};
+                    parsed.upgradesRefunded = true;
+                    // Save right away so a reload can never refund twice
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+                }
                 if (!parsed.skinId) parsed.skinId = "steve";
                 if (!parsed.unlockedSkins) parsed.unlockedSkins = ["steve", "alex"];
                 if (parsed.friends === undefined) {
