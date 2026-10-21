@@ -5,19 +5,19 @@
             "name": "Launch Mace PVP (Chrome)",
             "type": "chrome",
             "request": "launch",
-            "file": "${workspaceFolder}/mace-pvp/index.html"
+            "file": "${workspaceFolder}/index.html"
         },
         {
             "name": "Launch spear-mace-pvp.html (Standalone)",
             "type": "chrome",
             "request": "launch",
-            "file": "${workspaceFolder}/mace-pvp/spear-mace-pvp.html"
+            "file": "${workspaceFolder}/spear-mace-pvp.html"
         },
         {
             "name": "Launch Local Server (Python)",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/server.py",
+            "program": "${workspaceFolder}/../Empire/server.py",
             "console": "integratedTerminal"
         }
     ]

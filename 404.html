@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page not found</title>
+    <script>
+        // mace-pvp used to hold every game; each one now has its own repo (silverninja71.github.io/<game>/).
+        // Keep the rest of the address, so invite links (?room=CODE) and #mute still work.
+        (function () {
+            var MOVED = { "penguin-league": "Penguin-League", "mace-pvp": "mace-pvp", "penguin-life": "Penguin-Life", "penguintrack": "Penguin-Track", "battlegrounds": "Elite-Ball-Brawl" };
+            var m = location.pathname.match(/^(.*?\/)mace-pvp\/([^\/]+)(\/.*)?$/);
+            if (m && MOVED.hasOwnProperty(m[2])) location.replace(m[1] + MOVED[m[2]] + (m[3] || "/") + location.search + location.hash);
+        })();
+    </script>
+    <style>body { margin: 0; min-height: 100vh; background: #0b1433; color: #f3f6ff; font-family: "Trebuchet MS", sans-serif; display: flex; align-items: center; justify-content: center; text-align: center; padding: 16px; } a { color: #ffca28; }</style>
+</head>
+<body>
+    <p>Page not found. <a href="https://silverninja71.github.io/Empire/">Back to SilverNinja Games</a></p>
+</body>
+</html>

@@ -31,7 +31,7 @@ jobs:
           python-version: '3.11'
 
       - name: Build Bundles & Standalone HTML
-        run: python3 mace-pvp/build.py
+        run: python3 build.py
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

@@ -18,43 +18,15 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
       - name: Run Build Script
-        run: python3 mace-pvp/build.py
+        run: python3 build.py
 
       - name: Verify Generated Files Exist
         run: |
-          test -f mace-pvp/bundle.js || exit 1
-          test -f mace-pvp/spear-mace-pvp.html || exit 1
-          test -f penguin-life/index.html || exit 1
+          test -f bundle.js || exit 1
+          test -f spear-mace-pvp.html || exit 1
           echo "All builds verified successfully!"
 
-      - name: Verify mace-pvp Build Is Committed
+      - name: Verify Build Is Committed
         # bundle.js and spear-mace-pvp.html are shipped: they must match js/ after a rebuild.
-        run: git diff --exit-code -- mace-pvp/bundle.js mace-pvp/spear-mace-pvp.html
-
-      - name: Penguintrack Tests
-        run: node penguintrack/tools/test.mjs
-
-      - name: Build Penguin League
-        run: sh penguin-league/build.sh
-
-      - name: Verify Penguin League Build Is Committed
-        run: git diff --exit-code -- penguin-league/penguin-league.html penguin-league/index.html
-
-      - name: Penguin League Syntax Check
-        # Pulls the game module out of the built page and parses it (no browser needed).
-        run: |
-          python3 - <<'PY'
-          import re
-          html = open('penguin-league/penguin-league.html', encoding='utf-8').read()
-          m = re.search(r'<script type="module">\n(.*?)\n</script>', html, re.S)
-          if not m:
-              raise SystemExit('No game module found in penguin-league.html')
-          open('/tmp/penguin-league-game.mjs', 'w', encoding='utf-8').write(m.group(1))
-          PY
-          node --check /tmp/penguin-league-game.mjs
+        run: git diff --exit-code -- bundle.js spear-mace-pvp.html
