@@ -292,9 +292,9 @@
   // ===== pixel.js =====
   // ==========================================
   // SPEAR-MACE PVP - Pixel Art Helpers
-  // Procedurally generated Minecraft-style textures:
+  // Procedurally generated blocky pixel-art textures:
   //  - dirt background tile
-  //  - 8x8 block heads (Steve, Alex, mobs) + rotating 3D cube avatars
+  //  - 8x8 block heads (heroes, monsters) + rotating 3D cube avatars
   //  - 16x16 weapon icons
   // No external image assets are needed.
   // ==========================================
@@ -317,14 +317,14 @@
       return `rgb(${r},${g},${b})`;
   }
   
-  // Tiny deterministic noise so the textures feel like Minecraft blocks
+  // Tiny deterministic noise so the textures feel like hand-made blocks
   function pxNoise(x, y, seed = 0) {
       const v = Math.sin(x * 127.1 + y * 311.7 + seed * 74.7) * 43758.5453;
       return v - Math.floor(v);
   }
   
   // ------------------------------------------
-  // DIRT BACKGROUND WITH TOP GRASS (Minecraft dirt block)
+  // DIRT BACKGROUND WITH TOP GRASS
   // Clean pixel art without noisy random specks
   // ------------------------------------------
   // Page colors per theme (background behind the tile and the header bar)
@@ -358,7 +358,7 @@
       return c;
   }
   
-  function applyMinecraftBackground(theme = "space") {
+  function applyPageBackground(theme = "space") {
       const page = PAGE_THEMES[theme] || PAGE_THEMES.meadow;
       const rootStyle = document.documentElement.style;
       rootStyle.setProperty("--page-bg", page.bg);
@@ -450,7 +450,7 @@
           ctx.fillRect(7, 2, 2, 2);
           ctx.fillRect(12, 2, 2, 1);
       } else {
-          // Rich blocky dirt colors (clean Minecraft-style palette)
+          // Rich blocky dirt colors (clean pixel-art palette)
           ctx.fillStyle = "#866043"; // Main warm brown dirt
           ctx.fillRect(0, 0, 16, 16);
           
@@ -596,7 +596,7 @@
       return `<img class="px-head ${cls}" src="${t.front}" width="${size}" height="${size}" alt="" style="width:${size}px;height:${size}px">`;
   }
   
-  // Rotating 3D cube whose faces are the Minecraft head textures
+  // Rotating 3D cube whose faces are the block head textures
   function cubeHTML(skinId, size = 40) {
       const t = headTextures(skinId);
       const faces = ["front", "back", "left", "right", "top", "bottom"]
@@ -804,7 +804,7 @@
           osc.stop(now + 0.15);
       }
   
-      // Wind charge / Spear Dash swoosh
+      // Wind gust / Spear Dash swoosh
       playDash() {
           this.ensureContext();
           if (!this.ctx || this.muted) return;
@@ -1231,7 +1231,7 @@
           id: "spear",
           name: "Wind Spear",
           icon: "",
-          category: "Wind Charge",
+          category: "Wind Dash",
           desc: "Super-fast wind dashes on ground and air. Pierces through incoming attacks.",
           baseCost: 400,
           unlockedByDefault: true,
@@ -1697,8 +1697,8 @@
   
           const botNames = [
               "SkyCrusher", "BladeStorm", "VortexStriker", "ArrowFlurry",
-              "ObsidianGuard", "MaceBrawler", "WindStalker", "IronGolem",
-              "NetherReaper", "DiamondFighter"
+              "ObsidianGuard", "MaceBrawler", "WindStalker", "IronSentinel",
+              "MagmaReaper", "DiamondFighter"
           ];
           const weaponPool = ["mace", "spear", "sword", "fists", "bow"];
           const skinPool = ["steve", "alex", "noob", "man_face", "creeper", "enderman"];
@@ -1832,8 +1832,8 @@
   // ===== auth.js =====
   // ==========================================
   // SPEAR-MACE PVP - Authentication, Economy & Profile Manager
-  // Handles Google Sign-In, Gold Currency, Minecraft Weapons Arsenal,
-  // Block Face Skins (Steve, Alex, Roblox Noob, Man Face), and Arena RP
+  // Handles Google Sign-In, Gold Currency, Weapons Arsenal,
+  // Block Face Skins (Rook, Skye, Sunbolt, Dapper Duke, ...), and Arena RP
   // ==========================================
   
   const STORAGE_KEY = "spear_mace_user_profile";
@@ -1874,10 +1874,10 @@
   
   const RANDOM_USERNAMES = [
       "MaceMaster", "WindStriker", "AerialAce", "SlamLord",
-      "SkyCrusher", "BreezeDasher", "VortexKnight", "ImpactKing",
+      "SkyCrusher", "GaleDasher", "VortexKnight", "ImpactKing",
       "GravityDiver", "IronHammer", "SpearPhalanx", "ZenithSlammer",
       "HyperMace", "NimbusRider", "AeroDominator", "ApexBreaker",
-      "DiamondSlicer", "RobloxianPro", "NetherChampion", "EnderAce"
+      "DiamondSlicer", "CloudVaultPro", "MagmaChampion", "VoidAce"
   ];
   
   class AuthManager {
@@ -4529,13 +4529,13 @@
   // ===== renderer.js =====
   // ==========================================
   // SPEAR-MACE PVP - Canvas Renderer
-  // Supports Minecraft weapons (Mace, Spear, Sword, Fists, Bow),
-  // Block Face skins (Steve, Alex, Roblox Noob, Roblox Man Face, etc.),
+  // Supports weapons (Mace, Spear, Sword, Fists, Bow),
+  // Block Face skins (Rook, Skye, Sunbolt, Dapper Duke, etc.),
   // and multi-fighter 1v1, 2v2, 5v5 team arena matches
   // ==========================================
   
   
-  // Wind charge swirl over a geyser grate: 8 pixel offsets around a circle, stepped for a blocky spin
+  // Wind swirl over a geyser grate: 8 pixel offsets around a circle, stepped for a blocky spin
   const GEYSER_SWIRL = [[6, 0], [4, -4], [0, -6], [-4, -4], [-6, 0], [-4, 4], [0, 6], [4, 4]];
   
   class Renderer {
@@ -4891,7 +4891,7 @@
               g.fillRect(0, i * bandH, W, bandH + 1);
           });
   
-          // Square Minecraft sun with a soft halo ring
+          // Square pixel sun with a soft halo ring
           g.fillStyle = "#fff6b3";
           g.fillRect(636, 36, 56, 56);
           g.fillStyle = "#fffde6";
@@ -4941,7 +4941,7 @@
           return c;
       }
   
-      // Grass block top, dirt middle, stone with ores at the bottom (16px Minecraft blocks)
+      // Grass block top, dirt middle, stone with ores at the bottom (16px blocks)
       drawGrassFloor(ctx, p) {
           const B = 16;
           const dirtEnd = p.y + 30;
@@ -5240,7 +5240,7 @@
               ctx.fillStyle = "#7ff0ff";
               for (let s = 0; s < 4; s++) ctx.fillRect(g.x + 2 + s * 10, floor - 1, 6, 3);
   
-              // Little wind charge swirl hovering over the grate
+              // Little wind swirl hovering over the grate
               ctx.globalAlpha = 0.9;
               ctx.fillStyle = "#e8fbff";
               const step = Math.floor(t / 5);
@@ -5879,7 +5879,7 @@
           ctx.restore();
       }
   
-      // Blocky Minecraft-style lightning bolt from the sky down to (x, y)
+      // Blocky pixel-art lightning bolt from the sky down to (x, y)
       drawLightningBolt(bolt) {
           const ctx = this.ctx;
           const alpha = Math.min(1, bolt.life / 12);
@@ -5957,7 +5957,7 @@
           ctx.restore();
       }
   
-      // Minecraft-style 2-slot hotbar for the local player's loadout (bottom-left)
+      // Pixel-style 2-slot hotbar for the local player's loadout (bottom-left)
       drawLoadoutHotbar(f) {
           if (!f || !f.loadout || f.loadout.length < 2) return;
           const ctx = this.ctx;
@@ -7778,7 +7778,7 @@
           const ready = f.arrowCooldown <= 0;
           ctx.save();
           ctx.fillStyle = ready ? "rgba(255, 255, 255, 0.85)" : "rgba(255, 255, 255, 0.3)";
-          // Dotted pixel line, like a Minecraft bow trajectory hint
+          // Dotted pixel line showing the bow trajectory
           for (let d = 22; d <= 70; d += 8) {
               ctx.fillRect(Math.round(cx + Math.cos(angle) * d) - 1, Math.round(cy + Math.sin(angle) * d) - 1, 3, 3);
           }
@@ -8053,7 +8053,7 @@
                   const capitalized = this.currentBiome.charAt(0).toUpperCase() + this.currentBiome.slice(1);
                   this.themeBtn.textContent = `Theme: ${capitalized}`;
                   this.game.renderer.setBiome(this.currentBiome);
-                  applyMinecraftBackground(this.currentBiome);
+                  applyPageBackground(this.currentBiome);
                   sound.playClick();
               });
           }
@@ -8526,7 +8526,7 @@
       }
   
       // ==========================================
-      // UNIFIED MINECRAFT INVENTORY, CRAFTING, ARMORY & SKINS
+      // UNIFIED INVENTORY, CRAFTING, ARMORY & SKINS
       // ==========================================
   
       setupInventoryUI() {
@@ -10265,7 +10265,7 @@
           return;
       }
   
-      applyMinecraftBackground("space");
+      applyPageBackground("space");
   
       let ui = null;
   

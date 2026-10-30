@@ -11,7 +11,7 @@ import { auth, AVATAR_PRESETS, BLOCK_FACES, DEFAULT_HERO_NAME } from './auth.js'
 import { WEAPON_TYPES } from './weapons.js';
 import { arena, ARENA_TIERS } from './arena.js';
 import { online } from './online.js';
-import { cubeHTML, headImgHTML, presetHeadId, tierPipHTML, weaponIconHTML, applyMinecraftBackground } from './pixel.js';
+import { cubeHTML, headImgHTML, presetHeadId, tierPipHTML, weaponIconHTML, applyPageBackground } from './pixel.js';
 
 export class UIManager {
     constructor(game) {
@@ -215,7 +215,7 @@ export class UIManager {
                 const capitalized = this.currentBiome.charAt(0).toUpperCase() + this.currentBiome.slice(1);
                 this.themeBtn.textContent = `Theme: ${capitalized}`;
                 this.game.renderer.setBiome(this.currentBiome);
-                applyMinecraftBackground(this.currentBiome);
+                applyPageBackground(this.currentBiome);
                 sound.playClick();
             });
         }
@@ -688,7 +688,7 @@ export class UIManager {
     }
 
     // ==========================================
-    // UNIFIED MINECRAFT INVENTORY, CRAFTING, ARMORY & SKINS
+    // UNIFIED INVENTORY, CRAFTING, ARMORY & SKINS
     // ==========================================
 
     setupInventoryUI() {

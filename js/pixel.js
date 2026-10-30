@@ -1,8 +1,8 @@
 // ==========================================
 // SPEAR-MACE PVP - Pixel Art Helpers
-// Procedurally generated Minecraft-style textures:
+// Procedurally generated blocky pixel-art textures:
 //  - dirt background tile
-//  - 8x8 block heads (Steve, Alex, mobs) + rotating 3D cube avatars
+//  - 8x8 block heads (heroes, monsters) + rotating 3D cube avatars
 //  - 16x16 weapon icons
 // No external image assets are needed.
 // ==========================================
@@ -25,14 +25,14 @@ function pxShade(hex, amt) {
     return `rgb(${r},${g},${b})`;
 }
 
-// Tiny deterministic noise so the textures feel like Minecraft blocks
+// Tiny deterministic noise so the textures feel like hand-made blocks
 function pxNoise(x, y, seed = 0) {
     const v = Math.sin(x * 127.1 + y * 311.7 + seed * 74.7) * 43758.5453;
     return v - Math.floor(v);
 }
 
 // ------------------------------------------
-// DIRT BACKGROUND WITH TOP GRASS (Minecraft dirt block)
+// DIRT BACKGROUND WITH TOP GRASS
 // Clean pixel art without noisy random specks
 // ------------------------------------------
 // Page colors per theme (background behind the tile and the header bar)
@@ -66,7 +66,7 @@ function spaceTile() {
     return c;
 }
 
-export function applyMinecraftBackground(theme = "space") {
+export function applyPageBackground(theme = "space") {
     const page = PAGE_THEMES[theme] || PAGE_THEMES.meadow;
     const rootStyle = document.documentElement.style;
     rootStyle.setProperty("--page-bg", page.bg);
@@ -158,7 +158,7 @@ export function applyMinecraftBackground(theme = "space") {
         ctx.fillRect(7, 2, 2, 2);
         ctx.fillRect(12, 2, 2, 1);
     } else {
-        // Rich blocky dirt colors (clean Minecraft-style palette)
+        // Rich blocky dirt colors (clean pixel-art palette)
         ctx.fillStyle = "#866043"; // Main warm brown dirt
         ctx.fillRect(0, 0, 16, 16);
         
@@ -304,7 +304,7 @@ export function headImgHTML(skinId, size = 32, cls = "") {
     return `<img class="px-head ${cls}" src="${t.front}" width="${size}" height="${size}" alt="" style="width:${size}px;height:${size}px">`;
 }
 
-// Rotating 3D cube whose faces are the Minecraft head textures
+// Rotating 3D cube whose faces are the block head textures
 export function cubeHTML(skinId, size = 40) {
     const t = headTextures(skinId);
     const faces = ["front", "back", "left", "right", "top", "bottom"]

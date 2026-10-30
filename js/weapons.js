@@ -57,7 +57,7 @@ export const WEAPON_TYPES = {
         id: "spear",
         name: "Wind Spear",
         icon: "",
-        category: "Wind Charge",
+        category: "Wind Dash",
         desc: "Super-fast wind dashes on ground and air. Pierces through incoming attacks.",
         baseCost: 400,
         unlockedByDefault: true,

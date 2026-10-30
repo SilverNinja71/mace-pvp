@@ -1,14 +1,14 @@
 // ==========================================
 // SPEAR-MACE PVP - Canvas Renderer
-// Supports Minecraft weapons (Mace, Spear, Sword, Fists, Bow),
-// Block Face skins (Steve, Alex, Roblox Noob, Roblox Man Face, etc.),
+// Supports weapons (Mace, Spear, Sword, Fists, Bow),
+// Block Face skins (Rook, Skye, Sunbolt, Dapper Duke, etc.),
 // and multi-fighter 1v1, 2v2, 5v5 team arena matches
 // ==========================================
 
 import { ARENA_CONFIG, PLATFORMS_CONFIG, CLASSES, GAME_SPEED, PARRY_CONFIG } from './config.js';
 import { weaponIconURL } from './pixel.js';
 
-// Wind charge swirl over a geyser grate: 8 pixel offsets around a circle, stepped for a blocky spin
+// Wind swirl over a geyser grate: 8 pixel offsets around a circle, stepped for a blocky spin
 const GEYSER_SWIRL = [[6, 0], [4, -4], [0, -6], [-4, -4], [-6, 0], [-4, 4], [0, 6], [4, 4]];
 
 export class Renderer {
@@ -364,7 +364,7 @@ export class Renderer {
             g.fillRect(0, i * bandH, W, bandH + 1);
         });
 
-        // Square Minecraft sun with a soft halo ring
+        // Square pixel sun with a soft halo ring
         g.fillStyle = "#fff6b3";
         g.fillRect(636, 36, 56, 56);
         g.fillStyle = "#fffde6";
@@ -414,7 +414,7 @@ export class Renderer {
         return c;
     }
 
-    // Grass block top, dirt middle, stone with ores at the bottom (16px Minecraft blocks)
+    // Grass block top, dirt middle, stone with ores at the bottom (16px blocks)
     drawGrassFloor(ctx, p) {
         const B = 16;
         const dirtEnd = p.y + 30;
@@ -713,7 +713,7 @@ export class Renderer {
             ctx.fillStyle = "#7ff0ff";
             for (let s = 0; s < 4; s++) ctx.fillRect(g.x + 2 + s * 10, floor - 1, 6, 3);
 
-            // Little wind charge swirl hovering over the grate
+            // Little wind swirl hovering over the grate
             ctx.globalAlpha = 0.9;
             ctx.fillStyle = "#e8fbff";
             const step = Math.floor(t / 5);
@@ -1352,7 +1352,7 @@ export class Renderer {
         ctx.restore();
     }
 
-    // Blocky Minecraft-style lightning bolt from the sky down to (x, y)
+    // Blocky pixel-art lightning bolt from the sky down to (x, y)
     drawLightningBolt(bolt) {
         const ctx = this.ctx;
         const alpha = Math.min(1, bolt.life / 12);
@@ -1430,7 +1430,7 @@ export class Renderer {
         ctx.restore();
     }
 
-    // Minecraft-style 2-slot hotbar for the local player's loadout (bottom-left)
+    // Pixel-style 2-slot hotbar for the local player's loadout (bottom-left)
     drawLoadoutHotbar(f) {
         if (!f || !f.loadout || f.loadout.length < 2) return;
         const ctx = this.ctx;

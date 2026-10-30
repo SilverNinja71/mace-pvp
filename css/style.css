@@ -1,6 +1,6 @@
 /* ==========================================
    SPEAR-MACE PVP - Stylesheet
-   Minecraft-style retro / pixel theme
+   Blocky retro / pixel theme
    (flat colors only: no gradients, no rounded corners)
    ========================================== */
 
@@ -488,7 +488,7 @@ button.btn-can-buy:active,
 }
 
 /* ==========================================
-   HOME MENU OVERLAY (Minecraft dirt background)
+   HOME MENU OVERLAY (pixel dirt background)
    ========================================== */
 .overlay {
     position: absolute;
@@ -738,7 +738,7 @@ button.btn-can-buy:active,
 }
 
 /* ==========================================
-   MINECRAFT DUNGEONS HUB & INVENTORY UI
+   ARENA HUB & INVENTORY UI
    ========================================== */
 .home-dungeons-hub {
     width: 100%;
@@ -914,7 +914,7 @@ button.btn-can-buy:active,
 }
 
 /* ==========================================
-   MODALS (Minecraft inventory panel look)
+   MODALS (pixel inventory panel look)
    ========================================== */
 .modal-backdrop {
     position: absolute;

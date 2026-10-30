@@ -135,7 +135,7 @@ class SoundEngine {
         osc.stop(now + 0.15);
     }
 
-    // Wind charge / Spear Dash swoosh
+    // Wind gust / Spear Dash swoosh
     playDash() {
         this.ensureContext();
         if (!this.ctx || this.muted) return;

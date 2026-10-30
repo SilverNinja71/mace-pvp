@@ -2,8 +2,8 @@ import { GOOGLE_CLIENT_ID } from './config.js';
 import { WEAPON_TYPES } from './weapons.js';
 // ==========================================
 // SPEAR-MACE PVP - Authentication, Economy & Profile Manager
-// Handles Google Sign-In, Gold Currency, Minecraft Weapons Arsenal,
-// Block Face Skins (Steve, Alex, Roblox Noob, Man Face), and Arena RP
+// Handles Google Sign-In, Gold Currency, Weapons Arsenal,
+// Block Face Skins (Rook, Skye, Sunbolt, Dapper Duke, ...), and Arena RP
 // ==========================================
 
 const STORAGE_KEY = "spear_mace_user_profile";
@@ -44,10 +44,10 @@ export const BLOCK_FACES = [
 
 export const RANDOM_USERNAMES = [
     "MaceMaster", "WindStriker", "AerialAce", "SlamLord",
-    "SkyCrusher", "BreezeDasher", "VortexKnight", "ImpactKing",
+    "SkyCrusher", "GaleDasher", "VortexKnight", "ImpactKing",
     "GravityDiver", "IronHammer", "SpearPhalanx", "ZenithSlammer",
     "HyperMace", "NimbusRider", "AeroDominator", "ApexBreaker",
-    "DiamondSlicer", "RobloxianPro", "NetherChampion", "EnderAce"
+    "DiamondSlicer", "CloudVaultPro", "MagmaChampion", "VoidAce"
 ];
 
 export class AuthManager {
