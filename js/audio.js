@@ -18,6 +18,7 @@ class SoundEngine {
         this.masterGain = null;
         this.muted = false; // the player's own choice (M key / Sound button), saved
         this.platformMuted = false; // muted by the host site (CrazyGames SDK); never saved
+        this.hiddenMuted = false; // the tab/page is hidden; never saved
         this.volume = 0.7;
 
         // Restore mute preference if saved
@@ -35,7 +36,7 @@ class SoundEngine {
 
     // True when no sound should play: the player muted, or the site did
     get silent() {
-        return this.muted || this.platformMuted;
+        return this.muted || this.platformMuted || this.hiddenMuted;
     }
 
     applyGain() {
@@ -47,6 +48,12 @@ class SoundEngine {
     // CrazyGames' mute overrides the player's setting without changing it
     setPlatformMuted(muted) {
         this.platformMuted = !!muted;
+        this.applyGain();
+    }
+
+    // Silence everything while the page is hidden (another tab, minimized app)
+    setHiddenMuted(hidden) {
+        this.hiddenMuted = !!hidden;
         this.applyGain();
     }
 

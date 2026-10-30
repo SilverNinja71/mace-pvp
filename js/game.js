@@ -648,9 +648,17 @@ export class Game {
             const t = e.target;
             if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
 
-            const gameKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", "KeyW", "KeyS", "KeyA", "KeyD", "KeyF", "Slash"];
-            if (gameKeys.includes(e.code) && this.state !== "menu") {
-                e.preventDefault();
+            // Keep game keys from scrolling the page (or the site embedding the game).
+            // In menus, Space/Enter still press a focused button and arrows still
+            // work in a focused dropdown.
+            const gameKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", "KeyW", "KeyS", "KeyA", "KeyD", "KeyF", "KeyQ", "KeyB", "Slash", "ShiftLeft", "ShiftRight"];
+            const scrollKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", "PageUp", "PageDown", "Home", "End"];
+            if (this.state !== "menu") {
+                if (gameKeys.includes(e.code) || scrollKeys.includes(e.code)) e.preventDefault();
+            } else if (scrollKeys.includes(e.code)) {
+                const tag = t && t.tagName;
+                const usesKey = tag === "SELECT" || ((tag === "BUTTON" || tag === "A" || tag === "SUMMARY") && e.code === "Space");
+                if (!usesKey) e.preventDefault();
             }
 
             const alreadyDown = this.keys[e.code];
@@ -775,6 +783,32 @@ export class Game {
         window.addEventListener("keyup", (e) => {
             this.keys[e.code] = false;
             this.keys[e.keyCode] = false;
+        });
+
+        // Embedded in an iframe (CrazyGames and other portals): take keyboard focus
+        // on the first click/tap so the game keys reach the game, not the parent page.
+        let framed = false;
+        try { framed = window.self !== window.top; } catch (err) { framed = true; }
+        if (framed) {
+            try { window.focus(); } catch (err) { /* not allowed yet */ }
+            document.addEventListener("pointerdown", (e) => {
+                const t = e.target;
+                if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
+                try { window.focus(); } catch (err) { /* ignore */ }
+            }, true);
+        }
+
+        // Page hidden (other tab, minimized, phone locked): silence all audio and
+        // pause offline matches (the pause menu stays up until the player resumes).
+        // Online matches keep running because the host simulates for everyone.
+        document.addEventListener("visibilitychange", () => {
+            const hidden = document.visibilityState === "hidden";
+            sound.setHiddenMuted(hidden);
+            if (hidden) {
+                // drop held keys so nobody keeps running after coming back
+                this.keys = {};
+                if (this.state === "play" && this.mode !== "online") this.togglePause();
+            }
         });
 
         window.addEventListener("resize", () => {
