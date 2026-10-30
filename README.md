@@ -108,7 +108,7 @@ Spear-Mace PVP includes a dedicated player profile and authentication system:
   - Built-in zero-config Google authentication flow so you can test and link your Google profile instantly without requiring GCP console setup.
 - **Custom Gamer Tag**: Set a personalized display name (e.g. `MaceMaster_99`) or use the random tag generator (<kbd>🎲 Random</kbd>).
 - **In-Game Display**: Your chosen username appears on the match HUD, health bars, and game-over victory banners!
-- **8 Hero Avatars**: Pick between Rook, Skye, Mace Knight, Gale Rider, Magma Titan, Void Champion, Gold Paladin, or your synced Google profile picture.
+- **8 Hero Avatars**: Pick between Steve, Alex, Mace Knight, Gale Rider, Magma Titan, Void Champion, Gold Paladin, or your synced Google profile picture.
 - **Career Battle Record**: Tracks matches, wins, losses, win rate, total mace slams, peak slam damage, and win streaks with an XP leveling progression system saved locally in your browser.
 
 ---
@@ -123,7 +123,7 @@ Visit the **⚔️ Armory** to unlock and equip different sky-arena weapons:
   - *Enchantments*: **Lunge V** (dash damage), **Swift Tip IV** (velocity & range), **Gale Agility III** (lower cooldown).
 - **Diamond Sword**: Precision dash slice with a shorter dash distance but dealing **massive swift blade damage**.
   - *Enchantments*: **Keen Edge V** (slash damage), **Heavy Swing II** (launches opponents further), **Wide Arc III** (wider hit area).
-- **Bare Fists**: Brutal close-range knuckle punches with rapid combo recovery and high damage.
+- **Steve Bare Fists**: Brutal close-range knuckle punches with rapid combo recovery and high damage.
   - *Enchantments*: **Iron Knuckles II** (punch impact), **Rapid Jabs IV** (faster attack barrages), **Heavy Fist Impact III** (longer stun).
 - **Enchanted Bow**: Marksman bow that fires **ranged arrow projectiles** (space key to shoot) with gravity and reload cooldown.
   - *Enchantments*: **Draw Force V** (arrow damage), **Quick Draw IV** (rapid reload), **Impact Shot II** (arrow knockback).
@@ -132,11 +132,11 @@ Visit the **⚔️ Armory** to unlock and equip different sky-arena weapons:
 
 ## 🎭 Block Face Skins
 Equip original sky-arena characters in the **🎭 Skins Shop**:
-- **Rook** (Navy flight cap, brass goggles & red scarf) - default hero
-- **Skye** (Sky-blue hair & white tunic) - default hero
+- **Steve** (Navy flight cap, brass goggles & red scarf) - default hero
+- **Alex** (Sky-blue hair & white tunic) - default hero
 - **Sunbolt** (Tangerine brawler with a white headband)
 - **Dapper Duke** (Top hat, monocle & moustache)
-- **Moss Golem** (Mossy stone sentinel with amber eyes)
+- **Creeper** (Mossy stone lurker with amber eyes)
 - **Void Wraith** (Starry navy hood with a cyan visor)
 - **Skeleton Skull** (Bone white undead archer)
 - **Zombie** (Shambling undead brawler)
