@@ -411,7 +411,7 @@ export class UIManager {
         }
     }
 
-    // Always show the default hero's head (Rook, id "steve") as the cube avatar
+    // Always show the default hero's head (Steve) as the cube avatar
     avatarHeadId(user) {
         return "steve";
     }
@@ -455,7 +455,7 @@ export class UIManager {
         sound.playClick();
     }
 
-    // Player accounts shared with Penguin Life (../Empire/shared/accounts.js).
+    // Shared player accounts (../Empire/shared/accounts.js).
     // After logging in or out the page reloads so the right save is used.
     renderLocalAccount() {
         const box = document.getElementById("auth-local-section");
@@ -469,7 +469,7 @@ export class UIManager {
         const cur = A.current();
         if (cur) {
             box.innerHTML = `
-                <p class="auth-sec-desc">Logged in as <b>${esc(cur.username)}</b>. The same account works in Penguin Life, where you can also switch players or move to another device.</p>
+                <p class="auth-sec-desc">Logged in as <b>${esc(cur.username)}</b>. Your progress is saved to this account.</p>
                 <div class="username-input-row">
                     <button id="btn-acct-logout" class="btn-ctrl" type="button">Log Out</button>
                 </div>
@@ -482,7 +482,7 @@ export class UIManager {
             return;
         }
         box.innerHTML = `
-            <p class="auth-sec-desc">Playing as a guest. Log in, or make an account to keep your progress safe (it works in Penguin Life too).</p>
+            <p class="auth-sec-desc">Playing as a guest. Log in, or make an account to keep your progress safe.</p>
             <div class="username-input-row">
                 <input type="text" id="acct-name" class="auth-input" placeholder="Username" maxlength="16" autocomplete="username">
                 <input type="password" id="acct-pass" class="auth-input" placeholder="Password" maxlength="64" autocomplete="current-password">
@@ -610,11 +610,11 @@ export class UIManager {
         const avatarPickerContainer = document.getElementById("avatar-picker-grid");
         if (avatarPickerContainer) {
             avatarPickerContainer.innerHTML = `
-                <div class="avatar-choice selected" style="cursor:default;" title="Rook">
+                <div class="avatar-choice selected" style="cursor:default;" title="Steve">
                     ${cubeHTML("steve", 48)}
                 </div>
                 <div style="display:flex; flex-direction:column; justify-content:center; margin-left:10px;">
-                    <span style="font-weight:bold; color:var(--text-primary); font-size:14px;">Rook's Cube Head</span>
+                    <span style="font-weight:bold; color:var(--text-primary); font-size:14px;">Steve's Cube Head</span>
                     <span style="font-size:12px; color:var(--text-muted);">Hero Avatar</span>
                 </div>
             `;

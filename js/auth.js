@@ -3,25 +3,24 @@ import { WEAPON_TYPES } from './weapons.js';
 // ==========================================
 // SPEAR-MACE PVP - Authentication, Economy & Profile Manager
 // Handles Google Sign-In, Gold Currency, Weapons Arsenal,
-// Block Face Skins (Rook, Skye, Sunbolt, Dapper Duke, ...), and Arena RP
+// Block Face Skins (Steve, Alex, Sunbolt, Dapper Duke, ...), and Arena RP
 // ==========================================
 
 const STORAGE_KEY = "spear_mace_user_profile";
 
 // Name shown for a new guest player
-export const DEFAULT_HERO_NAME = "Rook";
-// Older versions used these names for the default player and the sample
-// friends/mail every new save starts with; saves still holding them are
-// renamed on load (ids and everything else in the save stay the same).
-const LEGACY_DEFAULT_NAMES = ["Steve"];
-const LEGACY_SAMPLE_NAMES = { AlexPro: "SkyePro", EndKnight: "VoidKnight", BreezeDasher: "GaleDasher" };
+export const DEFAULT_HERO_NAME = "Steve";
+// Older versions used these names for the sample friends/mail every new save
+// starts with; saves still holding them are renamed on load (ids and
+// everything else in the save stay the same).
+const LEGACY_SAMPLE_NAMES = { EndKnight: "VoidKnight", BreezeDasher: "GaleDasher" };
 
 // Internal ids ("steve", "alex", "noob", ...) are kept as-is because they are
 // stored in players' saves and sent to other players online; only the names
 // and the pixel art shown to players changed.
 export const AVATAR_PRESETS = [
-    { id: "steve", name: "Rook", icon: "", bg: "#2ecc71" },
-    { id: "alex", name: "Skye", icon: "", bg: "#e67e22" },
+    { id: "steve", name: "Steve", icon: "", bg: "#2ecc71" },
+    { id: "alex", name: "Alex", icon: "", bg: "#e67e22" },
     { id: "mace_knight", name: "Mace Knight", icon: "", bg: "#3498db" },
     { id: "wind_breeze", name: "Gale Rider", icon: "", bg: "#00d2d3" },
     { id: "nether_warrior", name: "Magma Titan", icon: "", bg: "#e74c3c" },
@@ -31,11 +30,11 @@ export const AVATAR_PRESETS = [
 ];
 
 export const BLOCK_FACES = [
-    { id: "steve", name: "Rook", icon: "", cost: 0, desc: "Sky-arena flier with a navy cap, brass goggles and a red scarf." },
-    { id: "alex", name: "Skye", icon: "", cost: 0, desc: "Wind-swept scout with sky-blue hair and a white tunic." },
+    { id: "steve", name: "Steve", icon: "", cost: 0, desc: "Sky-arena flier with a navy cap, brass goggles and a red scarf." },
+    { id: "alex", name: "Alex", icon: "", cost: 0, desc: "Wind-swept scout with sky-blue hair and a white tunic." },
     { id: "noob", name: "Sunbolt", icon: "", cost: 200, desc: "Tangerine brawler with a white headband and a big grin." },
     { id: "man_face", name: "Dapper Duke", icon: "", cost: 400, desc: "Top hat, monocle and a magnificent moustache." },
-    { id: "creeper", name: "Moss Golem", icon: "", cost: 500, desc: "Mossy stone sentinel with glowing amber eyes." },
+    { id: "creeper", name: "Creeper", icon: "", cost: 500, desc: "Mossy stone lurker with glowing amber eyes." },
     { id: "enderman", name: "Void Wraith", icon: "", cost: 600, desc: "Starry navy hood with a glowing cyan visor." },
     { id: "skeleton", name: "Skeleton Skull", icon: "", cost: 500, desc: "Bone white archer skull with hollow dark eyes." },
     { id: "zombie", name: "Zombie", icon: "", cost: 400, desc: "Shambling undead brawler with necrotic green skin." },
@@ -55,7 +54,7 @@ export class AuthManager {
         this.user = this.loadUser();
         this.listeners = [];
         this.initGoogleClient();
-        // Penguin Life shares this account: pick up gold/name changes made in its tab
+        // The shared account system may change this save from another tab: pick up gold/name changes
         if (typeof window !== "undefined") {
             window.addEventListener("storage", (e) => {
                 if (e.key === STORAGE_KEY && e.newValue) {
@@ -107,7 +106,7 @@ export class AuthManager {
                 if (!parsed.unlockedSkins) parsed.unlockedSkins = ["steve", "alex"];
                 if (parsed.friends === undefined) {
                     parsed.friends = [
-                        { id: "f1", name: "SkyePro", status: "online" },
+                        { id: "f1", name: "AlexPro", status: "online" },
                         { id: "f2", name: "VoidKnight", status: "in-match" },
                         { id: "f3", name: "GaleDasher", status: "offline" }
                     ];
@@ -115,7 +114,7 @@ export class AuthManager {
                 if (parsed.mail === undefined) {
                     parsed.mail = [
                         { id: "m1", from: "Arena Master", type: "gift", title: "Daily Combat Bounty", text: "Heroic work in the Arena! Claim your daily combat bounty.", giftGold: 100, claimed: false, date: "Today" },
-                        { id: "m2", from: "SkyePro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
+                        { id: "m2", from: "AlexPro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
                     ];
                 }
                 if (parsed.isMinor === undefined) parsed.isMinor = false;
@@ -148,13 +147,13 @@ export class AuthManager {
             arenaRP: 250,
             isMinor: false,
             friends: [
-                { id: "f1", name: "SkyePro", status: "online" },
+                { id: "f1", name: "AlexPro", status: "online" },
                 { id: "f2", name: "VoidKnight", status: "in-match" },
                 { id: "f3", name: "GaleDasher", status: "offline" }
             ],
             mail: [
                 { id: "m1", from: "Arena Master", type: "gift", title: "Daily Combat Bounty", text: "Heroic work in the Arena! Claim your daily combat bounty.", giftGold: 100, claimed: false, date: "Today" },
-                { id: "m2", from: "SkyePro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
+                { id: "m2", from: "AlexPro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
             ],
             stats: {
                 matches: 0,
@@ -171,12 +170,9 @@ export class AuthManager {
         };
     }
 
-    // Renames the old default player name and sample friend/mail names in a
-    // loaded save. A logged-in player account keeps its own name untouched.
+    // Renames the old sample friend/mail names in a loaded save.
+    // The player's own username is never changed.
     migrateLegacyNames(profile) {
-        const hasAccount = typeof window !== "undefined" && window.GameAccounts &&
-            typeof window.GameAccounts.current === "function" && window.GameAccounts.current();
-        if (!hasAccount && LEGACY_DEFAULT_NAMES.includes(profile.username)) profile.username = DEFAULT_HERO_NAME;
         if (Array.isArray(profile.friends)) {
             profile.friends.forEach(f => { if (f && LEGACY_SAMPLE_NAMES[f.name]) f.name = LEGACY_SAMPLE_NAMES[f.name]; });
         }
@@ -473,8 +469,7 @@ export class AuthManager {
         this.user.email = email;
         this.user.authProvider = "google";
         
-        if (!this.user.username || this.user.username === "Player" ||
-            this.user.username === DEFAULT_HERO_NAME || LEGACY_DEFAULT_NAMES.includes(this.user.username)) {
+        if (!this.user.username || this.user.username === "Player" || this.user.username === DEFAULT_HERO_NAME) {
             const suggested = (name || "Player").replace(/[^a-zA-Z0-9_]/g, "").substring(0, 14);
             this.user.username = suggested || "GooglePlayer";
         }

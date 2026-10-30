@@ -1,7 +1,7 @@
 // ==========================================
 // SPEAR-MACE PVP - Canvas Renderer
 // Supports weapons (Mace, Spear, Sword, Fists, Bow),
-// Block Face skins (Rook, Skye, Sunbolt, Dapper Duke, etc.),
+// Block Face skins (Steve, Alex, Sunbolt, Dapper Duke, etc.),
 // and multi-fighter 1v1, 2v2, 5v5 team arena matches
 // ==========================================
 
@@ -961,7 +961,7 @@ export class Renderer {
         // Skin ids are the stored save values; see BLOCK_FACES in auth.js for names
         const fx = (dx, fw) => (facing > 0 ? x + dx : x + w - dx - fw); // mirror a front-facing x offset
         if (skin === "alex") {
-            // Skye: side-swept sky-blue hair, white tunic with blue sash, charcoal pants
+            // Alex: side-swept sky-blue hair, white tunic with blue sash, charcoal pants
             ctx.fillStyle = "#f0c8a0"; // Skin
             ctx.fillRect(x, y + 4, w, 9);
             ctx.fillStyle = "#4aa3df"; // Hair
@@ -1024,7 +1024,7 @@ export class Renderer {
             ctx.fillStyle = "#f4f6f8"; // Shirt front
             ctx.fillRect(x + 10, y + 14, 5, 6);
         } else if (skin === "creeper") {
-            // Moss Golem: grey stone block, moss tufts on top, amber eyes, carved mouth
+            // Creeper: grey stone block, moss tufts on top, amber eyes, carved mouth
             ctx.fillStyle = "#7d8590";
             ctx.fillRect(x, y, w, h);
             ctx.fillStyle = "#6a717b"; // Stone cracks
@@ -1093,7 +1093,7 @@ export class Renderer {
             ctx.fillStyle = "#ffffff";
             ctx.fillRect(x + (facing > 0 ? 18 : 4), y + 10, 3, 2);
         } else {
-            // Default ("steve" id): Rook - navy flight cap, brass goggles, red scarf, blue jacket
+            // Default ("steve" id): Steve - navy flight cap, brass goggles, red scarf, blue jacket
             ctx.fillStyle = "#d9a47a"; // Skin
             ctx.fillRect(x, y + 5, w, 8);
             ctx.fillStyle = "#2f4a7a"; // Cap

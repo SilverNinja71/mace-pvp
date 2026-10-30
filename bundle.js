@@ -490,13 +490,13 @@
   // Pattern legend per skin palette: H hair, S skin, W white, P pupil, M mouth/nose, D dark
   // ------------------------------------------
   const PX_HEADS = {
-      // "steve" id: Rook - navy flight cap, brass goggles, red scarf
+      // "steve" id: Steve - navy flight cap, brass goggles, red scarf
       steve: {
           pal: { H: "#2f4a7a", G: "#b07a2a", L: "#ffd36b", S: "#d9a47a", E: "#1b1b2a", M: "#9a5a3c", R: "#c0392b" },
           hairRows: 3, hair: "#2f4a7a", skin: "#d9a47a",
           front: ["HHHHHHHH", "HHHHHHHH", "GLLGGLLG", "SSSSSSSS", "SESSSSES", "SSSSSSSS", "SSSMMSSS", "RRRRRRRR"]
       },
-      // "alex" id: Skye - side-swept sky-blue hair, amber eyes, freckles
+      // "alex" id: Alex - side-swept sky-blue hair, amber eyes, freckles
       alex: {
           pal: { H: "#4aa3df", S: "#f0c8a0", E: "#7a3e12", F: "#d98f6a", M: "#b4675a" },
           hairRows: 3, hair: "#4aa3df", skin: "#f0c8a0",
@@ -514,7 +514,7 @@
           hairRows: 2, hair: "#1f1f24", skin: "#f1cfa8",
           front: ["HHHHHHHH", "RRRRRRRR", "SSSSSSSS", "SDSSSODS", "SSSSSOOS", "SSSSSSSS", "SMMMMMMS", "MSSSSSSM"]
       },
-      // "creeper" id: Moss Golem - grey stone, moss tufts, amber eyes
+      // "creeper" id: Creeper - grey stone, moss tufts, amber eyes
       creeper: {
           pal: { T: "#7d8590", D: "#4d535c", G: "#5aa548", A: "#ffb238" },
           hairRows: 1, skin: "#7d8590", hair: "#5aa548",
@@ -1323,7 +1323,7 @@
   
       fists: {
           id: "fists",
-          name: "Bare Fists",
+          name: "Steve Bare Fists",
           icon: "",
           category: "Martial Brawl",
           desc: "Close-range punches: two hits win a fight, but they recharge slowly.",
@@ -1833,25 +1833,24 @@
   // ==========================================
   // SPEAR-MACE PVP - Authentication, Economy & Profile Manager
   // Handles Google Sign-In, Gold Currency, Weapons Arsenal,
-  // Block Face Skins (Rook, Skye, Sunbolt, Dapper Duke, ...), and Arena RP
+  // Block Face Skins (Steve, Alex, Sunbolt, Dapper Duke, ...), and Arena RP
   // ==========================================
   
   const STORAGE_KEY = "spear_mace_user_profile";
   
   // Name shown for a new guest player
-  const DEFAULT_HERO_NAME = "Rook";
-  // Older versions used these names for the default player and the sample
-  // friends/mail every new save starts with; saves still holding them are
-  // renamed on load (ids and everything else in the save stay the same).
-  const LEGACY_DEFAULT_NAMES = ["Steve"];
-  const LEGACY_SAMPLE_NAMES = { AlexPro: "SkyePro", EndKnight: "VoidKnight", BreezeDasher: "GaleDasher" };
+  const DEFAULT_HERO_NAME = "Steve";
+  // Older versions used these names for the sample friends/mail every new save
+  // starts with; saves still holding them are renamed on load (ids and
+  // everything else in the save stay the same).
+  const LEGACY_SAMPLE_NAMES = { EndKnight: "VoidKnight", BreezeDasher: "GaleDasher" };
   
   // Internal ids ("steve", "alex", "noob", ...) are kept as-is because they are
   // stored in players' saves and sent to other players online; only the names
   // and the pixel art shown to players changed.
   const AVATAR_PRESETS = [
-      { id: "steve", name: "Rook", icon: "", bg: "#2ecc71" },
-      { id: "alex", name: "Skye", icon: "", bg: "#e67e22" },
+      { id: "steve", name: "Steve", icon: "", bg: "#2ecc71" },
+      { id: "alex", name: "Alex", icon: "", bg: "#e67e22" },
       { id: "mace_knight", name: "Mace Knight", icon: "", bg: "#3498db" },
       { id: "wind_breeze", name: "Gale Rider", icon: "", bg: "#00d2d3" },
       { id: "nether_warrior", name: "Magma Titan", icon: "", bg: "#e74c3c" },
@@ -1861,11 +1860,11 @@
   ];
   
   const BLOCK_FACES = [
-      { id: "steve", name: "Rook", icon: "", cost: 0, desc: "Sky-arena flier with a navy cap, brass goggles and a red scarf." },
-      { id: "alex", name: "Skye", icon: "", cost: 0, desc: "Wind-swept scout with sky-blue hair and a white tunic." },
+      { id: "steve", name: "Steve", icon: "", cost: 0, desc: "Sky-arena flier with a navy cap, brass goggles and a red scarf." },
+      { id: "alex", name: "Alex", icon: "", cost: 0, desc: "Wind-swept scout with sky-blue hair and a white tunic." },
       { id: "noob", name: "Sunbolt", icon: "", cost: 200, desc: "Tangerine brawler with a white headband and a big grin." },
       { id: "man_face", name: "Dapper Duke", icon: "", cost: 400, desc: "Top hat, monocle and a magnificent moustache." },
-      { id: "creeper", name: "Moss Golem", icon: "", cost: 500, desc: "Mossy stone sentinel with glowing amber eyes." },
+      { id: "creeper", name: "Creeper", icon: "", cost: 500, desc: "Mossy stone lurker with glowing amber eyes." },
       { id: "enderman", name: "Void Wraith", icon: "", cost: 600, desc: "Starry navy hood with a glowing cyan visor." },
       { id: "skeleton", name: "Skeleton Skull", icon: "", cost: 500, desc: "Bone white archer skull with hollow dark eyes." },
       { id: "zombie", name: "Zombie", icon: "", cost: 400, desc: "Shambling undead brawler with necrotic green skin." },
@@ -1885,7 +1884,7 @@
           this.user = this.loadUser();
           this.listeners = [];
           this.initGoogleClient();
-          // Penguin Life shares this account: pick up gold/name changes made in its tab
+          // The shared account system may change this save from another tab: pick up gold/name changes
           if (typeof window !== "undefined") {
               window.addEventListener("storage", (e) => {
                   if (e.key === STORAGE_KEY && e.newValue) {
@@ -1937,7 +1936,7 @@
                   if (!parsed.unlockedSkins) parsed.unlockedSkins = ["steve", "alex"];
                   if (parsed.friends === undefined) {
                       parsed.friends = [
-                          { id: "f1", name: "SkyePro", status: "online" },
+                          { id: "f1", name: "AlexPro", status: "online" },
                           { id: "f2", name: "VoidKnight", status: "in-match" },
                           { id: "f3", name: "GaleDasher", status: "offline" }
                       ];
@@ -1945,7 +1944,7 @@
                   if (parsed.mail === undefined) {
                       parsed.mail = [
                           { id: "m1", from: "Arena Master", type: "gift", title: "Daily Combat Bounty", text: "Heroic work in the Arena! Claim your daily combat bounty.", giftGold: 100, claimed: false, date: "Today" },
-                          { id: "m2", from: "SkyePro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
+                          { id: "m2", from: "AlexPro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
                       ];
                   }
                   if (parsed.isMinor === undefined) parsed.isMinor = false;
@@ -1978,13 +1977,13 @@
               arenaRP: 250,
               isMinor: false,
               friends: [
-                  { id: "f1", name: "SkyePro", status: "online" },
+                  { id: "f1", name: "AlexPro", status: "online" },
                   { id: "f2", name: "VoidKnight", status: "in-match" },
                   { id: "f3", name: "GaleDasher", status: "offline" }
               ],
               mail: [
                   { id: "m1", from: "Arena Master", type: "gift", title: "Daily Combat Bounty", text: "Heroic work in the Arena! Claim your daily combat bounty.", giftGold: 100, claimed: false, date: "Today" },
-                  { id: "m2", from: "SkyePro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
+                  { id: "m2", from: "AlexPro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
               ],
               stats: {
                   matches: 0,
@@ -2001,12 +2000,9 @@
           };
       }
   
-      // Renames the old default player name and sample friend/mail names in a
-      // loaded save. A logged-in player account keeps its own name untouched.
+      // Renames the old sample friend/mail names in a loaded save.
+      // The player's own username is never changed.
       migrateLegacyNames(profile) {
-          const hasAccount = typeof window !== "undefined" && window.GameAccounts &&
-              typeof window.GameAccounts.current === "function" && window.GameAccounts.current();
-          if (!hasAccount && LEGACY_DEFAULT_NAMES.includes(profile.username)) profile.username = DEFAULT_HERO_NAME;
           if (Array.isArray(profile.friends)) {
               profile.friends.forEach(f => { if (f && LEGACY_SAMPLE_NAMES[f.name]) f.name = LEGACY_SAMPLE_NAMES[f.name]; });
           }
@@ -2303,8 +2299,7 @@
           this.user.email = email;
           this.user.authProvider = "google";
           
-          if (!this.user.username || this.user.username === "Player" ||
-              this.user.username === DEFAULT_HERO_NAME || LEGACY_DEFAULT_NAMES.includes(this.user.username)) {
+          if (!this.user.username || this.user.username === "Player" || this.user.username === DEFAULT_HERO_NAME) {
               const suggested = (name || "Player").replace(/[^a-zA-Z0-9_]/g, "").substring(0, 14);
               this.user.username = suggested || "GooglePlayer";
           }
@@ -4530,7 +4525,7 @@
   // ==========================================
   // SPEAR-MACE PVP - Canvas Renderer
   // Supports weapons (Mace, Spear, Sword, Fists, Bow),
-  // Block Face skins (Rook, Skye, Sunbolt, Dapper Duke, etc.),
+  // Block Face skins (Steve, Alex, Sunbolt, Dapper Duke, etc.),
   // and multi-fighter 1v1, 2v2, 5v5 team arena matches
   // ==========================================
   
@@ -5488,7 +5483,7 @@
           // Skin ids are the stored save values; see BLOCK_FACES in auth.js for names
           const fx = (dx, fw) => (facing > 0 ? x + dx : x + w - dx - fw); // mirror a front-facing x offset
           if (skin === "alex") {
-              // Skye: side-swept sky-blue hair, white tunic with blue sash, charcoal pants
+              // Alex: side-swept sky-blue hair, white tunic with blue sash, charcoal pants
               ctx.fillStyle = "#f0c8a0"; // Skin
               ctx.fillRect(x, y + 4, w, 9);
               ctx.fillStyle = "#4aa3df"; // Hair
@@ -5551,7 +5546,7 @@
               ctx.fillStyle = "#f4f6f8"; // Shirt front
               ctx.fillRect(x + 10, y + 14, 5, 6);
           } else if (skin === "creeper") {
-              // Moss Golem: grey stone block, moss tufts on top, amber eyes, carved mouth
+              // Creeper: grey stone block, moss tufts on top, amber eyes, carved mouth
               ctx.fillStyle = "#7d8590";
               ctx.fillRect(x, y, w, h);
               ctx.fillStyle = "#6a717b"; // Stone cracks
@@ -5620,7 +5615,7 @@
               ctx.fillStyle = "#ffffff";
               ctx.fillRect(x + (facing > 0 ? 18 : 4), y + 10, 3, 2);
           } else {
-              // Default ("steve" id): Rook - navy flight cap, brass goggles, red scarf, blue jacket
+              // Default ("steve" id): Steve - navy flight cap, brass goggles, red scarf, blue jacket
               ctx.fillStyle = "#d9a47a"; // Skin
               ctx.fillRect(x, y + 5, w, 8);
               ctx.fillStyle = "#2f4a7a"; // Cap
@@ -8249,7 +8244,7 @@
           }
       }
   
-      // Always show the default hero's head (Rook, id "steve") as the cube avatar
+      // Always show the default hero's head (Steve) as the cube avatar
       avatarHeadId(user) {
           return "steve";
       }
@@ -8293,7 +8288,7 @@
           sound.playClick();
       }
   
-      // Player accounts shared with Penguin Life (../Empire/shared/accounts.js).
+      // Shared player accounts (../Empire/shared/accounts.js).
       // After logging in or out the page reloads so the right save is used.
       renderLocalAccount() {
           const box = document.getElementById("auth-local-section");
@@ -8307,7 +8302,7 @@
           const cur = A.current();
           if (cur) {
               box.innerHTML = `
-                  <p class="auth-sec-desc">Logged in as <b>${esc(cur.username)}</b>. The same account works in Penguin Life, where you can also switch players or move to another device.</p>
+                  <p class="auth-sec-desc">Logged in as <b>${esc(cur.username)}</b>. Your progress is saved to this account.</p>
                   <div class="username-input-row">
                       <button id="btn-acct-logout" class="btn-ctrl" type="button">Log Out</button>
                   </div>
@@ -8320,7 +8315,7 @@
               return;
           }
           box.innerHTML = `
-              <p class="auth-sec-desc">Playing as a guest. Log in, or make an account to keep your progress safe (it works in Penguin Life too).</p>
+              <p class="auth-sec-desc">Playing as a guest. Log in, or make an account to keep your progress safe.</p>
               <div class="username-input-row">
                   <input type="text" id="acct-name" class="auth-input" placeholder="Username" maxlength="16" autocomplete="username">
                   <input type="password" id="acct-pass" class="auth-input" placeholder="Password" maxlength="64" autocomplete="current-password">
@@ -8448,11 +8443,11 @@
           const avatarPickerContainer = document.getElementById("avatar-picker-grid");
           if (avatarPickerContainer) {
               avatarPickerContainer.innerHTML = `
-                  <div class="avatar-choice selected" style="cursor:default;" title="Rook">
+                  <div class="avatar-choice selected" style="cursor:default;" title="Steve">
                       ${cubeHTML("steve", 48)}
                   </div>
                   <div style="display:flex; flex-direction:column; justify-content:center; margin-left:10px;">
-                      <span style="font-weight:bold; color:var(--text-primary); font-size:14px;">Rook's Cube Head</span>
+                      <span style="font-weight:bold; color:var(--text-primary); font-size:14px;">Steve's Cube Head</span>
                       <span style="font-size:12px; color:var(--text-muted);">Hero Avatar</span>
                   </div>
               `;
