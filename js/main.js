@@ -24,6 +24,11 @@ window.addEventListener("DOMContentLoaded", () => {
             if (ui) ui.onStateChanged(state);
             // CrazyGames gameplay tracking: only while a match is actually being played
             crazyGames.setGameplay(state === "play");
+            // CrazyGames "happytime": celebrate winning a ranked or online match
+            if (state === "gameover" && (game.mode === "arena" || game.mode === "online")) {
+                const me = game.localFighter || game.player;
+                if (me && game.winnerTeam === me.team) crazyGames.happytime();
+            }
         },
         onMuteToggled: (isMuted) => {
             if (ui) ui.updateMuteButton(isMuted);

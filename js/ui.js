@@ -1037,7 +1037,7 @@ export class UIManager {
         }
 
         online.onMessage = (msg, peer) => this.handleOnlineMessage(msg, peer);
-        online.onClosed = () => crazyGames.hideInviteButton();
+        online.onClosed = () => this.syncCrazyGamesRoom();
         online.onDisconnect = (reason, peer) => this.handleOnlineDisconnect(reason, peer);
 
         const btnOnlineStart = document.getElementById("btn-online-start");
@@ -1093,13 +1093,20 @@ export class UIManager {
         this.hostOnlineRoom(code);
     }
 
-    // CrazyGames invite button: shown while the host's lobby has free spots
-    updateInviteButton() {
-        const lobby = this.lobby;
-        const open = online.role === "host" && lobby && this.game.state === "menu"
-            && lobby.players.length < (lobby.matchType === "1v1" ? 2 : 4);
-        if (open) crazyGames.showInviteButton(lobby.code);
-        else crazyGames.hideInviteButton();
+    // CrazyGames room status: which room this player is in and whether friends can
+    // still join (lobby open with free spots). Matches in progress are not joinable.
+    syncCrazyGamesRoom() {
+        if (!crazyGames.active) return;
+        const inLobby = this.game.state === "menu";
+        if (online.role === "host" && this.lobby) {
+            const max = this.lobby.matchType === "1v1" ? 2 : 4;
+            crazyGames.updateRoom(this.lobby.code, inLobby && this.lobby.players.length < max);
+        } else if (online.role === "guest" && this.guestRoom && online.isConnected()) {
+            const g = this.guestRoom;
+            crazyGames.updateRoom(g.code, inLobby && g.matchType === "2v2" && g.players < 4);
+        } else {
+            crazyGames.leftRoom();
+        }
     }
 
     hostOnlineRoom(code) {
@@ -1112,18 +1119,24 @@ export class UIManager {
                 ? "Room open (1v1). Waiting for your friend to join..."
                 : `Room open (2v2)${note}. Invite up to 3 friends, then press Start. Empty spots become bots.`);
             this.renderOnlineLobby();
-            this.updateInviteButton();
+            this.syncCrazyGamesRoom();
         }, (err) => this.setOnlineStatus(err, true));
     }
 
     joinOnlineRoom(code) {
         this.lobby = null;
+        this.guestRoom = null;
         this.renderOnlineLobby();
         this.setOnlineStatus("Connecting to your friend's room...");
         online.join(code, () => {
+            this.guestRoom = { code, matchType: null, players: 0 };
             this.setOnlineStatus("Connected! Waiting for the host...");
             online.send({ t: "hello", info: this.myOnlineInfo() });
-        }, (err) => this.setOnlineStatus(err, true));
+            this.syncCrazyGamesRoom();
+        }, (err) => {
+            this.setOnlineStatus(err, true);
+            this.syncCrazyGamesRoom();
+        });
     }
 
     lobbyTeam(index) {
@@ -1203,7 +1216,6 @@ export class UIManager {
     hostStartOnlineMatch() {
         if (!this.lobby || online.role !== "host") return;
         if (this.lobby.matchType === "1v1" && this.lobby.players.length < 2) return;
-        crazyGames.hideInviteButton();
         const setup = this.buildOnlineSetup();
         setup.slots.forEach((slot, i) => {
             if (slot.peer && slot.peer !== "host") online.sendTo(slot.peer, { t: "start", setup, you: i });
@@ -1221,11 +1233,16 @@ export class UIManager {
             } else {
                 this.setOnlineStatus(`${(msg.info && msg.info.name) || "A friend"} joined. Press Start when everyone's in.`);
                 this.broadcastLobby();
-                this.updateInviteButton();
+                this.syncCrazyGamesRoom();
             }
         } else if (msg.t === "lobby" && online.role === "guest") {
             this.setOnlineStatus("You're in! Waiting for the host to start...");
             this.renderOnlineLobby(msg.players, msg.matchType);
+            if (this.guestRoom) {
+                this.guestRoom.matchType = msg.matchType;
+                this.guestRoom.players = Array.isArray(msg.players) ? msg.players.length : 0;
+                this.syncCrazyGamesRoom();
+            }
         } else if (msg.t === "full" && online.role === "guest") {
             this.setOnlineStatus("That room is full.", true);
         } else if (msg.t === "start" && online.role === "guest") {
@@ -1252,7 +1269,7 @@ export class UIManager {
             if (!inMatch) {
                 this.setOnlineStatus(`${name} left the room.`);
                 this.broadcastLobby();
-                this.updateInviteButton();
+                this.syncCrazyGamesRoom();
                 return;
             }
         }
@@ -1264,6 +1281,7 @@ export class UIManager {
             this.setOnlineStatus(reason, true);
             this.renderOnlineLobby();
         }
+        this.syncCrazyGamesRoom();
     }
 
     onlineRematch() {
@@ -2308,6 +2326,7 @@ export class UIManager {
     }
 
     onStateChanged(state) {
+        this.syncCrazyGamesRoom();
         if (state !== "gameover") this.hideResultsScreen();
         if (state === "menu") {
             if (this.menuOverlay) this.menuOverlay.classList.remove("hidden");

@@ -14,6 +14,8 @@ const CG_SDK_URL = "https://sdk.crazygames.com/crazygames-sdk-v3.js";
 const CG_INIT_TIMEOUT_MS = 6000;
 // Invite links carry the room code under this parameter name
 const CG_ROOM_PARAM = "roomId";
+// updateRoom/leftRoom calls are spaced at least this far apart
+const CG_ROOM_THROTTLE_MS = 300;
 
 class CrazyGamesBridge {
     constructor() {
@@ -22,7 +24,12 @@ class CrazyGamesBridge {
         this.environment = null;
         this.gameplayRunning = false;
         this.wantGameplay = false;
-        this.inviteRoom = null; // room code the invite button currently points to
+        this.room = null; // last room status sent to CrazyGames: { roomCode, joinable }
+        this.pendingRoom = null; // status waiting for the throttle: same shape, or "left"
+        this.roomTimer = null;
+        this.lastRoomCall = 0;
+        this.loadingReported = false;
+        this.loadingDone = false;
         this.ready = null; // Promise<boolean>, resolves once we know whether the SDK is active
     }
 
@@ -81,6 +88,19 @@ class CrazyGamesBridge {
 
     activate() {
         document.documentElement.classList.add("on-crazygames");
+        // Loading: the game itself boots without waiting for the SDK, so this
+        // covers the last bit (fonts and the first frames of the menu) and
+        // stops as soon as the menu is up and playable.
+        this.loadingStart();
+        const fontsReady = (document.fonts && document.fonts.ready) ? document.fonts.ready.catch(() => {}) : Promise.resolve();
+        const pageLoaded = document.readyState === "complete"
+            ? Promise.resolve()
+            : new Promise((r) => window.addEventListener("load", r, { once: true }));
+        Promise.all([fontsReady, pageLoaded]).then(() => {
+            const done = () => this.loadingStop(); // runs once
+            requestAnimationFrame(() => requestAnimationFrame(done));
+            setTimeout(done, 1500); // hidden tabs don't run animation frames
+        });
         // CrazyGames can mute the game (its own sound toggle). This silences all
         // game audio on top of the player's own Sound setting, which is left as is.
         const applyMute = (settings) => sound.setPlatformMuted(!!(settings && settings.muteAudio));
@@ -137,16 +157,79 @@ class CrazyGamesBridge {
             });
     }
 
-    showInviteButton(roomCode) {
+    // ---- Multiplayer room status (SDK.game.updateRoom / leftRoom) ----
+    // Tells CrazyGames which room the player is in and whether friends can still
+    // join it, which drives its own Join/Invite buttons. updateRoom takes
+    // { roomId, isJoinable, inviteParams } and only changes the fields given.
+    // The calls are coalesced (the SDK throttles them) and repeats are skipped.
+    // Older SDK builds without updateRoom fall back to the (deprecated) invite button.
+    updateRoom(roomCode, joinable) {
         if (!this.active || !roomCode) return;
-        this.inviteRoom = roomCode;
-        this.safe(() => this.sdk.game.showInviteButton({ [CG_ROOM_PARAM]: roomCode }));
+        this.pendingRoom = { roomCode, joinable: !!joinable };
+        this.flushRoomSoon();
     }
 
-    hideInviteButton() {
-        if (!this.active || !this.inviteRoom) return;
-        this.inviteRoom = null;
-        this.safe(() => this.sdk.game.hideInviteButton());
+    leftRoom() {
+        if (!this.active) return;
+        if (!this.room && !this.pendingRoom) return; // nothing was reported
+        this.pendingRoom = "left";
+        this.flushRoomSoon();
+    }
+
+    flushRoomSoon() {
+        if (this.roomTimer) return;
+        const wait = Math.max(0, (this.lastRoomCall || 0) + CG_ROOM_THROTTLE_MS - Date.now());
+        this.roomTimer = setTimeout(() => {
+            this.roomTimer = null;
+            this.flushRoom();
+        }, wait);
+    }
+
+    flushRoom() {
+        const next = this.pendingRoom;
+        this.pendingRoom = null;
+        if (!next || !this.active) return;
+        const game = this.sdk.game || {};
+        const hasRoomApi = typeof game.updateRoom === "function";
+        if (next === "left") {
+            if (!this.room) return;
+            this.room = null;
+            this.lastRoomCall = Date.now();
+            if (hasRoomApi && typeof game.leftRoom === "function") this.safe(() => game.leftRoom());
+            else if (typeof game.hideInviteButton === "function") this.safe(() => game.hideInviteButton());
+            return;
+        }
+        const prev = this.room;
+        if (prev && prev.roomCode === next.roomCode && prev.joinable === next.joinable) return;
+        this.room = next;
+        this.lastRoomCall = Date.now();
+        const inviteParams = { [CG_ROOM_PARAM]: next.roomCode };
+        if (hasRoomApi) {
+            this.safe(() => game.updateRoom({ roomId: next.roomCode, isJoinable: next.joinable, inviteParams }));
+        } else if (next.joinable && typeof game.showInviteButton === "function") {
+            this.safe(() => game.showInviteButton(inviteParams));
+        } else if (typeof game.hideInviteButton === "function") {
+            this.safe(() => game.hideInviteButton());
+        }
+    }
+
+    // ---- Loading and celebration events ----
+    loadingStart() {
+        if (!this.active || this.loadingReported) return;
+        this.loadingReported = true;
+        this.safe(() => this.sdk.game.loadingStart());
+    }
+
+    loadingStop() {
+        if (!this.active || !this.loadingReported || this.loadingDone) return;
+        this.loadingDone = true;
+        this.safe(() => this.sdk.game.loadingStop());
+    }
+
+    // A big win (ranked or online match). CrazyGames asks for this to be used sparingly.
+    happytime() {
+        if (!this.active) return;
+        this.safe(() => this.sdk.game.happytime());
     }
 
     // A friend accepts an invite while the game is already open. Not every SDK
