@@ -10,6 +10,11 @@
 // Leave empty to hide Google sign-in.
 export const GOOGLE_CLIENT_ID = "";
 
+// True when the page is served by CrazyGames (set by the small script at the top
+// of index.html, before anything else loads). Google sign-in, shared accounts and
+// the download button are switched off there.
+export const ON_CRAZYGAMES_HOST = typeof window !== "undefined" && window.SMP_ON_CRAZYGAMES === true;
+
 // Overall game speed (1 = original). Lower = everything moves a bit slower.
 export const GAME_SPEED = 0.85;
 

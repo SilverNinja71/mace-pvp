@@ -1,4 +1,4 @@
-import { GOOGLE_CLIENT_ID } from './config.js';
+import { GOOGLE_CLIENT_ID, ON_CRAZYGAMES_HOST } from './config.js';
 import { WEAPON_TYPES } from './weapons.js';
 // ==========================================
 // SPEAR-MACE PVP - Authentication, Economy & Profile Manager
@@ -391,7 +391,8 @@ export class AuthManager {
     // ==========================================
 
     isGoogleConfigured() {
-        return !!GOOGLE_CLIENT_ID;
+        // Google's sign-in popup is blocked inside CrazyGames' iframe
+        return !!GOOGLE_CLIENT_ID && !ON_CRAZYGAMES_HOST;
     }
 
     // The Google script loads asynchronously; wait for it, then initialize once

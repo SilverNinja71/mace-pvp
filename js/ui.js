@@ -11,6 +11,7 @@ import { auth, AVATAR_PRESETS, BLOCK_FACES, DEFAULT_HERO_NAME } from './auth.js'
 import { WEAPON_TYPES } from './weapons.js';
 import { arena, ARENA_TIERS } from './arena.js';
 import { online } from './online.js';
+import { crazyGames } from './crazygames.js';
 import { cubeHTML, headImgHTML, presetHeadId, tierPipHTML, weaponIconHTML, applyPageBackground } from './pixel.js';
 
 export class UIManager {
@@ -1301,6 +1302,18 @@ export class UIManager {
         } else {
             fallback();
         }
+    }
+
+    // ==========================================
+    // CRAZYGAMES (runs once the SDK reports we're on CrazyGames)
+    // ==========================================
+
+    setupCrazyGames() {
+        // Google sign-in and shared accounts are hidden there (index.html .cg-hide)
+        const profileBtn = document.getElementById("btn-user-profile");
+        if (profileBtn) profileBtn.title = "Player Profile";
+        const profileBanner = document.getElementById("home-profile-banner");
+        if (profileBanner) profileBanner.title = "Profile and career stats";
     }
 
     // If the page was opened from an invite link (?room=CODE), open the arena hub with the code filled in
