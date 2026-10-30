@@ -2,41 +2,52 @@ import { GOOGLE_CLIENT_ID } from './config.js';
 import { WEAPON_TYPES } from './weapons.js';
 // ==========================================
 // SPEAR-MACE PVP - Authentication, Economy & Profile Manager
-// Handles Google Sign-In, Gold Currency, Minecraft Weapons Arsenal,
-// Block Face Skins (Steve, Alex, Roblox Noob, Man Face), and Arena RP
+// Handles Google Sign-In, Gold Currency, Weapons Arsenal,
+// Block Face Skins (Rook, Skye, Sunbolt, Dapper Duke, ...), and Arena RP
 // ==========================================
 
 const STORAGE_KEY = "spear_mace_user_profile";
 
+// Name shown for a new guest player
+export const DEFAULT_HERO_NAME = "Rook";
+// Older versions used these names for the default player and the sample
+// friends/mail every new save starts with; saves still holding them are
+// renamed on load (ids and everything else in the save stay the same).
+const LEGACY_DEFAULT_NAMES = ["Steve"];
+const LEGACY_SAMPLE_NAMES = { AlexPro: "SkyePro", EndKnight: "VoidKnight", BreezeDasher: "GaleDasher" };
+
+// Internal ids ("steve", "alex", "noob", ...) are kept as-is because they are
+// stored in players' saves and sent to other players online; only the names
+// and the pixel art shown to players changed.
 export const AVATAR_PRESETS = [
-    { id: "steve", name: "Steve", icon: "", bg: "#2ecc71" },
-    { id: "alex", name: "Alex", icon: "", bg: "#e67e22" },
+    { id: "steve", name: "Rook", icon: "", bg: "#2ecc71" },
+    { id: "alex", name: "Skye", icon: "", bg: "#e67e22" },
     { id: "mace_knight", name: "Mace Knight", icon: "", bg: "#3498db" },
-    { id: "wind_breeze", name: "Wind Breeze", icon: "", bg: "#00d2d3" },
-    { id: "nether_warrior", name: "Nether Titan", icon: "", bg: "#e74c3c" },
-    { id: "ender_champion", name: "Ender Champion", icon: "", bg: "#9b59b6" },
+    { id: "wind_breeze", name: "Gale Rider", icon: "", bg: "#00d2d3" },
+    { id: "nether_warrior", name: "Magma Titan", icon: "", bg: "#e74c3c" },
+    { id: "ender_champion", name: "Void Champion", icon: "", bg: "#9b59b6" },
     { id: "golden_paladin", name: "Gold Paladin", icon: "", bg: "#f1c40f" },
     { id: "shadow_bot", name: "Shadow Rogue", icon: "", bg: "#2c3e50" }
 ];
 
 export const BLOCK_FACES = [
-    { id: "steve", name: "Minecraft Steve", icon: "", cost: 0, desc: "Classic Minecraft icon with cyan tee and brown hair." },
-    { id: "alex", name: "Minecraft Alex", icon: "", cost: 0, desc: "Classic Minecraft explorer with green tunic and orange hair." },
-    { id: "noob", name: "Roblox Noob", icon: "", cost: 200, desc: "The iconic yellow block head with simple smile and blue torso." },
-    { id: "man_face", name: "Roblox Man Face", icon: "", cost: 400, desc: "The legendary, unmistakable smirking block face." },
-    { id: "creeper", name: "Creeper Face", icon: "", cost: 500, desc: "Pixelated green explosive face with iconic black frown." },
-    { id: "enderman", name: "Enderman", icon: "", cost: 600, desc: "Deep dark obsidian head with glowing mystical violet eyes." },
+    { id: "steve", name: "Rook", icon: "", cost: 0, desc: "Sky-arena flier with a navy cap, brass goggles and a red scarf." },
+    { id: "alex", name: "Skye", icon: "", cost: 0, desc: "Wind-swept scout with sky-blue hair and a white tunic." },
+    { id: "noob", name: "Sunbolt", icon: "", cost: 200, desc: "Tangerine brawler with a white headband and a big grin." },
+    { id: "man_face", name: "Dapper Duke", icon: "", cost: 400, desc: "Top hat, monocle and a magnificent moustache." },
+    { id: "creeper", name: "Moss Golem", icon: "", cost: 500, desc: "Mossy stone sentinel with glowing amber eyes." },
+    { id: "enderman", name: "Void Wraith", icon: "", cost: 600, desc: "Starry navy hood with a glowing cyan visor." },
     { id: "skeleton", name: "Skeleton Skull", icon: "", cost: 500, desc: "Bone white archer skull with hollow dark eyes." },
-    { id: "zombie", name: "Zombie", icon: "", cost: 400, desc: "Infected undead Steve with necrotic green skin." },
+    { id: "zombie", name: "Zombie", icon: "", cost: 400, desc: "Shambling undead brawler with necrotic green skin." },
     { id: "diamond_knight", name: "Diamond Helmet", icon: "", cost: 800, desc: "Gleaming enchanted diamond helmet warrior." }
 ];
 
 export const RANDOM_USERNAMES = [
     "MaceMaster", "WindStriker", "AerialAce", "SlamLord",
-    "SkyCrusher", "BreezeDasher", "VortexKnight", "ImpactKing",
+    "SkyCrusher", "GaleDasher", "VortexKnight", "ImpactKing",
     "GravityDiver", "IronHammer", "SpearPhalanx", "ZenithSlammer",
     "HyperMace", "NimbusRider", "AeroDominator", "ApexBreaker",
-    "DiamondSlicer", "RobloxianPro", "NetherChampion", "EnderAce"
+    "DiamondSlicer", "CloudVaultPro", "MagmaChampion", "VoidAce"
 ];
 
 export class AuthManager {
@@ -96,18 +107,19 @@ export class AuthManager {
                 if (!parsed.unlockedSkins) parsed.unlockedSkins = ["steve", "alex"];
                 if (parsed.friends === undefined) {
                     parsed.friends = [
-                        { id: "f1", name: "AlexPro", status: "online" },
-                        { id: "f2", name: "EndKnight", status: "in-match" },
-                        { id: "f3", name: "BreezeDasher", status: "offline" }
+                        { id: "f1", name: "SkyePro", status: "online" },
+                        { id: "f2", name: "VoidKnight", status: "in-match" },
+                        { id: "f3", name: "GaleDasher", status: "offline" }
                     ];
                 }
                 if (parsed.mail === undefined) {
                     parsed.mail = [
                         { id: "m1", from: "Arena Master", type: "gift", title: "Daily Combat Bounty", text: "Heroic work in the Arena! Claim your daily combat bounty.", giftGold: 100, claimed: false, date: "Today" },
-                        { id: "m2", from: "AlexPro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
+                        { id: "m2", from: "SkyePro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
                     ];
                 }
                 if (parsed.isMinor === undefined) parsed.isMinor = false;
+                this.migrateLegacyNames(parsed);
                 return parsed;
             }
         } catch (e) {
@@ -117,7 +129,7 @@ export class AuthManager {
         // Default User
         return {
             id: "guest_" + Math.random().toString(36).substring(2, 8),
-            username: "Steve",
+            username: DEFAULT_HERO_NAME,
             email: null,
             avatarType: "preset",
             avatarVal: "steve",
@@ -136,13 +148,13 @@ export class AuthManager {
             arenaRP: 250,
             isMinor: false,
             friends: [
-                { id: "f1", name: "AlexPro", status: "online" },
-                { id: "f2", name: "EndKnight", status: "in-match" },
-                { id: "f3", name: "BreezeDasher", status: "offline" }
+                { id: "f1", name: "SkyePro", status: "online" },
+                { id: "f2", name: "VoidKnight", status: "in-match" },
+                { id: "f3", name: "GaleDasher", status: "offline" }
             ],
             mail: [
                 { id: "m1", from: "Arena Master", type: "gift", title: "Daily Combat Bounty", text: "Heroic work in the Arena! Claim your daily combat bounty.", giftGold: 100, claimed: false, date: "Today" },
-                { id: "m2", from: "AlexPro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
+                { id: "m2", from: "SkyePro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
             ],
             stats: {
                 matches: 0,
@@ -157,6 +169,20 @@ export class AuthManager {
                 bestStreak: 0
             }
         };
+    }
+
+    // Renames the old default player name and sample friend/mail names in a
+    // loaded save. A logged-in player account keeps its own name untouched.
+    migrateLegacyNames(profile) {
+        const hasAccount = typeof window !== "undefined" && window.GameAccounts &&
+            typeof window.GameAccounts.current === "function" && window.GameAccounts.current();
+        if (!hasAccount && LEGACY_DEFAULT_NAMES.includes(profile.username)) profile.username = DEFAULT_HERO_NAME;
+        if (Array.isArray(profile.friends)) {
+            profile.friends.forEach(f => { if (f && LEGACY_SAMPLE_NAMES[f.name]) f.name = LEGACY_SAMPLE_NAMES[f.name]; });
+        }
+        if (Array.isArray(profile.mail)) {
+            profile.mail.forEach(m => { if (m && LEGACY_SAMPLE_NAMES[m.from]) m.from = LEGACY_SAMPLE_NAMES[m.from]; });
+        }
     }
 
     saveUser() {
@@ -233,7 +259,7 @@ export class AuthManager {
     }
 
     getUsername() {
-        return this.user.username || "Steve";
+        return this.user.username || DEFAULT_HERO_NAME;
     }
 
     setUsername(newUsername) {
@@ -447,12 +473,13 @@ export class AuthManager {
         this.user.email = email;
         this.user.authProvider = "google";
         
-        if (!this.user.username || this.user.username === "Player" || this.user.username === "Steve") {
+        if (!this.user.username || this.user.username === "Player" ||
+            this.user.username === DEFAULT_HERO_NAME || LEGACY_DEFAULT_NAMES.includes(this.user.username)) {
             const suggested = (name || "Player").replace(/[^a-zA-Z0-9_]/g, "").substring(0, 14);
             this.user.username = suggested || "GooglePlayer";
         }
 
-        // Always keep Steve's head as avatar
+        // Always keep the default hero head as avatar
         this.user.avatarType = "preset";
         this.user.avatarVal = "steve";
         this.user.avatarUrl = null;

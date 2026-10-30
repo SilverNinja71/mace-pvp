@@ -1491,7 +1491,7 @@ export class Game {
         const ready = f.arrowCooldown <= 0;
         ctx.save();
         ctx.fillStyle = ready ? "rgba(255, 255, 255, 0.85)" : "rgba(255, 255, 255, 0.3)";
-        // Dotted pixel line, like a Minecraft bow trajectory hint
+        // Dotted pixel line showing the bow trajectory
         for (let d = 22; d <= 70; d += 8) {
             ctx.fillRect(Math.round(cx + Math.cos(angle) * d) - 1, Math.round(cy + Math.sin(angle) * d) - 1, 3, 3);
         }

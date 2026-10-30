@@ -7,11 +7,11 @@
 
 import { MODE_METADATA, BOT_SETTINGS, CLASSES, randomClassId } from './config.js';
 import { sound } from './audio.js';
-import { auth, AVATAR_PRESETS, BLOCK_FACES } from './auth.js';
+import { auth, AVATAR_PRESETS, BLOCK_FACES, DEFAULT_HERO_NAME } from './auth.js';
 import { WEAPON_TYPES } from './weapons.js';
 import { arena, ARENA_TIERS } from './arena.js';
 import { online } from './online.js';
-import { cubeHTML, headImgHTML, presetHeadId, tierPipHTML, weaponIconHTML, applyMinecraftBackground } from './pixel.js';
+import { cubeHTML, headImgHTML, presetHeadId, tierPipHTML, weaponIconHTML, applyPageBackground } from './pixel.js';
 
 export class UIManager {
     constructor(game) {
@@ -184,7 +184,7 @@ export class UIManager {
             this.updateMuteButton(sound.muted);
         }
 
-        // Theme / Biome Toggle (Overworld -> Nether -> End)
+        // Theme / Biome Toggle (Space -> Meadow -> Inferno -> Void)
         // Settings dropdown in the header
         const settingsBtn = document.getElementById("btn-settings");
         const settingsMenu = document.getElementById("settings-menu");
@@ -209,13 +209,13 @@ export class UIManager {
         this.currentBiome = "space";
         if (this.themeBtn) {
             this.themeBtn.addEventListener("click", () => {
-                const biomes = ["space", "overworld", "nether", "end"];
+                const biomes = ["space", "meadow", "inferno", "void"];
                 const nextIdx = (biomes.indexOf(this.currentBiome) + 1) % biomes.length;
                 this.currentBiome = biomes[nextIdx];
                 const capitalized = this.currentBiome.charAt(0).toUpperCase() + this.currentBiome.slice(1);
                 this.themeBtn.textContent = `Theme: ${capitalized}`;
                 this.game.renderer.setBiome(this.currentBiome);
-                applyMinecraftBackground(this.currentBiome);
+                applyPageBackground(this.currentBiome);
                 sound.playClick();
             });
         }
@@ -411,7 +411,7 @@ export class UIManager {
         }
     }
 
-    // Always show Steve's head as the cube avatar
+    // Always show the default hero's head (Rook, id "steve") as the cube avatar
     avatarHeadId(user) {
         return "steve";
     }
@@ -430,7 +430,7 @@ export class UIManager {
         const cube = document.getElementById("home-cube");
         if (cube) cube.innerHTML = cubeHTML(this.avatarHeadId(user), 56);
         const name = document.getElementById("hp-name");
-        if (name) name.textContent = user.username || "Steve";
+        if (name) name.textContent = user.username || DEFAULT_HERO_NAME;
     }
 
     updateHeaderProfileBadge(user) {
@@ -442,7 +442,7 @@ export class UIManager {
 
         this.userProfileBtn.innerHTML = `
             ${avatarHtml}
-            <span class="header-username">${user.username || "Steve"}</span>
+            <span class="header-username">${user.username || DEFAULT_HERO_NAME}</span>
             ${googleTag}
             <span class="header-level-badge">Lv.${user.level}</span>
         `;
@@ -575,7 +575,7 @@ export class UIManager {
         // Username Section
         const usernameInput = document.getElementById("input-username");
         const usernameFeedback = document.getElementById("username-feedback");
-        if (usernameInput) usernameInput.value = user.username || "Steve";
+        if (usernameInput) usernameInput.value = user.username || DEFAULT_HERO_NAME;
 
         const btnRandom = document.getElementById("btn-random-username");
         if (btnRandom) {
@@ -606,15 +606,15 @@ export class UIManager {
             };
         }
 
-        // Avatar Picker - Always Steve's Head
+        // Avatar Picker - always the default hero head
         const avatarPickerContainer = document.getElementById("avatar-picker-grid");
         if (avatarPickerContainer) {
             avatarPickerContainer.innerHTML = `
-                <div class="avatar-choice selected" style="cursor:default;" title="Minecraft Steve">
+                <div class="avatar-choice selected" style="cursor:default;" title="Rook">
                     ${cubeHTML("steve", 48)}
                 </div>
                 <div style="display:flex; flex-direction:column; justify-content:center; margin-left:10px;">
-                    <span style="font-weight:bold; color:var(--text-primary); font-size:14px;">Steve's Cube Head</span>
+                    <span style="font-weight:bold; color:var(--text-primary); font-size:14px;">Rook's Cube Head</span>
                     <span style="font-size:12px; color:var(--text-muted);">Hero Avatar</span>
                 </div>
             `;
@@ -688,7 +688,7 @@ export class UIManager {
     }
 
     // ==========================================
-    // UNIFIED MINECRAFT INVENTORY, CRAFTING, ARMORY & SKINS
+    // UNIFIED INVENTORY, CRAFTING, ARMORY & SKINS
     // ==========================================
 
     setupInventoryUI() {
@@ -1595,7 +1595,7 @@ export class UIManager {
         const botMeta = MODE_METADATA[modeKey] || { name: "Bot" };
 
         const blueTeam = [{
-            name: user.username || "Steve",
+            name: user.username || DEFAULT_HERO_NAME,
             skinId: user.skinId || "steve",
             weaponId: user.equippedWeapon || "mace",
             rank: `${userTier.name} (${user.arenaRP || 250} RP)`,
@@ -1917,7 +1917,7 @@ export class UIManager {
         const highest = this.game.highestJumper || p1;
         const isTiebreaker = this.game.isTiebreaker;
         const isPlayerWin = this.game.winnerTeam === (this.game.localFighter || p1).team;
-        let winner = this.game.winnerTeam === "blue" ? (p1.name || "Steve") : (p2.name || "Opponent");
+        let winner = this.game.winnerTeam === "blue" ? (p1.name || DEFAULT_HERO_NAME) : (p2.name || "Opponent");
         if (this.game.isTeamMatch) winner = this.game.winnerTeam === "blue" ? "Blue Team" : "Red Team";
         const rewardInfo = this.game.lastRewardInfo;
 

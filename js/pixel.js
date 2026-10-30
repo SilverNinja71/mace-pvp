@@ -1,8 +1,8 @@
 // ==========================================
 // SPEAR-MACE PVP - Pixel Art Helpers
-// Procedurally generated Minecraft-style textures:
+// Procedurally generated blocky pixel-art textures:
 //  - dirt background tile
-//  - 8x8 block heads (Steve, Alex, mobs) + rotating 3D cube avatars
+//  - 8x8 block heads (heroes, monsters) + rotating 3D cube avatars
 //  - 16x16 weapon icons
 // No external image assets are needed.
 // ==========================================
@@ -25,22 +25,22 @@ function pxShade(hex, amt) {
     return `rgb(${r},${g},${b})`;
 }
 
-// Tiny deterministic noise so the textures feel like Minecraft blocks
+// Tiny deterministic noise so the textures feel like hand-made blocks
 function pxNoise(x, y, seed = 0) {
     const v = Math.sin(x * 127.1 + y * 311.7 + seed * 74.7) * 43758.5453;
     return v - Math.floor(v);
 }
 
 // ------------------------------------------
-// DIRT BACKGROUND WITH TOP GRASS (Minecraft dirt block)
+// DIRT BACKGROUND WITH TOP GRASS
 // Clean pixel art without noisy random specks
 // ------------------------------------------
 // Page colors per theme (background behind the tile and the header bar)
 const PAGE_THEMES = {
     space: { bg: "#0a0f2c", header: "rgba(8, 12, 34, 0.94)", tileSize: "128px" },
-    overworld: { bg: "#4a3322", header: "rgba(30, 20, 15, 0.94)", tileSize: "64px" },
-    nether: { bg: "#3a0c10", header: "rgba(30, 8, 10, 0.94)", tileSize: "64px" },
-    end: { bg: "#1a1424", header: "rgba(14, 10, 22, 0.94)", tileSize: "64px" }
+    meadow: { bg: "#4a3322", header: "rgba(30, 20, 15, 0.94)", tileSize: "64px" },
+    inferno: { bg: "#3a0c10", header: "rgba(30, 8, 10, 0.94)", tileSize: "64px" },
+    void: { bg: "#1a1424", header: "rgba(14, 10, 22, 0.94)", tileSize: "64px" }
 };
 
 // Starry deep-space tile matching the cube globe logo
@@ -66,8 +66,8 @@ function spaceTile() {
     return c;
 }
 
-export function applyMinecraftBackground(theme = "space") {
-    const page = PAGE_THEMES[theme] || PAGE_THEMES.overworld;
+export function applyPageBackground(theme = "space") {
+    const page = PAGE_THEMES[theme] || PAGE_THEMES.meadow;
     const rootStyle = document.documentElement.style;
     rootStyle.setProperty("--page-bg", page.bg);
     rootStyle.setProperty("--header-bg", page.header);
@@ -80,8 +80,8 @@ export function applyMinecraftBackground(theme = "space") {
     const c = pxCanvas(16, 16);
     const ctx = c.getContext("2d");
     
-    if (theme === "nether") {
-        // Netherrack with Crimson Nylium top
+    if (theme === "inferno") {
+        // Red rock with a crimson moss top
         ctx.fillStyle = "#681b22"; // Rich dark crimson base
         ctx.fillRect(0, 0, 16, 16);
 
@@ -112,53 +112,53 @@ export function applyMinecraftBackground(theme = "space") {
         ctx.fillRect(14, 10, 1, 1);
         ctx.fillRect(7, 14, 1, 1);
 
-        // Crimson Nylium top edge
+        // Crimson moss top edge
         ctx.fillStyle = "#a81932";
         ctx.fillRect(0, 0, 16, 2);
         ctx.fillStyle = "#cf2646";
         ctx.fillRect(2, 2, 2, 1);
         ctx.fillRect(7, 2, 2, 2);
         ctx.fillRect(12, 2, 2, 1);
-    } else if (theme === "end") {
-        // End Stone with Purpur trim
-        ctx.fillStyle = "#ded99f"; // Creamy pale sulfur stone
+    } else if (theme === "void") {
+        // Moonstone with a teal crystal trim
+        ctx.fillStyle = "#b9b4d6"; // Pale lavender moonstone
         ctx.fillRect(0, 0, 16, 16);
 
         // Dark pitted craters
-        ctx.fillStyle = "#b8b072";
+        ctx.fillStyle = "#9a94bd";
         ctx.fillRect(1, 4, 3, 3);
         ctx.fillRect(8, 6, 4, 3);
         ctx.fillRect(3, 11, 4, 3);
         ctx.fillRect(11, 12, 3, 3);
 
-        ctx.fillStyle = "#968e52";
+        ctx.fillStyle = "#7c76a0";
         ctx.fillRect(2, 5, 2, 2);
         ctx.fillRect(9, 7, 2, 2);
         ctx.fillRect(4, 12, 2, 2);
         ctx.fillRect(12, 13, 2, 2);
 
         // Deep pores
-        ctx.fillStyle = "#777138";
+        ctx.fillStyle = "#5e5882";
         ctx.fillRect(2, 6, 1, 1);
         ctx.fillRect(10, 8, 1, 1);
         ctx.fillRect(5, 13, 1, 1);
 
         // Pale creamy highlights
-        ctx.fillStyle = "#f2eed0";
+        ctx.fillStyle = "#dcd8f0";
         ctx.fillRect(6, 2, 3, 2);
         ctx.fillRect(13, 5, 2, 2);
         ctx.fillRect(0, 9, 2, 2);
         ctx.fillRect(8, 11, 2, 2);
 
-        // Purpur top cap
-        ctx.fillStyle = "#985f95";
+        // Teal crystal top cap
+        ctx.fillStyle = "#2f9fa8";
         ctx.fillRect(0, 0, 16, 2);
-        ctx.fillStyle = "#6d3b6a";
+        ctx.fillStyle = "#1f6f78";
         ctx.fillRect(2, 2, 2, 1);
         ctx.fillRect(7, 2, 2, 2);
         ctx.fillRect(12, 2, 2, 1);
     } else {
-        // Rich blocky dirt colors (clean Minecraft-style palette)
+        // Rich blocky dirt colors (clean pixel-art palette)
         ctx.fillStyle = "#866043"; // Main warm brown dirt
         ctx.fillRect(0, 0, 16, 16);
         
@@ -198,35 +198,41 @@ export function applyMinecraftBackground(theme = "space") {
 // Pattern legend per skin palette: H hair, S skin, W white, P pupil, M mouth/nose, D dark
 // ------------------------------------------
 const PX_HEADS = {
+    // "steve" id: Rook - navy flight cap, brass goggles, red scarf
     steve: {
-        pal: { H: "#3b2a17", S: "#c4936a", W: "#ffffff", P: "#4a3f9e", M: "#7a4d30" },
-        hairRows: 3, hair: "#3b2a17", skin: "#c4936a",
-        front: ["HHHHHHHH", "HHHHHHHH", "HSSSSSSH", "SSSSSSSS", "SWPSSPWS", "SSSMMSSS", "SSMMMMSS", "SSMSSMSS"]
+        pal: { H: "#2f4a7a", G: "#b07a2a", L: "#ffd36b", S: "#d9a47a", E: "#1b1b2a", M: "#9a5a3c", R: "#c0392b" },
+        hairRows: 3, hair: "#2f4a7a", skin: "#d9a47a",
+        front: ["HHHHHHHH", "HHHHHHHH", "GLLGGLLG", "SSSSSSSS", "SESSSSES", "SSSSSSSS", "SSSMMSSS", "RRRRRRRR"]
     },
+    // "alex" id: Skye - side-swept sky-blue hair, amber eyes, freckles
     alex: {
-        pal: { H: "#c9792a", S: "#e6b48f", W: "#ffffff", P: "#3f8a3f", M: "#b9826b" },
-        hairRows: 3, hair: "#c9792a", skin: "#e6b48f",
-        front: ["HHHHHHHH", "HHHHHHHH", "HHSSSSHH", "HSSSSSSH", "SWPSSPWS", "SSSSSSSS", "SSSMMSSS", "SSSSSSSS"]
+        pal: { H: "#4aa3df", S: "#f0c8a0", E: "#7a3e12", F: "#d98f6a", M: "#b4675a" },
+        hairRows: 3, hair: "#4aa3df", skin: "#f0c8a0",
+        front: ["HHHHHHHH", "HHHHHHHH", "HSSSHHHH", "HSSSSSSH", "SESSSSES", "SFSSSSFS", "SSSMMSSS", "SSSSSSSS"]
     },
+    // "noob" id: Sunbolt - tangerine head, white headband, open grin
     noob: {
-        pal: { S: "#f2d21f", D: "#222222" },
-        hairRows: 0, skin: "#f2d21f", hair: "#f2d21f",
-        front: ["SSSSSSSS", "SSSSSSSS", "SSSSSSSS", "SSDSSDSS", "SSSSSSSS", "SDSSSSDS", "SSDDDDSS", "SSSSSSSS"]
+        pal: { S: "#f39c12", W: "#fbfbf2", D: "#2b1a0e", M: "#8e2b1c" },
+        hairRows: 0, skin: "#f39c12", hair: "#f39c12",
+        front: ["SSSSSSSS", "WWWWWWWW", "SSSSSSSS", "SDDSSDDS", "SSSSSSSS", "SSSSSSSS", "SMMMMMMS", "SSMMMMSS"]
     },
+    // "man_face" id: Dapper Duke - top hat, monocle, moustache
     man_face: {
-        pal: { H: "#2d2d2d", S: "#e8c690", D: "#111111" },
-        hairRows: 2, hair: "#2d2d2d", skin: "#e8c690",
-        front: ["HHHHHHHH", "HHHHHHHH", "SSSSSSSS", "SDDSSDDS", "SSDSSSDS", "SSSSSSSS", "SSSSDDDS", "SSSSSSSS"]
+        pal: { H: "#1f1f24", R: "#a3242f", S: "#f1cfa8", D: "#2a1d14", O: "#e3b23c", M: "#5a3a22" },
+        hairRows: 2, hair: "#1f1f24", skin: "#f1cfa8",
+        front: ["HHHHHHHH", "RRRRRRRR", "SSSSSSSS", "SDSSSODS", "SSSSSOOS", "SSSSSSSS", "SMMMMMMS", "MSSSSSSM"]
     },
+    // "creeper" id: Moss Golem - grey stone, moss tufts, amber eyes
     creeper: {
-        pal: { G: "#4fae3c", B: "#1a1a1a", L: "#3d8a2e" },
-        hairRows: 0, skin: "#4fae3c", hair: "#4fae3c",
-        front: ["GGLGGGLG", "GBBGGBBG", "GBBGGBBG", "GGGBBGGG", "GGBBBBGG", "GLBBBBGG", "GGBGGBGG", "GGGGLGGG"]
+        pal: { T: "#7d8590", D: "#4d535c", G: "#5aa548", A: "#ffb238" },
+        hairRows: 1, skin: "#7d8590", hair: "#5aa548",
+        front: ["GGGTTGGG", "GTTTTTTG", "TTTTTTTT", "TAATTAAT", "TTTTTTTT", "TTTDTTTT", "TDDDDDDT", "TTGTTTGT"]
     },
+    // "enderman" id: Void Wraith - starry navy hood, cyan visor
     enderman: {
-        pal: { K: "#16101c", P: "#e07cff", Q: "#ffffff" },
-        hairRows: 0, skin: "#16101c", hair: "#16101c",
-        front: ["KKKKKKKK", "KKKKKKKK", "KKKKKKKK", "KKKKKKKK", "KQPKKPQK", "KKKKKKKK", "KKKKKKKK", "KKKKKKKK"]
+        pal: { K: "#1b2147", N: "#2b3470", C: "#5ef2ff", s: "#9fb0ff" },
+        hairRows: 0, skin: "#1b2147", hair: "#2b3470",
+        front: ["NNNNNNNN", "NKKKKsKN", "NKsKKKKN", "NKKKKKKN", "NCCCCCCN", "NKKKKKKN", "NKKsKKKN", "NKKKKKKN"]
     },
     skeleton: {
         pal: { S: "#d6d6d6", L: "#bdbdbd", D: "#4a4a4a" },
@@ -298,7 +304,7 @@ export function headImgHTML(skinId, size = 32, cls = "") {
     return `<img class="px-head ${cls}" src="${t.front}" width="${size}" height="${size}" alt="" style="width:${size}px;height:${size}px">`;
 }
 
-// Rotating 3D cube whose faces are the Minecraft head textures
+// Rotating 3D cube whose faces are the block head textures
 export function cubeHTML(skinId, size = 40) {
     const t = headTextures(skinId);
     const faces = ["front", "back", "left", "right", "top", "bottom"]

@@ -1,14 +1,14 @@
 // ==========================================
 // SPEAR-MACE PVP - Canvas Renderer
-// Supports Minecraft weapons (Mace, Spear, Sword, Fists, Bow),
-// Block Face skins (Steve, Alex, Roblox Noob, Roblox Man Face, etc.),
+// Supports weapons (Mace, Spear, Sword, Fists, Bow),
+// Block Face skins (Rook, Skye, Sunbolt, Dapper Duke, etc.),
 // and multi-fighter 1v1, 2v2, 5v5 team arena matches
 // ==========================================
 
 import { ARENA_CONFIG, PLATFORMS_CONFIG, CLASSES, GAME_SPEED, PARRY_CONFIG } from './config.js';
 import { weaponIconURL } from './pixel.js';
 
-// Wind charge swirl over a geyser grate: 8 pixel offsets around a circle, stepped for a blocky spin
+// Wind swirl over a geyser grate: 8 pixel offsets around a circle, stepped for a blocky spin
 const GEYSER_SWIRL = [[6, 0], [4, -4], [0, -6], [-4, -4], [-6, 0], [-4, 4], [0, 6], [4, 4]];
 
 export class Renderer {
@@ -71,9 +71,9 @@ export class Renderer {
                     ctx.fillRect(Math.round(sx - k * 9), Math.round(sy - k * 3), 4, 2);
                 }
             }
-        } else if (biome === "nether") {
-            if (!this.netherLayer) this.netherLayer = this.buildNetherLayer();
-            ctx.drawImage(this.netherLayer, 0, 0, this.width, this.height);
+        } else if (biome === "inferno") {
+            if (!this.infernoLayer) this.infernoLayer = this.buildInfernoLayer();
+            ctx.drawImage(this.infernoLayer, 0, 0, this.width, this.height);
 
             // Lava surface shimmer (moving bright pixels)
             ctx.fillStyle = "#ffb43a";
@@ -88,9 +88,9 @@ export class Renderer {
                 ctx.fillStyle = i % 3 ? "#ff7b25" : "#ffd36b";
                 ctx.fillRect(Math.round(ax), Math.round(ay), 2, 2);
             }
-        } else if (biome === "end") {
-            if (!this.endLayer) this.endLayer = this.buildEndLayer();
-            ctx.drawImage(this.endLayer, 0, 0, this.width, this.height);
+        } else if (biome === "void") {
+            if (!this.voidLayer) this.voidLayer = this.buildVoidLayer();
+            ctx.drawImage(this.voidLayer, 0, 0, this.width, this.height);
 
             // Twinkling stars
             for (let i = 0; i < 40; i++) {
@@ -98,18 +98,22 @@ export class Renderer {
                 ctx.fillStyle = i % 4 ? "#d8c8ff" : "#ffffff";
                 ctx.fillRect((i * 97) % this.width, (i * 53) % 200, 2, 2);
             }
-            // End crystals pulsing on the obsidian pillars
-            const pulse = Math.sin(this.frameCount * 0.08) > 0;
-            for (const [cx, cy] of [[112, 128], [345, 78], [628, 148]]) {
-                ctx.fillStyle = pulse ? "#ff8cff" : "#c04ad8";
-                ctx.fillRect(cx - 7, cy - 7, 14, 14);
+            // Teal crystals bobbing above the stone spires
+            const bob = Math.round(Math.sin(this.frameCount * 0.05) * 3);
+            const glow = Math.sin(this.frameCount * 0.08) > 0;
+            for (const [cx, cy] of [[112, 112], [345, 60], [628, 132]]) {
+                const ty = cy + bob;
+                ctx.fillStyle = glow ? "#7ff3f9" : "#3fc1c9";
+                ctx.fillRect(cx - 2, ty - 10, 4, 20);
+                ctx.fillRect(cx - 4, ty - 6, 8, 12);
+                ctx.fillRect(cx - 6, ty - 2, 12, 4);
                 ctx.fillStyle = "#ffffff";
-                ctx.fillRect(cx - 2, cy - 2, 4, 4);
+                ctx.fillRect(cx - 1, ty - 6, 2, 4);
             }
-                } else {
-            // Overworld: static layers are painted once and cached
-            if (!this.overworldLayer) this.overworldLayer = this.buildOverworldLayer();
-            ctx.drawImage(this.overworldLayer, 0, 0, this.width, this.height);
+        } else {
+            // Meadow: static layers are painted once and cached
+            if (!this.meadowLayer) this.meadowLayer = this.buildMeadowLayer();
+            ctx.drawImage(this.meadowLayer, 0, 0, this.width, this.height);
 
             // Drifting blocky clouds (two-tone, pixel-snapped)
             for (const cloud of this.clouds) {
@@ -261,8 +265,8 @@ export class Renderer {
         ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
     }
 
-    // Nether backdrop: crimson cave ceiling, glowstone, netherrack cliffs, lava sea
-    buildNetherLayer() {
+    // Inferno backdrop: crimson cave ceiling, glowing crystal clusters, red rock cliffs, lava sea
+    buildInfernoLayer() {
         const c = document.createElement("canvas");
         c.width = this.width;
         c.height = this.height;
@@ -274,13 +278,13 @@ export class Renderer {
         const bandH = Math.ceil(ground / bands.length);
         bands.forEach((col, i) => { g.fillStyle = col; g.fillRect(0, i * bandH, W, bandH + 1); });
 
-        // Jagged cave ceiling with hanging netherrack
+        // Jagged cave ceiling with hanging red rock
         g.fillStyle = "#3b0b0b";
         for (let x = 0; x < W; x += 8) {
             const h = 24 + Math.round((Math.sin(x * 0.02) * 14 + Math.sin(x * 0.07 + 2) * 8) / 8) * 8;
             g.fillRect(x, 0, 8, h);
         }
-        // Glowstone clusters on the ceiling
+        // Glowing crystal clusters on the ceiling
         for (const [gx, gy] of [[90, 30], [300, 22], [520, 34], [700, 26]]) {
             g.fillStyle = "#c79a3c"; g.fillRect(gx, gy, 24, 16);
             g.fillStyle = "#ffe08a"; g.fillRect(gx + 4, gy + 4, 8, 6); g.fillRect(gx + 14, gy + 8, 6, 5);
@@ -291,7 +295,7 @@ export class Renderer {
             const h = 210 + Math.round((Math.sin(x * 0.013 + 1) * 30 + Math.sin(x * 0.041) * 12) / 8) * 8;
             g.fillRect(x, h, 8, ground - h);
         }
-        // Near cliffs with crimson nylium tops
+        // Near cliffs with crimson moss tops
         g.fillStyle = "#7a1e1e";
         for (let x = 0; x < W; x += 8) {
             const h = 270 + Math.round((Math.sin(x * 0.019 + 3) * 22 + Math.sin(x * 0.05) * 8) / 8) * 8;
@@ -311,8 +315,8 @@ export class Renderer {
         return c;
     }
 
-    // End backdrop: void sky, distant end islands, obsidian pillars
-    buildEndLayer() {
+    // Void backdrop: dark sky, distant floating islands, stone spires
+    buildVoidLayer() {
         const c = document.createElement("canvas");
         c.width = this.width;
         c.height = this.height;
@@ -324,18 +328,18 @@ export class Renderer {
         const bandH = Math.ceil(ground / bands.length);
         bands.forEach((col, i) => { g.fillStyle = col; g.fillRect(0, i * bandH, W, bandH + 1); });
 
-        // Distant floating end islands
+        // Distant floating islands
         for (const [ix, iy, iw] of [[40, 230, 120], [520, 200, 150], [300, 260, 90], [690, 250, 90]]) {
-            g.fillStyle = "#a9a46e"; g.fillRect(ix, iy, iw, 10);
-            g.fillStyle = "#8a8550"; g.fillRect(ix + 8, iy + 10, iw - 16, 8); g.fillRect(ix + 20, iy + 18, iw - 40, 6);
+            g.fillStyle = "#8f89b3"; g.fillRect(ix, iy, iw, 10);
+            g.fillStyle = "#706a96"; g.fillRect(ix + 8, iy + 10, iw - 16, 8); g.fillRect(ix + 20, iy + 18, iw - 40, 6);
         }
-        // Obsidian pillars with iron-bar cages at the top
+        // Tapered stone spires (crystals float above them, drawn per frame)
         for (const [px, py, pw] of [[90, 140, 44], [320, 90, 50], [605, 160, 46]]) {
             g.fillStyle = "#15111f"; g.fillRect(px, py, pw, ground - py);
+            g.fillRect(px + 6, py - 8, pw - 12, 8);
+            g.fillRect(px + 14, py - 14, pw - 28, 6);
             g.fillStyle = "#231b33";
             for (let y = py + 6; y < ground; y += 16) g.fillRect(px + 4, y, pw - 8, 2);
-            g.fillStyle = "#3a3346"; g.fillRect(px + pw / 2 - 1, py - 18, 2, 18);
-            g.fillRect(px + 4, py - 18, 2, 18); g.fillRect(px + pw - 6, py - 18, 2, 18);
         }
         // Void haze near the floor
         g.fillStyle = "#2c1748";
@@ -343,8 +347,8 @@ export class Renderer {
         return c;
     }
 
-    // Paints the Overworld backdrop (sky bands, sun, mountains, hills, trees) to an offscreen canvas
-    buildOverworldLayer() {
+    // Paints the Meadow backdrop (sky bands, sun, mountains, hills, trees) to an offscreen canvas
+    buildMeadowLayer() {
         const c = document.createElement("canvas");
         c.width = this.width;
         c.height = this.height;
@@ -360,7 +364,7 @@ export class Renderer {
             g.fillRect(0, i * bandH, W, bandH + 1);
         });
 
-        // Square Minecraft sun with a soft halo ring
+        // Square pixel sun with a soft halo ring
         g.fillStyle = "#fff6b3";
         g.fillRect(636, 36, 56, 56);
         g.fillStyle = "#fffde6";
@@ -410,7 +414,7 @@ export class Renderer {
         return c;
     }
 
-    // Grass block top, dirt middle, stone with ores at the bottom (16px Minecraft blocks)
+    // Grass block top, dirt middle, stone with ores at the bottom (16px blocks)
     drawGrassFloor(ctx, p) {
         const B = 16;
         const dirtEnd = p.y + 30;
@@ -520,11 +524,11 @@ export class Renderer {
             if (biome === "space") {
                 if (isFloor) this.drawMoonFloor(ctx, p);
                 else this.drawCrystalLedge(ctx, p);
-            } else if (biome === "nether") {
+            } else if (biome === "inferno") {
                 // ==========================================
-                // NETHER: AUTHENTIC NETHERRACK BLOCKS
+                // INFERNO: RED ROCK BLOCKS
                 // ==========================================
-                // Base Netherrack rock body
+                // Base red rock body
                 ctx.fillStyle = "#681b22";
                 ctx.fillRect(p.x, p.y, p.w, p.h);
 
@@ -570,7 +574,7 @@ export class Renderer {
                 }
                 ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
 
-                // Crimson Nylium turf top carpet & hanging roots
+                // Crimson moss top carpet & hanging roots
                 ctx.fillStyle = "#9e1a31";
                 ctx.fillRect(p.x, p.y, p.w, 5);
                 ctx.fillStyle = "#cc2746";
@@ -580,16 +584,16 @@ export class Renderer {
                     ctx.fillRect(gx, p.y + 5, 3, 3);
                     ctx.fillRect(gx + 4, p.y + 5, 2, 2);
                 }
-            } else if (biome === "end") {
+            } else if (biome === "void") {
                 // ==========================================
-                // THE END: AUTHENTIC END STONE BLOCKS
+                // VOID: MOONSTONE BLOCKS WITH TEAL CRYSTAL CAPS
                 // ==========================================
-                // Base pale creamy End Stone
-                ctx.fillStyle = "#ded99f";
+                // Base pale lavender moonstone
+                ctx.fillStyle = "#b9b4d6";
                 ctx.fillRect(p.x, p.y, p.w, p.h);
 
                 // Dark sulfur crater pits (tiled 16x16)
-                ctx.fillStyle = "#b5ad6e";
+                ctx.fillStyle = "#9d97c0";
                 for (let bx = p.x; bx < p.x + p.w; bx += 16) {
                     for (let by = p.y; by < p.y + p.h; by += 16) {
                         ctx.fillRect(bx + 2, by + 4, 4, 3);
@@ -599,7 +603,7 @@ export class Renderer {
                 }
 
                 // Deep crater pores
-                ctx.fillStyle = "#8a8349";
+                ctx.fillStyle = "#726c98";
                 for (let bx = p.x; bx < p.x + p.w; bx += 16) {
                     for (let by = p.y; by < p.y + p.h; by += 16) {
                         ctx.fillRect(bx + 3, by + 5, 2, 2);
@@ -608,7 +612,7 @@ export class Renderer {
                 }
 
                 // Pale creamy highlights
-                ctx.fillStyle = "#f3efcb";
+                ctx.fillStyle = "#e0dcf2";
                 for (let bx = p.x; bx < p.x + p.w; bx += 16) {
                     for (let by = p.y; by < p.y + p.h; by += 16) {
                         ctx.fillRect(bx + 7, by + 2, 3, 2);
@@ -618,38 +622,38 @@ export class Renderer {
                 }
 
                 // Block seams
-                ctx.fillStyle = "#706a38";
+                ctx.fillStyle = "#5c5680";
                 for (let bx = p.x; bx < p.x + p.w; bx += 16) {
                     ctx.fillRect(bx, p.y, 1, p.h);
                 }
                 ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
 
                 if (isFloor) {
-                    // End Stone Bricks border at top of floor
-                    ctx.fillStyle = "#eae6ba";
+                    // Moonstone brick border at top of floor
+                    ctx.fillStyle = "#d0cce8";
                     ctx.fillRect(p.x, p.y, p.w, 3);
-                    ctx.fillStyle = "#948c4f";
+                    ctx.fillStyle = "#7a749e";
                     for (let bx = p.x; bx < p.x + p.w; bx += 32) {
                         ctx.fillRect(bx, p.y, 2, 6);
                     }
                 } else {
-                    // Purpur block top cap on floating ledges
-                    ctx.fillStyle = "#995a94";
+                    // Teal crystal cap on floating ledges
+                    ctx.fillStyle = "#2f9fa8";
                     ctx.fillRect(p.x, p.y, p.w, 5);
-                    ctx.fillStyle = "#b870b2";
+                    ctx.fillStyle = "#5fd3db";
                     ctx.fillRect(p.x, p.y, p.w, 2);
-                    ctx.fillStyle = "#6d3b6a";
+                    ctx.fillStyle = "#1f6f78";
                     for (let gx = p.x; gx < p.x + p.w; gx += 8) {
                         ctx.fillRect(gx, p.y + 5, 3, 2);
                     }
-                    // Obsidian brackets on ledge corners
+                    // Dark stone brackets on ledge corners
                     ctx.fillStyle = "#1b1424";
                     ctx.fillRect(p.x, p.y, 4, p.h);
                     ctx.fillRect(p.x + p.w - 4, p.y, 4, p.h);
                 }
             } else {
                 // ==========================================
-                // OVERWORLD: GRASS BLOCKS, DIRT, STONE & OAK LEDGES
+                // MEADOW: GRASS BLOCKS, DIRT, STONE & OAK LEDGES
                 // ==========================================
                 if (isFloor) {
                     this.drawGrassFloor(ctx, p);
@@ -709,7 +713,7 @@ export class Renderer {
             ctx.fillStyle = "#7ff0ff";
             for (let s = 0; s < 4; s++) ctx.fillRect(g.x + 2 + s * 10, floor - 1, 6, 3);
 
-            // Little wind charge swirl hovering over the grate
+            // Little wind swirl hovering over the grate
             ctx.globalAlpha = 0.9;
             ctx.fillStyle = "#e8fbff";
             const step = Math.floor(t / 5);
@@ -800,7 +804,7 @@ export class Renderer {
     }
 
     // ==========================================
-    // MINECRAFT WEAPONS RENDERING
+    // WEAPONS RENDERING
     // ==========================================
     drawWeapons(f, alpha = 1.0) {
         const ctx = this.ctx;
@@ -900,7 +904,7 @@ export class Renderer {
                 ctx.fillRect(4, -22, 4, 15);
             }
         } else if (weaponId === "fists") {
-            // STEVE BARE FISTS
+            // BARE FISTS
             if (f.dashing) {
                 // Dual punching fists lunging forward
                 ctx.fillStyle = "#d35400";
@@ -954,79 +958,107 @@ export class Renderer {
         ctx.save();
         ctx.globalAlpha = alpha;
 
+        // Skin ids are the stored save values; see BLOCK_FACES in auth.js for names
+        const fx = (dx, fw) => (facing > 0 ? x + dx : x + w - dx - fw); // mirror a front-facing x offset
         if (skin === "alex") {
-            // Minecraft Alex: Orange hair, olive green shirt, brown pants
-            ctx.fillStyle = "#e67e22"; // Orange Hair
-            ctx.fillRect(x, y, w, 8);
-            ctx.fillStyle = "#27ae60"; // Olive green tunic
-            ctx.fillRect(x, y + 8, w, 10);
-            ctx.fillStyle = "#795548"; // Pants
-            ctx.fillRect(x, y + 18, w, 7);
-            // Face
-            ctx.fillStyle = "#f5cd79";
-            ctx.fillRect(x + (facing > 0 ? 6 : 2), y + 4, 16, 8);
-            // Green Eyes
-            ctx.fillStyle = "#2ecc71";
-            ctx.fillRect(x + (facing > 0 ? 15 : 4), y + 7, 4, 4);
-        } else if (skin === "noob") {
-            // Roblox Classic Noob: Yellow head, royal blue torso, lime green legs
-            ctx.fillStyle = "#ffeb3b"; // Yellow head
-            ctx.fillRect(x, y, w, 10);
-            ctx.fillStyle = "#1976d2"; // Blue torso
-            ctx.fillRect(x, y + 10, w, 8);
-            ctx.fillStyle = "#4caf50"; // Green legs
-            ctx.fillRect(x, y + 18, w, 7);
-            // Cute Noob Face
-            ctx.fillStyle = "#212121";
-            const eyeX = facing > 0 ? x + 15 : x + 5;
-            ctx.fillRect(eyeX, y + 4, 3, 3);
-            ctx.fillRect(eyeX + (facing > 0 ? 4 : -4), y + 4, 3, 3);
-            // Smile
-            ctx.fillRect(x + (facing > 0 ? 14 : 4), y + 8, 6, 2);
-        } else if (skin === "man_face") {
-            // Roblox Iconic Man Face (The Smirk)
-            ctx.fillStyle = "#ffeaa7"; // Skin
-            ctx.fillRect(x, y, w, h);
-            ctx.fillStyle = "#2d3436"; // Hair
+            // Skye: side-swept sky-blue hair, white tunic with blue sash, charcoal pants
+            ctx.fillStyle = "#f0c8a0"; // Skin
+            ctx.fillRect(x, y + 4, w, 9);
+            ctx.fillStyle = "#4aa3df"; // Hair
             ctx.fillRect(x, y, w, 5);
-            // Man Face Smirk & Eyes
-            ctx.fillStyle = "#000000";
-            const mfX = facing > 0 ? x + 10 : x + 2;
-            // Smug raised eyebrow & sharp eye
-            ctx.fillRect(mfX, y + 6, 5, 2);
-            ctx.fillRect(mfX + 6, y + 5, 5, 2);
-            ctx.fillRect(mfX + 1, y + 9, 3, 2);
-            ctx.fillRect(mfX + 7, y + 8, 3, 2);
-            // Iconic smirk line
-            ctx.fillRect(mfX + 2, y + 15, 8, 2);
-            ctx.fillRect(mfX + 8, y + 13, 3, 3);
-            // Shirt trim
-            ctx.fillStyle = "#e74c3c";
+            ctx.fillRect(fx(0, 7), y + 4, 7, 7); // fringe swept to the back
+            ctx.fillStyle = "#f4f6f8"; // Tunic
+            ctx.fillRect(x, y + 13, w, 7);
+            ctx.fillStyle = "#2f80c9"; // Sash
+            ctx.fillRect(x, y + 15, w, 2);
+            ctx.fillStyle = "#3a3f47"; // Pants
+            ctx.fillRect(x, y + 20, w, 5);
+            // Amber eye and freckles
+            ctx.fillStyle = "#7a3e12";
+            ctx.fillRect(fx(16, 3), y + 6, 3, 3);
+            ctx.fillStyle = "#d98f6a";
+            ctx.fillRect(fx(14, 2), y + 10, 2, 1);
+            ctx.fillRect(fx(20, 2), y + 10, 2, 1);
+        } else if (skin === "noob") {
+            // Sunbolt: tangerine head, white headband, red jersey, grey shorts
+            ctx.fillStyle = "#f39c12";
+            ctx.fillRect(x, y, w, 12);
+            ctx.fillStyle = "#fbfbf2"; // Headband with trailing tail
+            ctx.fillRect(x, y + 2, w, 3);
+            ctx.fillRect(fx(-4, 4), y + 3, 4, 2);
+            ctx.fillStyle = "#c0392b"; // Jersey
+            ctx.fillRect(x, y + 12, w, 7);
+            ctx.fillStyle = "#fbfbf2"; // Jersey stripe
+            ctx.fillRect(x, y + 14, w, 1);
+            ctx.fillStyle = "#555b63"; // Shorts
             ctx.fillRect(x, y + 19, w, 6);
+            // Eyes and open grin
+            ctx.fillStyle = "#2b1a0e";
+            ctx.fillRect(fx(13, 2), y + 6, 2, 3);
+            ctx.fillRect(fx(19, 2), y + 6, 2, 3);
+            ctx.fillStyle = "#8e2b1c";
+            ctx.fillRect(fx(13, 9), y + 9, 9, 2);
+        } else if (skin === "man_face") {
+            // Dapper Duke: top hat, monocle, moustache, green waistcoat
+            ctx.fillStyle = "#f1cfa8"; // Skin
+            ctx.fillRect(x, y + 5, w, 9);
+            ctx.fillStyle = "#1f1f24"; // Top hat
+            ctx.fillRect(x + 2, y - 4, w - 4, 7);
+            ctx.fillRect(x - 1, y + 3, w + 2, 2); // brim
+            ctx.fillStyle = "#a3242f"; // Hat band
+            ctx.fillRect(x + 2, y + 1, w - 4, 2);
+            // Eye, monocle and moustache
+            ctx.fillStyle = "#2a1d14";
+            ctx.fillRect(fx(13, 2), y + 7, 2, 2);
+            ctx.fillStyle = "#e3b23c";
+            ctx.strokeStyle = "#e3b23c";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(fx(18, 5) + 0.5, y + 6.5, 4, 4);
+            ctx.fillRect(fx(20, 1), y + 11, 1, 3); // monocle chain
+            ctx.fillStyle = "#5a3a22";
+            ctx.fillRect(fx(11, 12), y + 11, 12, 2);
+            ctx.fillRect(fx(10, 2), y + 10, 2, 2);
+            ctx.fillRect(fx(21, 2), y + 10, 2, 2);
+            ctx.fillStyle = "#2e7d4f"; // Waistcoat
+            ctx.fillRect(x, y + 14, w, 11);
+            ctx.fillStyle = "#f4f6f8"; // Shirt front
+            ctx.fillRect(x + 10, y + 14, 5, 6);
         } else if (skin === "creeper") {
-            // Creeper Face: Mottled green with black frown
-            ctx.fillStyle = "#2ecc71";
+            // Moss Golem: grey stone block, moss tufts on top, amber eyes, carved mouth
+            ctx.fillStyle = "#7d8590";
             ctx.fillRect(x, y, w, h);
-            ctx.fillStyle = "#27ae60";
-            ctx.fillRect(x + 2, y + 2, 8, 8);
-            ctx.fillRect(x + 14, y + 14, 8, 8);
-            // Black Creeper Mouth
-            ctx.fillStyle = "#000000";
-            ctx.fillRect(x + 4, y + 6, 5, 5);  // Eye L
-            ctx.fillRect(x + 16, y + 6, 5, 5); // Eye R
-            ctx.fillRect(x + 9, y + 12, 7, 4); // Mouth top
-            ctx.fillRect(x + 7, y + 16, 4, 7); // Mouth bottom L
-            ctx.fillRect(x + 14, y + 16, 4, 7);// Mouth bottom R
+            ctx.fillStyle = "#6a717b"; // Stone cracks
+            ctx.fillRect(x + 3, y + 15, 6, 1);
+            ctx.fillRect(x + 15, y + 20, 7, 1);
+            ctx.fillRect(x + 2, y + 21, 1, 3);
+            ctx.fillStyle = "#5aa548"; // Moss
+            ctx.fillRect(x, y, w, 3);
+            ctx.fillRect(x + 2, y + 3, 4, 2);
+            ctx.fillRect(x + 14, y + 3, 5, 1);
+            ctx.fillRect(x + w - 3, y + 3, 3, 4);
+            // Glowing amber eyes
+            ctx.fillStyle = "#ffb238";
+            ctx.fillRect(fx(11, 4), y + 8, 4, 2);
+            ctx.fillRect(fx(18, 4), y + 8, 4, 2);
+            // Carved mouth line
+            ctx.fillStyle = "#4d535c";
+            ctx.fillRect(fx(11, 11), y + 13, 11, 1);
         } else if (skin === "enderman") {
-            // Enderman: Pitch black with purple glowing eyes
-            ctx.fillStyle = "#1e1e1e";
+            // Void Wraith: starry navy hood with a glowing cyan visor
+            ctx.fillStyle = "#2b3470";
             ctx.fillRect(x, y, w, h);
-            // Glowing purple eyes
-            ctx.fillStyle = "#a855f7";
-            const eEyeX = facing > 0 ? x + 14 : x + 3;
-            ctx.fillRect(eEyeX, y + 9, 7, 3);
-            ctx.fillStyle = "#d8b4fe";
-            ctx.fillRect(eEyeX + (facing > 0 ? 3 : 0), y + 9, 4, 3);
+            ctx.fillStyle = "#1b2147";
+            ctx.fillRect(x + 3, y + 3, w - 6, h - 3);
+            ctx.fillStyle = "#9fb0ff"; // Star specks
+            ctx.fillRect(x + 6, y + 5, 1, 1);
+            ctx.fillRect(x + 17, y + 4, 1, 1);
+            ctx.fillRect(x + 11, y + 18, 1, 1);
+            ctx.fillRect(x + 19, y + 21, 1, 1);
+            // Visor
+            ctx.fillStyle = "#5ef2ff";
+            ctx.fillRect(fx(8, 15), y + 9, 15, 3);
+            ctx.fillStyle = "#e8fbff";
+            ctx.fillRect(fx(18, 4), y + 10, 4, 1);
         } else if (skin === "skeleton") {
             // Skeleton: White bone with hollow gray eyes
             ctx.fillStyle = "#ecf0f1";
@@ -1061,21 +1093,25 @@ export class Renderer {
             ctx.fillStyle = "#ffffff";
             ctx.fillRect(x + (facing > 0 ? 18 : 4), y + 10, 3, 2);
         } else {
-            // Default: Minecraft Steve
-            ctx.fillStyle = "#5d4037"; // Dark brown hair
-            ctx.fillRect(x, y, w, 6);
-            ctx.fillStyle = "#f5cd79"; // Skin
-            ctx.fillRect(x, y + 6, w, 7);
-            ctx.fillStyle = "#00d2d3"; // Cyan tee
-            ctx.fillRect(x, y + 13, w, 7);
-            ctx.fillStyle = "#2980b9"; // Blue pants
-            ctx.fillRect(x, y + 20, w, 5);
-            // Blue eyes
-            ctx.fillStyle = "#2980b9";
-            const stEyeX = facing > 0 ? x + 15 : x + 4;
-            ctx.fillRect(stEyeX, y + 8, 4, 4);
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(stEyeX + (facing > 0 ? 2 : 0), y + 8, 2, 2);
+            // Default ("steve" id): Rook - navy flight cap, brass goggles, red scarf, blue jacket
+            ctx.fillStyle = "#d9a47a"; // Skin
+            ctx.fillRect(x, y + 5, w, 8);
+            ctx.fillStyle = "#2f4a7a"; // Cap
+            ctx.fillRect(x, y, w, 5);
+            ctx.fillRect(fx(-2, 4), y + 3, 4, 2); // cap flap at the back
+            ctx.fillStyle = "#b07a2a"; // Goggle strap
+            ctx.fillRect(x, y + 3, w, 2);
+            ctx.fillStyle = "#ffd36b"; // Goggle lens
+            ctx.fillRect(fx(15, 6), y + 2, 6, 3);
+            ctx.fillStyle = "#1b1b2a"; // Eye
+            ctx.fillRect(fx(17, 2), y + 7, 2, 2);
+            ctx.fillStyle = "#c0392b"; // Scarf
+            ctx.fillRect(x, y + 13, w, 3);
+            ctx.fillRect(fx(-3, 4), y + 14, 4, 3); // scarf tail
+            ctx.fillStyle = "#3b6ea5"; // Jacket
+            ctx.fillRect(x, y + 16, w, 5);
+            ctx.fillStyle = "#4a3b2c"; // Trousers
+            ctx.fillRect(x, y + 21, w, 4);
         }
 
         ctx.restore();
@@ -1316,7 +1352,7 @@ export class Renderer {
         ctx.restore();
     }
 
-    // Blocky Minecraft-style lightning bolt from the sky down to (x, y)
+    // Blocky pixel-art lightning bolt from the sky down to (x, y)
     drawLightningBolt(bolt) {
         const ctx = this.ctx;
         const alpha = Math.min(1, bolt.life / 12);
@@ -1394,7 +1430,7 @@ export class Renderer {
         ctx.restore();
     }
 
-    // Minecraft-style 2-slot hotbar for the local player's loadout (bottom-left)
+    // Pixel-style 2-slot hotbar for the local player's loadout (bottom-left)
     drawLoadoutHotbar(f) {
         if (!f || !f.loadout || f.loadout.length < 2) return;
         const ctx = this.ctx;

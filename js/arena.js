@@ -106,8 +106,8 @@ export class ArenaManager {
 
         const botNames = [
             "SkyCrusher", "BladeStorm", "VortexStriker", "ArrowFlurry",
-            "ObsidianGuard", "MaceBrawler", "WindStalker", "IronGolem",
-            "NetherReaper", "DiamondFighter"
+            "ObsidianGuard", "MaceBrawler", "WindStalker", "IronSentinel",
+            "MagmaReaper", "DiamondFighter"
         ];
         const weaponPool = ["mace", "spear", "sword", "fists", "bow"];
         const skinPool = ["steve", "alex", "noob", "man_face", "creeper", "enderman"];

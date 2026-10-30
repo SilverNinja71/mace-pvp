@@ -1,12 +1,13 @@
 // ==========================================
 // SPEAR-MACE PVP - Weapons & Enchantments Engine
-// Minecraft-themed arsenal: Mace, Spear, Sword, Fists, and Bow
+// Sky-arena arsenal: Mace, Spear, Sword, Fists, and Bow
+// Upgrade ids are kept from older saves (used for the one-time refund in auth.js).
 // ==========================================
 
 export const WEAPON_TYPES = {
     mace: {
         id: "mace",
-        name: "Minecraft Mace",
+        name: "Storm Mace",
         icon: "",
         category: "Heavy Impact",
         desc: "The only weapon whose slams do damage (more from higher up). Every hit launches you back into the air.",
@@ -27,7 +28,7 @@ export const WEAPON_TYPES = {
         upgrades: [
             {
                 id: "density",
-                name: "Density V",
+                name: "Heavy Drop V",
                 desc: "Increases slam damage multiplier from greater heights.",
                 maxLevel: 5,
                 costPerLevel: 300,
@@ -35,7 +36,7 @@ export const WEAPON_TYPES = {
             },
             {
                 id: "wind_burst",
-                name: "Wind Burst III",
+                name: "Updraft III",
                 desc: "Launches you significantly higher into the air after landing a hit.",
                 maxLevel: 3,
                 costPerLevel: 400,
@@ -43,7 +44,7 @@ export const WEAPON_TYPES = {
             },
             {
                 id: "breach",
-                name: "Breach IV",
+                name: "Armor Crack IV",
                 desc: "Ignores a portion of opponent damage reduction and armor.",
                 maxLevel: 4,
                 costPerLevel: 360,
@@ -56,7 +57,7 @@ export const WEAPON_TYPES = {
         id: "spear",
         name: "Wind Spear",
         icon: "",
-        category: "Wind Charge",
+        category: "Wind Dash",
         desc: "Super-fast wind dashes on ground and air. Pierces through incoming attacks.",
         baseCost: 400,
         unlockedByDefault: true,
@@ -74,7 +75,7 @@ export const WEAPON_TYPES = {
         upgrades: [
             {
                 id: "impaling",
-                name: "Impaling V",
+                name: "Lunge V",
                 desc: "Increases spear dash strike damage.",
                 maxLevel: 5,
                 costPerLevel: 280,
@@ -82,7 +83,7 @@ export const WEAPON_TYPES = {
             },
             {
                 id: "piercing",
-                name: "Piercing IV",
+                name: "Swift Tip IV",
                 desc: "Increases dash velocity and distance.",
                 maxLevel: 4,
                 costPerLevel: 350,
@@ -90,7 +91,7 @@ export const WEAPON_TYPES = {
             },
             {
                 id: "feather_light",
-                name: "Breeze Agility",
+                name: "Gale Agility",
                 desc: "Reduces dash cooldown time.",
                 maxLevel: 3,
                 costPerLevel: 440,
@@ -121,7 +122,7 @@ export const WEAPON_TYPES = {
         upgrades: [
             {
                 id: "sharpness",
-                name: "Sharpness V",
+                name: "Keen Edge V",
                 desc: "Significantly enhances blade slice damage.",
                 maxLevel: 5,
                 costPerLevel: 360,
@@ -129,7 +130,7 @@ export const WEAPON_TYPES = {
             },
             {
                 id: "knockback",
-                name: "Knockback II",
+                name: "Heavy Swing II",
                 desc: "Sends enemies flying further across the arena.",
                 maxLevel: 3,
                 costPerLevel: 320,
@@ -137,7 +138,7 @@ export const WEAPON_TYPES = {
             },
             {
                 id: "sweeping_edge",
-                name: "Sweeping Edge III",
+                name: "Wide Arc III",
                 desc: "Widens the horizontal hit area of your blade slice.",
                 maxLevel: 3,
                 costPerLevel: 420,
@@ -148,7 +149,7 @@ export const WEAPON_TYPES = {
 
     fists: {
         id: "fists",
-        name: "Steve Bare Fists",
+        name: "Bare Fists",
         icon: "",
         category: "Martial Brawl",
         desc: "Close-range punches: two hits win a fight, but they recharge slowly.",
@@ -168,15 +169,15 @@ export const WEAPON_TYPES = {
         upgrades: [
             {
                 id: "strength",
-                name: "Strength II",
-                desc: "Potion of Strength power! Heavily boosts fist impact damage.",
+                name: "Iron Knuckles II",
+                desc: "Hardened knuckles that heavily boost fist impact damage.",
                 maxLevel: 5,
                 costPerLevel: 320,
                 apply: (stats, lvl) => { stats.dashDamage += lvl * 7; stats.damage += lvl * 6; }
             },
             {
                 id: "haste",
-                name: "Haste Beacon",
+                name: "Rapid Jabs",
                 desc: "Reduces attack cooldown for rapid-fire punch barrages.",
                 maxLevel: 4,
                 costPerLevel: 360,
@@ -218,7 +219,7 @@ export const WEAPON_TYPES = {
         upgrades: [
             {
                 id: "power",
-                name: "Power V",
+                name: "Draw Force V",
                 desc: "Greatly increases arrow projectile damage.",
                 maxLevel: 5,
                 costPerLevel: 400,
@@ -226,7 +227,7 @@ export const WEAPON_TYPES = {
             },
             {
                 id: "infinity",
-                name: "Infinity / Quick Charge",
+                name: "Quick Draw",
                 desc: "Dramatically reduces bow reload time between shots.",
                 maxLevel: 4,
                 costPerLevel: 440,
@@ -234,7 +235,7 @@ export const WEAPON_TYPES = {
             },
             {
                 id: "punch",
-                name: "Punch II",
+                name: "Impact Shot II",
                 desc: "Adds strong knockback to arrows.",
                 maxLevel: 3,
                 costPerLevel: 360,
