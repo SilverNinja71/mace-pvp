@@ -800,7 +800,7 @@ export class Renderer {
     }
 
     // ==========================================
-    // MINECRAFT WEAPONS RENDERING
+    // WEAPONS RENDERING
     // ==========================================
     drawWeapons(f, alpha = 1.0) {
         const ctx = this.ctx;
@@ -900,7 +900,7 @@ export class Renderer {
                 ctx.fillRect(4, -22, 4, 15);
             }
         } else if (weaponId === "fists") {
-            // STEVE BARE FISTS
+            // BARE FISTS
             if (f.dashing) {
                 // Dual punching fists lunging forward
                 ctx.fillStyle = "#d35400";

@@ -1174,13 +1174,14 @@
   // ===== weapons.js =====
   // ==========================================
   // SPEAR-MACE PVP - Weapons & Enchantments Engine
-  // Minecraft-themed arsenal: Mace, Spear, Sword, Fists, and Bow
+  // Sky-arena arsenal: Mace, Spear, Sword, Fists, and Bow
+  // Upgrade ids are kept from older saves (used for the one-time refund in auth.js).
   // ==========================================
   
   const WEAPON_TYPES = {
       mace: {
           id: "mace",
-          name: "Minecraft Mace",
+          name: "Storm Mace",
           icon: "",
           category: "Heavy Impact",
           desc: "The only weapon whose slams do damage (more from higher up). Every hit launches you back into the air.",
@@ -1201,7 +1202,7 @@
           upgrades: [
               {
                   id: "density",
-                  name: "Density V",
+                  name: "Heavy Drop V",
                   desc: "Increases slam damage multiplier from greater heights.",
                   maxLevel: 5,
                   costPerLevel: 300,
@@ -1209,7 +1210,7 @@
               },
               {
                   id: "wind_burst",
-                  name: "Wind Burst III",
+                  name: "Updraft III",
                   desc: "Launches you significantly higher into the air after landing a hit.",
                   maxLevel: 3,
                   costPerLevel: 400,
@@ -1217,7 +1218,7 @@
               },
               {
                   id: "breach",
-                  name: "Breach IV",
+                  name: "Armor Crack IV",
                   desc: "Ignores a portion of opponent damage reduction and armor.",
                   maxLevel: 4,
                   costPerLevel: 360,
@@ -1248,7 +1249,7 @@
           upgrades: [
               {
                   id: "impaling",
-                  name: "Impaling V",
+                  name: "Lunge V",
                   desc: "Increases spear dash strike damage.",
                   maxLevel: 5,
                   costPerLevel: 280,
@@ -1256,7 +1257,7 @@
               },
               {
                   id: "piercing",
-                  name: "Piercing IV",
+                  name: "Swift Tip IV",
                   desc: "Increases dash velocity and distance.",
                   maxLevel: 4,
                   costPerLevel: 350,
@@ -1264,7 +1265,7 @@
               },
               {
                   id: "feather_light",
-                  name: "Breeze Agility",
+                  name: "Gale Agility",
                   desc: "Reduces dash cooldown time.",
                   maxLevel: 3,
                   costPerLevel: 440,
@@ -1295,7 +1296,7 @@
           upgrades: [
               {
                   id: "sharpness",
-                  name: "Sharpness V",
+                  name: "Keen Edge V",
                   desc: "Significantly enhances blade slice damage.",
                   maxLevel: 5,
                   costPerLevel: 360,
@@ -1303,7 +1304,7 @@
               },
               {
                   id: "knockback",
-                  name: "Knockback II",
+                  name: "Heavy Swing II",
                   desc: "Sends enemies flying further across the arena.",
                   maxLevel: 3,
                   costPerLevel: 320,
@@ -1311,7 +1312,7 @@
               },
               {
                   id: "sweeping_edge",
-                  name: "Sweeping Edge III",
+                  name: "Wide Arc III",
                   desc: "Widens the horizontal hit area of your blade slice.",
                   maxLevel: 3,
                   costPerLevel: 420,
@@ -1322,7 +1323,7 @@
   
       fists: {
           id: "fists",
-          name: "Steve Bare Fists",
+          name: "Bare Fists",
           icon: "",
           category: "Martial Brawl",
           desc: "Close-range punches: two hits win a fight, but they recharge slowly.",
@@ -1342,15 +1343,15 @@
           upgrades: [
               {
                   id: "strength",
-                  name: "Strength II",
-                  desc: "Potion of Strength power! Heavily boosts fist impact damage.",
+                  name: "Iron Knuckles II",
+                  desc: "Hardened knuckles that heavily boost fist impact damage.",
                   maxLevel: 5,
                   costPerLevel: 320,
                   apply: (stats, lvl) => { stats.dashDamage += lvl * 7; stats.damage += lvl * 6; }
               },
               {
                   id: "haste",
-                  name: "Haste Beacon",
+                  name: "Rapid Jabs",
                   desc: "Reduces attack cooldown for rapid-fire punch barrages.",
                   maxLevel: 4,
                   costPerLevel: 360,
@@ -1392,7 +1393,7 @@
           upgrades: [
               {
                   id: "power",
-                  name: "Power V",
+                  name: "Draw Force V",
                   desc: "Greatly increases arrow projectile damage.",
                   maxLevel: 5,
                   costPerLevel: 400,
@@ -1400,7 +1401,7 @@
               },
               {
                   id: "infinity",
-                  name: "Infinity / Quick Charge",
+                  name: "Quick Draw",
                   desc: "Dramatically reduces bow reload time between shots.",
                   maxLevel: 4,
                   costPerLevel: 440,
@@ -1408,7 +1409,7 @@
               },
               {
                   id: "punch",
-                  name: "Punch II",
+                  name: "Impact Shot II",
                   desc: "Adds strong knockback to arrows.",
                   maxLevel: 3,
                   costPerLevel: 360,
@@ -4318,7 +4319,7 @@
               let slamDamage = CORE_PHYSICS.slamMinDamage + heightDifference * slamScale;
               slamDamage = Math.max(CORE_PHYSICS.slamMinDamage, Math.min(slamMaxDmg, slamDamage));
   
-              // Breach armor upgrade check
+              // Armor Crack upgrade check (stat: breachArmor)
               let effDmgMult = damageMultiplier;
               if (wStats.breachArmor) {
                   effDmgMult = Math.max(effDmgMult, 1.0 - (1.0 - effDmgMult) * (1.0 - wStats.breachArmor));
@@ -5326,7 +5327,7 @@
       }
   
       // ==========================================
-      // MINECRAFT WEAPONS RENDERING
+      // WEAPONS RENDERING
       // ==========================================
       drawWeapons(f, alpha = 1.0) {
           const ctx = this.ctx;
@@ -5426,7 +5427,7 @@
                   ctx.fillRect(4, -22, 4, 15);
               }
           } else if (weaponId === "fists") {
-              // STEVE BARE FISTS
+              // BARE FISTS
               if (f.dashing) {
                   // Dual punching fists lunging forward
                   ctx.fillStyle = "#d35400";

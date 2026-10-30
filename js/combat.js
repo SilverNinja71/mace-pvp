@@ -209,7 +209,7 @@ export class CombatEngine {
             let slamDamage = CORE_PHYSICS.slamMinDamage + heightDifference * slamScale;
             slamDamage = Math.max(CORE_PHYSICS.slamMinDamage, Math.min(slamMaxDmg, slamDamage));
 
-            // Breach armor upgrade check
+            // Armor Crack upgrade check (stat: breachArmor)
             let effDmgMult = damageMultiplier;
             if (wStats.breachArmor) {
                 effDmgMult = Math.max(effDmgMult, 1.0 - (1.0 - effDmgMult) * (1.0 - wStats.breachArmor));
