@@ -8,6 +8,14 @@ import { WEAPON_TYPES } from './weapons.js';
 
 const STORAGE_KEY = "spear_mace_user_profile";
 
+// Name shown for a new guest player
+export const DEFAULT_HERO_NAME = "Rook";
+// Older versions used these names for the default player and the sample
+// friends/mail every new save starts with; saves still holding them are
+// renamed on load (ids and everything else in the save stay the same).
+const LEGACY_DEFAULT_NAMES = ["Steve"];
+const LEGACY_SAMPLE_NAMES = { AlexPro: "SkyePro", EndKnight: "VoidKnight", BreezeDasher: "GaleDasher" };
+
 // Internal ids ("steve", "alex", "noob", ...) are kept as-is because they are
 // stored in players' saves and sent to other players online; only the names
 // and the pixel art shown to players changed.
@@ -99,18 +107,19 @@ export class AuthManager {
                 if (!parsed.unlockedSkins) parsed.unlockedSkins = ["steve", "alex"];
                 if (parsed.friends === undefined) {
                     parsed.friends = [
-                        { id: "f1", name: "AlexPro", status: "online" },
-                        { id: "f2", name: "EndKnight", status: "in-match" },
-                        { id: "f3", name: "BreezeDasher", status: "offline" }
+                        { id: "f1", name: "SkyePro", status: "online" },
+                        { id: "f2", name: "VoidKnight", status: "in-match" },
+                        { id: "f3", name: "GaleDasher", status: "offline" }
                     ];
                 }
                 if (parsed.mail === undefined) {
                     parsed.mail = [
                         { id: "m1", from: "Arena Master", type: "gift", title: "Daily Combat Bounty", text: "Heroic work in the Arena! Claim your daily combat bounty.", giftGold: 100, claimed: false, date: "Today" },
-                        { id: "m2", from: "AlexPro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
+                        { id: "m2", from: "SkyePro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
                     ];
                 }
                 if (parsed.isMinor === undefined) parsed.isMinor = false;
+                this.migrateLegacyNames(parsed);
                 return parsed;
             }
         } catch (e) {
@@ -120,7 +129,7 @@ export class AuthManager {
         // Default User
         return {
             id: "guest_" + Math.random().toString(36).substring(2, 8),
-            username: "Steve",
+            username: DEFAULT_HERO_NAME,
             email: null,
             avatarType: "preset",
             avatarVal: "steve",
@@ -139,13 +148,13 @@ export class AuthManager {
             arenaRP: 250,
             isMinor: false,
             friends: [
-                { id: "f1", name: "AlexPro", status: "online" },
-                { id: "f2", name: "EndKnight", status: "in-match" },
-                { id: "f3", name: "BreezeDasher", status: "offline" }
+                { id: "f1", name: "SkyePro", status: "online" },
+                { id: "f2", name: "VoidKnight", status: "in-match" },
+                { id: "f3", name: "GaleDasher", status: "offline" }
             ],
             mail: [
                 { id: "m1", from: "Arena Master", type: "gift", title: "Daily Combat Bounty", text: "Heroic work in the Arena! Claim your daily combat bounty.", giftGold: 100, claimed: false, date: "Today" },
-                { id: "m2", from: "AlexPro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
+                { id: "m2", from: "SkyePro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
             ],
             stats: {
                 matches: 0,
@@ -160,6 +169,20 @@ export class AuthManager {
                 bestStreak: 0
             }
         };
+    }
+
+    // Renames the old default player name and sample friend/mail names in a
+    // loaded save. A logged-in player account keeps its own name untouched.
+    migrateLegacyNames(profile) {
+        const hasAccount = typeof window !== "undefined" && window.GameAccounts &&
+            typeof window.GameAccounts.current === "function" && window.GameAccounts.current();
+        if (!hasAccount && LEGACY_DEFAULT_NAMES.includes(profile.username)) profile.username = DEFAULT_HERO_NAME;
+        if (Array.isArray(profile.friends)) {
+            profile.friends.forEach(f => { if (f && LEGACY_SAMPLE_NAMES[f.name]) f.name = LEGACY_SAMPLE_NAMES[f.name]; });
+        }
+        if (Array.isArray(profile.mail)) {
+            profile.mail.forEach(m => { if (m && LEGACY_SAMPLE_NAMES[m.from]) m.from = LEGACY_SAMPLE_NAMES[m.from]; });
+        }
     }
 
     saveUser() {
@@ -236,7 +259,7 @@ export class AuthManager {
     }
 
     getUsername() {
-        return this.user.username || "Steve";
+        return this.user.username || DEFAULT_HERO_NAME;
     }
 
     setUsername(newUsername) {
@@ -450,12 +473,13 @@ export class AuthManager {
         this.user.email = email;
         this.user.authProvider = "google";
         
-        if (!this.user.username || this.user.username === "Player" || this.user.username === "Steve") {
+        if (!this.user.username || this.user.username === "Player" ||
+            this.user.username === DEFAULT_HERO_NAME || LEGACY_DEFAULT_NAMES.includes(this.user.username)) {
             const suggested = (name || "Player").replace(/[^a-zA-Z0-9_]/g, "").substring(0, 14);
             this.user.username = suggested || "GooglePlayer";
         }
 
-        // Always keep Steve's head as avatar
+        // Always keep the default hero head as avatar
         this.user.avatarType = "preset";
         this.user.avatarVal = "steve";
         this.user.avatarUrl = null;

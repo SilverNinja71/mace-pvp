@@ -1837,6 +1837,14 @@
   
   const STORAGE_KEY = "spear_mace_user_profile";
   
+  // Name shown for a new guest player
+  const DEFAULT_HERO_NAME = "Rook";
+  // Older versions used these names for the default player and the sample
+  // friends/mail every new save starts with; saves still holding them are
+  // renamed on load (ids and everything else in the save stay the same).
+  const LEGACY_DEFAULT_NAMES = ["Steve"];
+  const LEGACY_SAMPLE_NAMES = { AlexPro: "SkyePro", EndKnight: "VoidKnight", BreezeDasher: "GaleDasher" };
+  
   // Internal ids ("steve", "alex", "noob", ...) are kept as-is because they are
   // stored in players' saves and sent to other players online; only the names
   // and the pixel art shown to players changed.
@@ -1928,18 +1936,19 @@
                   if (!parsed.unlockedSkins) parsed.unlockedSkins = ["steve", "alex"];
                   if (parsed.friends === undefined) {
                       parsed.friends = [
-                          { id: "f1", name: "AlexPro", status: "online" },
-                          { id: "f2", name: "EndKnight", status: "in-match" },
-                          { id: "f3", name: "BreezeDasher", status: "offline" }
+                          { id: "f1", name: "SkyePro", status: "online" },
+                          { id: "f2", name: "VoidKnight", status: "in-match" },
+                          { id: "f3", name: "GaleDasher", status: "offline" }
                       ];
                   }
                   if (parsed.mail === undefined) {
                       parsed.mail = [
                           { id: "m1", from: "Arena Master", type: "gift", title: "Daily Combat Bounty", text: "Heroic work in the Arena! Claim your daily combat bounty.", giftGold: 100, claimed: false, date: "Today" },
-                          { id: "m2", from: "AlexPro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
+                          { id: "m2", from: "SkyePro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
                       ];
                   }
                   if (parsed.isMinor === undefined) parsed.isMinor = false;
+                  this.migrateLegacyNames(parsed);
                   return parsed;
               }
           } catch (e) {
@@ -1949,7 +1958,7 @@
           // Default User
           return {
               id: "guest_" + Math.random().toString(36).substring(2, 8),
-              username: "Steve",
+              username: DEFAULT_HERO_NAME,
               email: null,
               avatarType: "preset",
               avatarVal: "steve",
@@ -1968,13 +1977,13 @@
               arenaRP: 250,
               isMinor: false,
               friends: [
-                  { id: "f1", name: "AlexPro", status: "online" },
-                  { id: "f2", name: "EndKnight", status: "in-match" },
-                  { id: "f3", name: "BreezeDasher", status: "offline" }
+                  { id: "f1", name: "SkyePro", status: "online" },
+                  { id: "f2", name: "VoidKnight", status: "in-match" },
+                  { id: "f3", name: "GaleDasher", status: "offline" }
               ],
               mail: [
                   { id: "m1", from: "Arena Master", type: "gift", title: "Daily Combat Bounty", text: "Heroic work in the Arena! Claim your daily combat bounty.", giftGold: 100, claimed: false, date: "Today" },
-                  { id: "m2", from: "AlexPro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
+                  { id: "m2", from: "SkyePro", type: "message", title: "GG on your last match!", text: "Nice ground slam back on the Obsidian platform, let's team up for 2v2 soon!", giftGold: 0, claimed: false, date: "Yesterday" }
               ],
               stats: {
                   matches: 0,
@@ -1989,6 +1998,20 @@
                   bestStreak: 0
               }
           };
+      }
+  
+      // Renames the old default player name and sample friend/mail names in a
+      // loaded save. A logged-in player account keeps its own name untouched.
+      migrateLegacyNames(profile) {
+          const hasAccount = typeof window !== "undefined" && window.GameAccounts &&
+              typeof window.GameAccounts.current === "function" && window.GameAccounts.current();
+          if (!hasAccount && LEGACY_DEFAULT_NAMES.includes(profile.username)) profile.username = DEFAULT_HERO_NAME;
+          if (Array.isArray(profile.friends)) {
+              profile.friends.forEach(f => { if (f && LEGACY_SAMPLE_NAMES[f.name]) f.name = LEGACY_SAMPLE_NAMES[f.name]; });
+          }
+          if (Array.isArray(profile.mail)) {
+              profile.mail.forEach(m => { if (m && LEGACY_SAMPLE_NAMES[m.from]) m.from = LEGACY_SAMPLE_NAMES[m.from]; });
+          }
       }
   
       saveUser() {
@@ -2065,7 +2088,7 @@
       }
   
       getUsername() {
-          return this.user.username || "Steve";
+          return this.user.username || DEFAULT_HERO_NAME;
       }
   
       setUsername(newUsername) {
@@ -2279,12 +2302,13 @@
           this.user.email = email;
           this.user.authProvider = "google";
           
-          if (!this.user.username || this.user.username === "Player" || this.user.username === "Steve") {
+          if (!this.user.username || this.user.username === "Player" ||
+              this.user.username === DEFAULT_HERO_NAME || LEGACY_DEFAULT_NAMES.includes(this.user.username)) {
               const suggested = (name || "Player").replace(/[^a-zA-Z0-9_]/g, "").substring(0, 14);
               this.user.username = suggested || "GooglePlayer";
           }
   
-          // Always keep Steve's head as avatar
+          // Always keep the default hero head as avatar
           this.user.avatarType = "preset";
           this.user.avatarVal = "steve";
           this.user.avatarUrl = null;
@@ -8220,7 +8244,7 @@
           }
       }
   
-      // Always show Steve's head as the cube avatar
+      // Always show the default hero's head (Rook, id "steve") as the cube avatar
       avatarHeadId(user) {
           return "steve";
       }
@@ -8239,7 +8263,7 @@
           const cube = document.getElementById("home-cube");
           if (cube) cube.innerHTML = cubeHTML(this.avatarHeadId(user), 56);
           const name = document.getElementById("hp-name");
-          if (name) name.textContent = user.username || "Steve";
+          if (name) name.textContent = user.username || DEFAULT_HERO_NAME;
       }
   
       updateHeaderProfileBadge(user) {
@@ -8251,7 +8275,7 @@
   
           this.userProfileBtn.innerHTML = `
               ${avatarHtml}
-              <span class="header-username">${user.username || "Steve"}</span>
+              <span class="header-username">${user.username || DEFAULT_HERO_NAME}</span>
               ${googleTag}
               <span class="header-level-badge">Lv.${user.level}</span>
           `;
@@ -8384,7 +8408,7 @@
           // Username Section
           const usernameInput = document.getElementById("input-username");
           const usernameFeedback = document.getElementById("username-feedback");
-          if (usernameInput) usernameInput.value = user.username || "Steve";
+          if (usernameInput) usernameInput.value = user.username || DEFAULT_HERO_NAME;
   
           const btnRandom = document.getElementById("btn-random-username");
           if (btnRandom) {
@@ -8415,15 +8439,15 @@
               };
           }
   
-          // Avatar Picker - Always Steve's Head
+          // Avatar Picker - always the default hero head
           const avatarPickerContainer = document.getElementById("avatar-picker-grid");
           if (avatarPickerContainer) {
               avatarPickerContainer.innerHTML = `
-                  <div class="avatar-choice selected" style="cursor:default;" title="Minecraft Steve">
+                  <div class="avatar-choice selected" style="cursor:default;" title="Rook">
                       ${cubeHTML("steve", 48)}
                   </div>
                   <div style="display:flex; flex-direction:column; justify-content:center; margin-left:10px;">
-                      <span style="font-weight:bold; color:var(--text-primary); font-size:14px;">Steve's Cube Head</span>
+                      <span style="font-weight:bold; color:var(--text-primary); font-size:14px;">Rook's Cube Head</span>
                       <span style="font-size:12px; color:var(--text-muted);">Hero Avatar</span>
                   </div>
               `;
@@ -9404,7 +9428,7 @@
           const botMeta = MODE_METADATA[modeKey] || { name: "Bot" };
   
           const blueTeam = [{
-              name: user.username || "Steve",
+              name: user.username || DEFAULT_HERO_NAME,
               skinId: user.skinId || "steve",
               weaponId: user.equippedWeapon || "mace",
               rank: `${userTier.name} (${user.arenaRP || 250} RP)`,
@@ -9726,7 +9750,7 @@
           const highest = this.game.highestJumper || p1;
           const isTiebreaker = this.game.isTiebreaker;
           const isPlayerWin = this.game.winnerTeam === (this.game.localFighter || p1).team;
-          let winner = this.game.winnerTeam === "blue" ? (p1.name || "Steve") : (p2.name || "Opponent");
+          let winner = this.game.winnerTeam === "blue" ? (p1.name || DEFAULT_HERO_NAME) : (p2.name || "Opponent");
           if (this.game.isTeamMatch) winner = this.game.winnerTeam === "blue" ? "Blue Team" : "Red Team";
           const rewardInfo = this.game.lastRewardInfo;
   
