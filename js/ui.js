@@ -455,7 +455,7 @@ export class UIManager {
         sound.playClick();
     }
 
-    // Player accounts shared with Penguin Life (../Empire/shared/accounts.js).
+    // Shared player accounts (../Empire/shared/accounts.js).
     // After logging in or out the page reloads so the right save is used.
     renderLocalAccount() {
         const box = document.getElementById("auth-local-section");

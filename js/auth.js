@@ -54,7 +54,7 @@ export class AuthManager {
         this.user = this.loadUser();
         this.listeners = [];
         this.initGoogleClient();
-        // Penguin Life shares this account: pick up gold/name changes made in its tab
+        // The shared account system may change this save from another tab: pick up gold/name changes
         if (typeof window !== "undefined") {
             window.addEventListener("storage", (e) => {
                 if (e.key === STORAGE_KEY && e.newValue) {

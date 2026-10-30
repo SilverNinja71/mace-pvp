@@ -1884,7 +1884,7 @@
           this.user = this.loadUser();
           this.listeners = [];
           this.initGoogleClient();
-          // Penguin Life shares this account: pick up gold/name changes made in its tab
+          // The shared account system may change this save from another tab: pick up gold/name changes
           if (typeof window !== "undefined") {
               window.addEventListener("storage", (e) => {
                   if (e.key === STORAGE_KEY && e.newValue) {
@@ -8288,7 +8288,7 @@
           sound.playClick();
       }
   
-      // Player accounts shared with Penguin Life (../Empire/shared/accounts.js).
+      // Shared player accounts (../Empire/shared/accounts.js).
       // After logging in or out the page reloads so the right save is used.
       renderLocalAccount() {
           const box = document.getElementById("auth-local-section");
