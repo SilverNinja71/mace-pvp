@@ -198,13 +198,13 @@ export function applyPageBackground(theme = "space") {
 // Pattern legend per skin palette: H hair, S skin, W white, P pupil, M mouth/nose, D dark
 // ------------------------------------------
 const PX_HEADS = {
-    // "steve" id: Rook - navy flight cap, brass goggles, red scarf
+    // "steve" id: Steve - navy flight cap, brass goggles, red scarf
     steve: {
         pal: { H: "#2f4a7a", G: "#b07a2a", L: "#ffd36b", S: "#d9a47a", E: "#1b1b2a", M: "#9a5a3c", R: "#c0392b" },
         hairRows: 3, hair: "#2f4a7a", skin: "#d9a47a",
         front: ["HHHHHHHH", "HHHHHHHH", "GLLGGLLG", "SSSSSSSS", "SESSSSES", "SSSSSSSS", "SSSMMSSS", "RRRRRRRR"]
     },
-    // "alex" id: Skye - side-swept sky-blue hair, amber eyes, freckles
+    // "alex" id: Alex - side-swept sky-blue hair, amber eyes, freckles
     alex: {
         pal: { H: "#4aa3df", S: "#f0c8a0", E: "#7a3e12", F: "#d98f6a", M: "#b4675a" },
         hairRows: 3, hair: "#4aa3df", skin: "#f0c8a0",
@@ -222,7 +222,7 @@ const PX_HEADS = {
         hairRows: 2, hair: "#1f1f24", skin: "#f1cfa8",
         front: ["HHHHHHHH", "RRRRRRRR", "SSSSSSSS", "SDSSSODS", "SSSSSOOS", "SSSSSSSS", "SMMMMMMS", "MSSSSSSM"]
     },
-    // "creeper" id: Moss Golem - grey stone, moss tufts, amber eyes
+    // "creeper" id: Creeper - grey stone, moss tufts, amber eyes
     creeper: {
         pal: { T: "#7d8590", D: "#4d535c", G: "#5aa548", A: "#ffb238" },
         hairRows: 1, skin: "#7d8590", hair: "#5aa548",

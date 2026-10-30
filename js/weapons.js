@@ -149,7 +149,7 @@ export const WEAPON_TYPES = {
 
     fists: {
         id: "fists",
-        name: "Bare Fists",
+        name: "Steve Bare Fists",
         icon: "",
         category: "Martial Brawl",
         desc: "Close-range punches: two hits win a fight, but they recharge slowly.",

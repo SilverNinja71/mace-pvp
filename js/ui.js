@@ -411,7 +411,7 @@ export class UIManager {
         }
     }
 
-    // Always show the default hero's head (Rook, id "steve") as the cube avatar
+    // Always show the default hero's head (Steve) as the cube avatar
     avatarHeadId(user) {
         return "steve";
     }
@@ -610,11 +610,11 @@ export class UIManager {
         const avatarPickerContainer = document.getElementById("avatar-picker-grid");
         if (avatarPickerContainer) {
             avatarPickerContainer.innerHTML = `
-                <div class="avatar-choice selected" style="cursor:default;" title="Rook">
+                <div class="avatar-choice selected" style="cursor:default;" title="Steve">
                     ${cubeHTML("steve", 48)}
                 </div>
                 <div style="display:flex; flex-direction:column; justify-content:center; margin-left:10px;">
-                    <span style="font-weight:bold; color:var(--text-primary); font-size:14px;">Rook's Cube Head</span>
+                    <span style="font-weight:bold; color:var(--text-primary); font-size:14px;">Steve's Cube Head</span>
                     <span style="font-size:12px; color:var(--text-muted);">Hero Avatar</span>
                 </div>
             `;
