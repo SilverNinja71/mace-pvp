@@ -71,9 +71,9 @@ export class Renderer {
                     ctx.fillRect(Math.round(sx - k * 9), Math.round(sy - k * 3), 4, 2);
                 }
             }
-        } else if (biome === "nether") {
-            if (!this.netherLayer) this.netherLayer = this.buildNetherLayer();
-            ctx.drawImage(this.netherLayer, 0, 0, this.width, this.height);
+        } else if (biome === "inferno") {
+            if (!this.infernoLayer) this.infernoLayer = this.buildInfernoLayer();
+            ctx.drawImage(this.infernoLayer, 0, 0, this.width, this.height);
 
             // Lava surface shimmer (moving bright pixels)
             ctx.fillStyle = "#ffb43a";
@@ -88,9 +88,9 @@ export class Renderer {
                 ctx.fillStyle = i % 3 ? "#ff7b25" : "#ffd36b";
                 ctx.fillRect(Math.round(ax), Math.round(ay), 2, 2);
             }
-        } else if (biome === "end") {
-            if (!this.endLayer) this.endLayer = this.buildEndLayer();
-            ctx.drawImage(this.endLayer, 0, 0, this.width, this.height);
+        } else if (biome === "void") {
+            if (!this.voidLayer) this.voidLayer = this.buildVoidLayer();
+            ctx.drawImage(this.voidLayer, 0, 0, this.width, this.height);
 
             // Twinkling stars
             for (let i = 0; i < 40; i++) {
@@ -98,18 +98,22 @@ export class Renderer {
                 ctx.fillStyle = i % 4 ? "#d8c8ff" : "#ffffff";
                 ctx.fillRect((i * 97) % this.width, (i * 53) % 200, 2, 2);
             }
-            // End crystals pulsing on the obsidian pillars
-            const pulse = Math.sin(this.frameCount * 0.08) > 0;
-            for (const [cx, cy] of [[112, 128], [345, 78], [628, 148]]) {
-                ctx.fillStyle = pulse ? "#ff8cff" : "#c04ad8";
-                ctx.fillRect(cx - 7, cy - 7, 14, 14);
+            // Teal crystals bobbing above the stone spires
+            const bob = Math.round(Math.sin(this.frameCount * 0.05) * 3);
+            const glow = Math.sin(this.frameCount * 0.08) > 0;
+            for (const [cx, cy] of [[112, 112], [345, 60], [628, 132]]) {
+                const ty = cy + bob;
+                ctx.fillStyle = glow ? "#7ff3f9" : "#3fc1c9";
+                ctx.fillRect(cx - 2, ty - 10, 4, 20);
+                ctx.fillRect(cx - 4, ty - 6, 8, 12);
+                ctx.fillRect(cx - 6, ty - 2, 12, 4);
                 ctx.fillStyle = "#ffffff";
-                ctx.fillRect(cx - 2, cy - 2, 4, 4);
+                ctx.fillRect(cx - 1, ty - 6, 2, 4);
             }
-                } else {
-            // Overworld: static layers are painted once and cached
-            if (!this.overworldLayer) this.overworldLayer = this.buildOverworldLayer();
-            ctx.drawImage(this.overworldLayer, 0, 0, this.width, this.height);
+        } else {
+            // Meadow: static layers are painted once and cached
+            if (!this.meadowLayer) this.meadowLayer = this.buildMeadowLayer();
+            ctx.drawImage(this.meadowLayer, 0, 0, this.width, this.height);
 
             // Drifting blocky clouds (two-tone, pixel-snapped)
             for (const cloud of this.clouds) {
@@ -261,8 +265,8 @@ export class Renderer {
         ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
     }
 
-    // Nether backdrop: crimson cave ceiling, glowstone, netherrack cliffs, lava sea
-    buildNetherLayer() {
+    // Inferno backdrop: crimson cave ceiling, glowing crystal clusters, red rock cliffs, lava sea
+    buildInfernoLayer() {
         const c = document.createElement("canvas");
         c.width = this.width;
         c.height = this.height;
@@ -274,13 +278,13 @@ export class Renderer {
         const bandH = Math.ceil(ground / bands.length);
         bands.forEach((col, i) => { g.fillStyle = col; g.fillRect(0, i * bandH, W, bandH + 1); });
 
-        // Jagged cave ceiling with hanging netherrack
+        // Jagged cave ceiling with hanging red rock
         g.fillStyle = "#3b0b0b";
         for (let x = 0; x < W; x += 8) {
             const h = 24 + Math.round((Math.sin(x * 0.02) * 14 + Math.sin(x * 0.07 + 2) * 8) / 8) * 8;
             g.fillRect(x, 0, 8, h);
         }
-        // Glowstone clusters on the ceiling
+        // Glowing crystal clusters on the ceiling
         for (const [gx, gy] of [[90, 30], [300, 22], [520, 34], [700, 26]]) {
             g.fillStyle = "#c79a3c"; g.fillRect(gx, gy, 24, 16);
             g.fillStyle = "#ffe08a"; g.fillRect(gx + 4, gy + 4, 8, 6); g.fillRect(gx + 14, gy + 8, 6, 5);
@@ -291,7 +295,7 @@ export class Renderer {
             const h = 210 + Math.round((Math.sin(x * 0.013 + 1) * 30 + Math.sin(x * 0.041) * 12) / 8) * 8;
             g.fillRect(x, h, 8, ground - h);
         }
-        // Near cliffs with crimson nylium tops
+        // Near cliffs with crimson moss tops
         g.fillStyle = "#7a1e1e";
         for (let x = 0; x < W; x += 8) {
             const h = 270 + Math.round((Math.sin(x * 0.019 + 3) * 22 + Math.sin(x * 0.05) * 8) / 8) * 8;
@@ -311,8 +315,8 @@ export class Renderer {
         return c;
     }
 
-    // End backdrop: void sky, distant end islands, obsidian pillars
-    buildEndLayer() {
+    // Void backdrop: dark sky, distant floating islands, stone spires
+    buildVoidLayer() {
         const c = document.createElement("canvas");
         c.width = this.width;
         c.height = this.height;
@@ -324,18 +328,18 @@ export class Renderer {
         const bandH = Math.ceil(ground / bands.length);
         bands.forEach((col, i) => { g.fillStyle = col; g.fillRect(0, i * bandH, W, bandH + 1); });
 
-        // Distant floating end islands
+        // Distant floating islands
         for (const [ix, iy, iw] of [[40, 230, 120], [520, 200, 150], [300, 260, 90], [690, 250, 90]]) {
-            g.fillStyle = "#a9a46e"; g.fillRect(ix, iy, iw, 10);
-            g.fillStyle = "#8a8550"; g.fillRect(ix + 8, iy + 10, iw - 16, 8); g.fillRect(ix + 20, iy + 18, iw - 40, 6);
+            g.fillStyle = "#8f89b3"; g.fillRect(ix, iy, iw, 10);
+            g.fillStyle = "#706a96"; g.fillRect(ix + 8, iy + 10, iw - 16, 8); g.fillRect(ix + 20, iy + 18, iw - 40, 6);
         }
-        // Obsidian pillars with iron-bar cages at the top
+        // Tapered stone spires (crystals float above them, drawn per frame)
         for (const [px, py, pw] of [[90, 140, 44], [320, 90, 50], [605, 160, 46]]) {
             g.fillStyle = "#15111f"; g.fillRect(px, py, pw, ground - py);
+            g.fillRect(px + 6, py - 8, pw - 12, 8);
+            g.fillRect(px + 14, py - 14, pw - 28, 6);
             g.fillStyle = "#231b33";
             for (let y = py + 6; y < ground; y += 16) g.fillRect(px + 4, y, pw - 8, 2);
-            g.fillStyle = "#3a3346"; g.fillRect(px + pw / 2 - 1, py - 18, 2, 18);
-            g.fillRect(px + 4, py - 18, 2, 18); g.fillRect(px + pw - 6, py - 18, 2, 18);
         }
         // Void haze near the floor
         g.fillStyle = "#2c1748";
@@ -343,8 +347,8 @@ export class Renderer {
         return c;
     }
 
-    // Paints the Overworld backdrop (sky bands, sun, mountains, hills, trees) to an offscreen canvas
-    buildOverworldLayer() {
+    // Paints the Meadow backdrop (sky bands, sun, mountains, hills, trees) to an offscreen canvas
+    buildMeadowLayer() {
         const c = document.createElement("canvas");
         c.width = this.width;
         c.height = this.height;
@@ -520,11 +524,11 @@ export class Renderer {
             if (biome === "space") {
                 if (isFloor) this.drawMoonFloor(ctx, p);
                 else this.drawCrystalLedge(ctx, p);
-            } else if (biome === "nether") {
+            } else if (biome === "inferno") {
                 // ==========================================
-                // NETHER: AUTHENTIC NETHERRACK BLOCKS
+                // INFERNO: RED ROCK BLOCKS
                 // ==========================================
-                // Base Netherrack rock body
+                // Base red rock body
                 ctx.fillStyle = "#681b22";
                 ctx.fillRect(p.x, p.y, p.w, p.h);
 
@@ -570,7 +574,7 @@ export class Renderer {
                 }
                 ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
 
-                // Crimson Nylium turf top carpet & hanging roots
+                // Crimson moss top carpet & hanging roots
                 ctx.fillStyle = "#9e1a31";
                 ctx.fillRect(p.x, p.y, p.w, 5);
                 ctx.fillStyle = "#cc2746";
@@ -580,16 +584,16 @@ export class Renderer {
                     ctx.fillRect(gx, p.y + 5, 3, 3);
                     ctx.fillRect(gx + 4, p.y + 5, 2, 2);
                 }
-            } else if (biome === "end") {
+            } else if (biome === "void") {
                 // ==========================================
-                // THE END: AUTHENTIC END STONE BLOCKS
+                // VOID: MOONSTONE BLOCKS WITH TEAL CRYSTAL CAPS
                 // ==========================================
-                // Base pale creamy End Stone
-                ctx.fillStyle = "#ded99f";
+                // Base pale lavender moonstone
+                ctx.fillStyle = "#b9b4d6";
                 ctx.fillRect(p.x, p.y, p.w, p.h);
 
                 // Dark sulfur crater pits (tiled 16x16)
-                ctx.fillStyle = "#b5ad6e";
+                ctx.fillStyle = "#9d97c0";
                 for (let bx = p.x; bx < p.x + p.w; bx += 16) {
                     for (let by = p.y; by < p.y + p.h; by += 16) {
                         ctx.fillRect(bx + 2, by + 4, 4, 3);
@@ -599,7 +603,7 @@ export class Renderer {
                 }
 
                 // Deep crater pores
-                ctx.fillStyle = "#8a8349";
+                ctx.fillStyle = "#726c98";
                 for (let bx = p.x; bx < p.x + p.w; bx += 16) {
                     for (let by = p.y; by < p.y + p.h; by += 16) {
                         ctx.fillRect(bx + 3, by + 5, 2, 2);
@@ -608,7 +612,7 @@ export class Renderer {
                 }
 
                 // Pale creamy highlights
-                ctx.fillStyle = "#f3efcb";
+                ctx.fillStyle = "#e0dcf2";
                 for (let bx = p.x; bx < p.x + p.w; bx += 16) {
                     for (let by = p.y; by < p.y + p.h; by += 16) {
                         ctx.fillRect(bx + 7, by + 2, 3, 2);
@@ -618,38 +622,38 @@ export class Renderer {
                 }
 
                 // Block seams
-                ctx.fillStyle = "#706a38";
+                ctx.fillStyle = "#5c5680";
                 for (let bx = p.x; bx < p.x + p.w; bx += 16) {
                     ctx.fillRect(bx, p.y, 1, p.h);
                 }
                 ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
 
                 if (isFloor) {
-                    // End Stone Bricks border at top of floor
-                    ctx.fillStyle = "#eae6ba";
+                    // Moonstone brick border at top of floor
+                    ctx.fillStyle = "#d0cce8";
                     ctx.fillRect(p.x, p.y, p.w, 3);
-                    ctx.fillStyle = "#948c4f";
+                    ctx.fillStyle = "#7a749e";
                     for (let bx = p.x; bx < p.x + p.w; bx += 32) {
                         ctx.fillRect(bx, p.y, 2, 6);
                     }
                 } else {
-                    // Purpur block top cap on floating ledges
-                    ctx.fillStyle = "#995a94";
+                    // Teal crystal cap on floating ledges
+                    ctx.fillStyle = "#2f9fa8";
                     ctx.fillRect(p.x, p.y, p.w, 5);
-                    ctx.fillStyle = "#b870b2";
+                    ctx.fillStyle = "#5fd3db";
                     ctx.fillRect(p.x, p.y, p.w, 2);
-                    ctx.fillStyle = "#6d3b6a";
+                    ctx.fillStyle = "#1f6f78";
                     for (let gx = p.x; gx < p.x + p.w; gx += 8) {
                         ctx.fillRect(gx, p.y + 5, 3, 2);
                     }
-                    // Obsidian brackets on ledge corners
+                    // Dark stone brackets on ledge corners
                     ctx.fillStyle = "#1b1424";
                     ctx.fillRect(p.x, p.y, 4, p.h);
                     ctx.fillRect(p.x + p.w - 4, p.y, 4, p.h);
                 }
             } else {
                 // ==========================================
-                // OVERWORLD: GRASS BLOCKS, DIRT, STONE & OAK LEDGES
+                // MEADOW: GRASS BLOCKS, DIRT, STONE & OAK LEDGES
                 // ==========================================
                 if (isFloor) {
                     this.drawGrassFloor(ctx, p);

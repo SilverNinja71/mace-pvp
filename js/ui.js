@@ -184,7 +184,7 @@ export class UIManager {
             this.updateMuteButton(sound.muted);
         }
 
-        // Theme / Biome Toggle (Overworld -> Nether -> End)
+        // Theme / Biome Toggle (Space -> Meadow -> Inferno -> Void)
         // Settings dropdown in the header
         const settingsBtn = document.getElementById("btn-settings");
         const settingsMenu = document.getElementById("settings-menu");
@@ -209,7 +209,7 @@ export class UIManager {
         this.currentBiome = "space";
         if (this.themeBtn) {
             this.themeBtn.addEventListener("click", () => {
-                const biomes = ["space", "overworld", "nether", "end"];
+                const biomes = ["space", "meadow", "inferno", "void"];
                 const nextIdx = (biomes.indexOf(this.currentBiome) + 1) % biomes.length;
                 this.currentBiome = biomes[nextIdx];
                 const capitalized = this.currentBiome.charAt(0).toUpperCase() + this.currentBiome.slice(1);
