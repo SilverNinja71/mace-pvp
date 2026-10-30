@@ -14,9 +14,11 @@
   // Leave empty to hide Google sign-in.
   const GOOGLE_CLIENT_ID = "";
   
-  // True when the page is served by CrazyGames (set by the small script at the top
-  // of index.html, before anything else loads). Google sign-in, shared accounts and
-  // the download button are switched off there.
+  // True whenever the page is NOT on the owner's own site (silverninja71.github.io,
+  // localhost or the downloaded file opened directly): CrazyGames on any of its
+  // domains, any embed site, anything in an iframe. Set by the small script at the
+  // top of index.html, before anything else loads. Google sign-in, shared accounts
+  // and the download button are switched off there; the game itself runs anywhere.
   const ON_CRAZYGAMES_HOST = typeof window !== "undefined" && window.SMP_ON_CRAZYGAMES === true;
   
   // Overall game speed (1 = original). Lower = everything moves a bit slower.
@@ -2240,8 +2242,11 @@
       // ==========================================
   
       isGoogleConfigured() {
-          // Google's sign-in popup is blocked inside CrazyGames' iframe
-          return !!GOOGLE_CLIENT_ID && !ON_CRAZYGAMES_HOST;
+          // Google sign-in is an external login: only offered on the owner's own site.
+          // The class is also set later if the CrazyGames SDK reports its environment.
+          const elsewhere = ON_CRAZYGAMES_HOST || (typeof document !== "undefined"
+              && document.documentElement.classList.contains("on-crazygames"));
+          return !!GOOGLE_CLIENT_ID && !elsewhere;
       }
   
       // The Google script loads asynchronously; wait for it, then initialize once
@@ -8177,6 +8182,7 @@
           this.setupArenaUI();
           this.setupResultsUI();
           this.handleInviteLinkOnLoad();
+          this.applyNoExternalLogins();
           this.setupSocialUI();
           this.setupTouchButtons();
           this.detectTouchDevice();
@@ -9453,12 +9459,18 @@
       // CRAZYGAMES (runs once the SDK reports we're on CrazyGames)
       // ==========================================
   
-      setupCrazyGames() {
-          // Google sign-in and shared accounts are hidden there (index.html .cg-hide)
+      // Off the owner's own site there are no external logins (index.html .cg-hide),
+      // so the tooltips stop mentioning Google sign-in too.
+      applyNoExternalLogins() {
+          if (!document.documentElement.classList.contains("on-crazygames")) return;
           const profileBtn = document.getElementById("btn-user-profile");
           if (profileBtn) profileBtn.title = "Player Profile";
           const profileBanner = document.getElementById("home-profile-banner");
           if (profileBanner) profileBanner.title = "Profile and career stats";
+      }
+  
+      setupCrazyGames() {
+          this.applyNoExternalLogins();
   
           // Opened from a CrazyGames invite: join that room (same checks as a typed code)
           const joinFromInvite = (raw) => {

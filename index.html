@@ -12,19 +12,22 @@
     <link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <script>
-        // CrazyGames serves the game in an iframe on its own domain. There, Google
-        // sign-in popups don't work and ../Empire/shared/accounts.js doesn't exist.
+        // External logins (Google sign-in, the shared ../Empire accounts) and the
+        // Download button only exist on the owner's own site: silverninja71.github.io,
+        // localhost, or the downloaded file, opened directly (not in an iframe).
+        // Anywhere else (CrazyGames and the many domains and embed sites it serves the
+        // game on, or any other portal) they are hidden and their scripts never load.
+        // This only switches features off: the game itself runs on every domain.
         (function () {
-            var cgHost = /(^|\.)crazygames\.[a-z]{2,3}(\.[a-z]{2})?$/i;
+            var ownHosts = /^(silverninja71\.github\.io|localhost|127\.0\.0\.1|\[::1\])$/i;
             var framed = false;
             try { framed = window.self !== window.top; } catch (e) { framed = true; }
-            var ref = "";
-            try { ref = framed && document.referrer ? new URL(document.referrer).hostname : ""; } catch (e) { ref = ""; }
-            window.SMP_ON_CRAZYGAMES = cgHost.test(location.hostname) || cgHost.test(ref);
+            var ownSite = !framed && (location.protocol === "file:" || ownHosts.test(location.hostname));
+            window.SMP_ON_CRAZYGAMES = !ownSite;
             if (window.SMP_ON_CRAZYGAMES) document.documentElement.classList.add("on-crazygames");
         })();
     </script>
-    <!-- Google Identity Services (GIS) Client Library (not on CrazyGames) -->
+    <!-- Google Identity Services (GIS) Client Library (owner's site only) -->
     <script>
         if (!window.SMP_ON_CRAZYGAMES) {
             var gsi = document.createElement("script");

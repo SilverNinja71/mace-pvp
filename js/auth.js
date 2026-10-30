@@ -391,8 +391,11 @@ export class AuthManager {
     // ==========================================
 
     isGoogleConfigured() {
-        // Google's sign-in popup is blocked inside CrazyGames' iframe
-        return !!GOOGLE_CLIENT_ID && !ON_CRAZYGAMES_HOST;
+        // Google sign-in is an external login: only offered on the owner's own site.
+        // The class is also set later if the CrazyGames SDK reports its environment.
+        const elsewhere = ON_CRAZYGAMES_HOST || (typeof document !== "undefined"
+            && document.documentElement.classList.contains("on-crazygames"));
+        return !!GOOGLE_CLIENT_ID && !elsewhere;
     }
 
     // The Google script loads asynchronously; wait for it, then initialize once

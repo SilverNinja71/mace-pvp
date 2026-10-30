@@ -76,6 +76,7 @@ export class UIManager {
         this.setupArenaUI();
         this.setupResultsUI();
         this.handleInviteLinkOnLoad();
+        this.applyNoExternalLogins();
         this.setupSocialUI();
         this.setupTouchButtons();
         this.detectTouchDevice();
@@ -1352,12 +1353,18 @@ export class UIManager {
     // CRAZYGAMES (runs once the SDK reports we're on CrazyGames)
     // ==========================================
 
-    setupCrazyGames() {
-        // Google sign-in and shared accounts are hidden there (index.html .cg-hide)
+    // Off the owner's own site there are no external logins (index.html .cg-hide),
+    // so the tooltips stop mentioning Google sign-in too.
+    applyNoExternalLogins() {
+        if (!document.documentElement.classList.contains("on-crazygames")) return;
         const profileBtn = document.getElementById("btn-user-profile");
         if (profileBtn) profileBtn.title = "Player Profile";
         const profileBanner = document.getElementById("home-profile-banner");
         if (profileBanner) profileBanner.title = "Profile and career stats";
+    }
+
+    setupCrazyGames() {
+        this.applyNoExternalLogins();
 
         // Opened from a CrazyGames invite: join that room (same checks as a typed code)
         const joinFromInvite = (raw) => {
