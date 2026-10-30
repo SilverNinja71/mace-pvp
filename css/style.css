@@ -3443,3 +3443,246 @@ input, textarea, .selectable {
 /* CrazyGames: no Google sign-in / shared accounts (popups fail in their iframe),
    no download button and no outbound links */
 .on-crazygames .cg-hide { display: none !important; }
+
+/* ==========================================
+   PHONES & TABLETS (html.touch-ui, set by ui.js when touch is the main input)
+   Desktop never gets .touch-ui, so nothing below changes it.
+   - Menus: the home screen and its windows fill the screen under a compact
+     header and scroll inside it (the page itself never scrolls).
+   - In a match: header, toolbar and footer go away, the arena is as big as the
+     screen allows (800:440, letterboxed) and the buttons sit over it:
+     move bottom-left, actions bottom-right, a small II pause button on top.
+   - Portrait: the arena sits at the top with the buttons in the free space
+     below it (nothing covers the fight), plus a hint to turn the phone.
+   ========================================== */
+.touch-only,
+.touch-pause,
+.touch-rotate-hint { display: none; }
+.touch-controls .touch-btn-size { display: none; }
+html.fighter-buddha .touch-controls .touch-btn-size { display: inline-flex; }
+.btn-hud-btn { white-space: nowrap; }
+.touch-btn.pressed {
+    top: 4px;
+    box-shadow: inset 3px 3px 0 #555, inset -3px -3px 0 #c9c9c9, 0 0 0 #1a1a1a;
+}
+
+html.touch-ui .kbd-only { display: none !important; }
+html.touch-ui .touch-only { display: inline; }
+html.touch-ui small.touch-only { display: block; }
+html.touch-ui .big-local { opacity: 0.6; }
+
+html.touch-ui {
+    --cw: min(100vw, calc(100vh * 800 / 440)); /* arena width while in a match */
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+@supports (height: 100dvh) {
+    html.touch-ui { --cw: min(100vw, calc(100dvh * 800 / 440)); }
+}
+html.touch-ui body {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-touch-callout: none;
+}
+html.touch-ui .game-footer { display: none; }
+
+/* Compact header (menus only) */
+html.touch-ui .game-header {
+    flex: none;
+    position: relative;
+    max-width: none;
+    padding: 4px 8px;
+    gap: 6px;
+    row-gap: 4px;
+}
+html.touch-ui .game-title { font-size: 0; letter-spacing: 0; }
+html.touch-ui .header-nav { gap: 6px; flex: 0 1 auto; order: 0; }
+html.touch-ui .header-nav .btn-ctrl { font-size: 17px; padding: 4px 10px; min-height: 40px; white-space: nowrap; }
+html.touch-ui .header-top-right { gap: 6px; }
+html.touch-ui .gold-pill { font-size: 17px; min-height: 40px; padding: 2px 8px; white-space: nowrap; }
+html.touch-ui .btn-profile { font-size: 17px; min-height: 40px; padding: 2px 8px; min-width: 0; }
+html.touch-ui .header-username { max-width: 8em; }
+html.touch-ui .btn-settings { min-width: 44px; min-height: 40px; }
+@media (max-width: 560px) {
+    html.touch-ui .header-nav { order: 3; flex: 1 1 100%; }
+    html.touch-ui .header-nav .btn-ctrl { flex: 1; }
+    html.touch-ui .header-top-right { flex: 1; justify-content: flex-end; }
+}
+html.touch-ui.in-match .game-header { display: none; }
+
+/* The arena box fills whatever the header leaves (the whole screen in a match) */
+html.touch-ui .arena-container,
+html.touch-ui .arena-container.screen-max {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: none;
+    min-height: 0;
+    margin: 0;
+    border: 0;
+    box-shadow: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: none;
+    overflow: clip; /* never scrolled by scrollIntoView/focus */
+}
+html.touch-ui .arena-top-bar { display: none; }
+/* Menus cover the arena anyway; keep the canvas from overflowing the menu box */
+html.touch-ui:not(.in-match) #game-canvas { position: absolute; visibility: hidden; }
+html.touch-ui #game-canvas {
+    flex: none;
+    width: var(--cw) !important;
+    height: auto !important;
+    -webkit-touch-callout: none;
+}
+@media (orientation: portrait) {
+    /* centred in the space above the buttons */
+    html.touch-ui.in-play .arena-container { padding-bottom: var(--pad-h, 200px); }
+}
+
+/* Menus and windows: fit the screen and scroll inside */
+html.touch-ui .overlay {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+html.touch-ui .modal-backdrop { padding: 8px; }
+html.touch-ui .modal-card { width: 100%; max-height: 100%; overscroll-behavior: contain; }
+
+/* In-match buttons over the arena */
+html.touch-ui .touch-controls { display: none; }
+html.touch-ui.in-play .touch-controls {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    max-width: none;
+    margin: 0;
+    padding: 0 max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+    justify-content: space-between;
+    align-items: flex-end;
+    z-index: 150;
+    pointer-events: none;
+    touch-action: none;
+}
+html.touch-ui .touch-cluster { pointer-events: auto; touch-action: none; }
+html.touch-ui .touch-btn {
+    touch-action: none;
+    -webkit-touch-callout: none;
+    opacity: 0.6;
+    font-size: 15px;
+    padding: 0;
+}
+html.touch-ui .touch-btn:active,
+html.touch-ui .touch-btn.pressed { opacity: 0.9; }
+html.touch-ui .touch-cluster-move {
+    display: grid;
+    grid-template-columns: repeat(2, var(--tb-move, 64px));
+    grid-template-rows: auto var(--tb-move, 64px);
+    grid-template-areas: "size ." "left right";
+    gap: 10px;
+}
+html.touch-ui .touch-btn-left { grid-area: left; }
+html.touch-ui .touch-btn-right { grid-area: right; }
+html.touch-ui .touch-btn-size { grid-area: size; height: 44px; }
+html.touch-ui .touch-btn-left,
+html.touch-ui .touch-btn-right { width: 100%; height: 100%; font-size: 26px; }
+html.touch-ui .touch-cluster-actions {
+    display: grid;
+    grid-template-columns: repeat(3, var(--tb-act, 58px));
+    grid-template-rows: 48px var(--tb-act, 58px);
+    grid-template-areas: "swap parry slam" "hit hit jump";
+    gap: 8px;
+}
+html.touch-ui .touch-cluster-actions .touch-btn { width: 100%; height: 100%; }
+html.touch-ui .touch-btn-swap { grid-area: swap; }
+html.touch-ui .touch-btn-parry { grid-area: parry; }
+html.touch-ui .touch-btn-slam { grid-area: slam; }
+html.touch-ui .touch-btn-dash { grid-area: hit; font-size: 18px; }
+html.touch-ui .touch-btn-action { grid-area: jump; }
+
+/* Tablets in landscape (4:3, 3:2): arena at the top, buttons in the space below it */
+@media (orientation: landscape) and (max-aspect-ratio: 3/2) {
+    html.touch-ui.in-play .arena-container { justify-content: flex-start; }
+}
+
+/* Pause: in the gap between your health bar and the score at the top of the arena */
+html.touch-ui.in-play .touch-pause {
+    display: flex;
+    position: absolute;
+    z-index: 140;
+    top: 4px;
+    left: calc(50% - var(--cw) * 0.5 + var(--cw) * 0.31);
+    width: 44px;
+    height: 40px;
+    min-height: 0;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-pixel);
+    font-size: 14px;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.5);
+    border: 3px solid rgba(255, 255, 255, 0.55);
+    box-shadow: none;
+    opacity: 0.8;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+@media (orientation: landscape) and (min-aspect-ratio: 1501/1000) {
+    html.touch-ui.in-play .touch-pause { top: calc((100% - var(--cw) * 0.55) / 2 + 4px); }
+}
+
+/* Portrait: arena on top, bigger buttons in the space underneath */
+@media (orientation: portrait) {
+    html.touch-ui.in-play .touch-controls {
+        --tb-move: 72px;
+        --tb-act: 66px;
+        padding-bottom: max(24px, env(safe-area-inset-bottom));
+        flex-wrap: wrap;
+    }
+    html.touch-ui.in-play .touch-pause { top: calc((100% - var(--pad-h, 200px) - var(--cw) * 0.55) / 2 + 4px); }
+    html.touch-ui.in-play .touch-rotate-hint {
+        display: block;
+        position: fixed;
+        left: 0;
+        right: 0;
+        top: calc((100vh - var(--pad-h, 200px) - var(--cw) * 0.55) / 2 + var(--cw) * 0.55 + 10px);
+        text-align: center;
+        font-size: 18px;
+        color: var(--text-muted);
+        pointer-events: none;
+    }
+}
+@media (orientation: portrait) and (max-width: 370px) {
+    html.touch-ui.in-play .touch-controls { --tb-move: 60px; --tb-act: 58px; padding-left: 6px; padding-right: 6px; }
+}
+/* Short landscape screens: slightly smaller buttons so less of the arena is covered */
+@media (orientation: landscape) and (max-height: 420px) {
+    html.touch-ui.in-play .touch-controls { --tb-move: 58px; --tb-act: 54px; }
+    html.touch-ui .touch-cluster-actions { grid-template-rows: 44px var(--tb-act, 54px); gap: 6px; }
+}
+
+/* Results on short landscape phones: compact cards so the buttons stay on screen */
+@media (orientation: landscape) and (max-height: 500px) {
+    html.touch-ui .results-header { padding: 2px 24px 4px; }
+    html.touch-ui .results-fighters .rs-card { width: 150px; gap: 2px; padding: 4px 6px 6px; border-top-width: 6px; }
+    html.touch-ui .results-fighters .rs-portrait { padding: 3px; }
+    html.touch-ui .results-fighters .rs-portrait canvas,
+    html.touch-ui .results-fighters .rs-portrait img { width: 40px !important; height: 40px !important; }
+    html.touch-ui .results-fighters .rs-place { font-size: 18px; }
+    html.touch-ui .results-fighters .rs-name { font-size: 18px; }
+    html.touch-ui .results-fighters .rs-wep { display: none; }
+    html.touch-ui .results-fighters .rs-stats { display: flex; justify-content: space-around; }
+    html.touch-ui .results-fighters .rs-stats div { flex-direction: column; align-items: center; font-size: 14px; line-height: 1; }
+    html.touch-ui .results-panel { gap: 6px; padding: 6px; }
+}

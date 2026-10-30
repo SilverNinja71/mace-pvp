@@ -20,6 +20,7 @@ export class Renderer {
         this.dpr = window.devicePixelRatio || 1;
 
         this.graphicStyle = "enhanced"; // "enhanced" or "classic"
+        this.touchUI = false; // phones/tablets: touch hints instead of keyboard hints
         this.frameCount = 0;
 
         // Clouds for background ambiance
@@ -790,9 +791,10 @@ export class Renderer {
         ctx.textBaseline = "middle";
         ctx.strokeStyle = "#000000";
         ctx.lineWidth = 3;
-        ctx.strokeText("F: parry", x + 18, cy - 2);
+        const label = this.touchUI ? "parry" : "F: parry"; // phones use the PARRY button
+        ctx.strokeText(label, x + 18, cy - 2);
         ctx.fillStyle = cooling ? "#9aa1ab" : "#ffffff";
-        ctx.fillText("F: parry", x + 18, cy - 2);
+        ctx.fillText(label, x + 18, cy - 2);
         if (cooling) {
             const frac = 1 - f.parryCooldown / PARRY_CONFIG.cooldown;
             ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
@@ -1756,7 +1758,10 @@ export class Renderer {
         ctx.textBaseline = "middle";
 
         const textX = bannerX + bannerW / 2;
-        if (isPvP) {
+        if (this.touchUI) {
+            // Phones/tablets: the on-screen buttons are labelled, so only explain tapping
+            ctx.fillText("TAP THE ARENA TO ATTACK (THE BOW AIMS WHERE YOU TAP) • II PAUSES", textX, bannerY + bannerH / 2);
+        } else if (isPvP) {
             ctx.fillText("P1: WASD • SPACE HIT • S SLAM • F PARRY   ••   P2: ARROWS • ENTER HIT • DOWN SLAM • / PARRY", textX, bannerY + bannerH / 2);
         } else {
             ctx.fillText("WASD MOVE • SPACE/CLICK ATTACK • S SLAM • F/SHIFT PARRY • Q SWAP • ESC PAUSE", textX, bannerY + bannerH / 2);

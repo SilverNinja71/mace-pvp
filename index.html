@@ -79,6 +79,8 @@
             </div>
         </div>
         <canvas id="game-canvas"></canvas>
+        <!-- Phones and tablets: small pause button over the arena (the toolbar above is hidden there) -->
+        <button id="touch-pause" class="touch-pause" aria-label="Pause" title="Pause">II</button>
 
         <!-- Home Screen Overlay -->
         <div id="menu-overlay" class="overlay">
@@ -99,7 +101,7 @@
                         </div>
                     </div>
                     <button id="btn-home-inventory" class="home-loadout-btn" title="Choose your weapon and class (I)">
-                        <span class="key-pill">I</span>
+                        <span class="key-pill kbd-only">I</span>
                         <span>
                             <span class="home-loadout-label">Weapon &amp; Class</span>
                             <span id="home-loadout-summary" class="home-loadout-summary">Mace · Normal</span>
@@ -124,11 +126,12 @@
                     </button>
                     <button id="home-local-btn" class="home-big-btn big-local">
                         <b>Local 2-Player</b>
-                        <small>Two players, one keyboard</small>
+                        <small class="kbd-only">Two players, one keyboard</small>
+                        <small class="touch-only">Needs a keyboard</small>
                     </button>
                 </div>
 
-                <div class="menu-key-guide">
+                <div class="menu-key-guide kbd-only">
                     <div><span class="key-pill">I</span> Weapon &amp; Class</div>
                     <div><span class="key-pill">WASD</span> Move / Jump</div>
                     <div><span class="key-pill">SPACE</span> / <span class="key-pill">CLICK</span> Attack</div>
@@ -156,7 +159,7 @@
                 <div id="lo-panel-weapon" class="loadout-panel" role="tabpanel">
                     <label class="lo-label" for="lo-weapon1">Weapon</label>
                     <select id="lo-weapon1" class="lo-select"></select>
-                    <label class="lo-label" for="lo-weapon2">Second weapon <span>(press Q in a match to swap)</span></label>
+                    <label class="lo-label" for="lo-weapon2">Second weapon <span class="kbd-only">(press Q in a match to swap)</span><span class="touch-only">(SWAP button in a match)</span></label>
                     <select id="lo-weapon2" class="lo-select"></select>
                     <button id="lo-open-shop" class="btn-ctrl lo-shop-btn">Get more skins</button>
                 </div>
@@ -183,7 +186,7 @@
 
                 <!-- Tab 1: Hotbar & Blank Inventory Slots -->
                 <div id="inv-panel-weapons" class="inv-tab-panel">
-                    <p class="loadout-hint">Unlock weapons here, then press <b>I</b> to choose your weapon and class.</p>
+                    <p class="loadout-hint">Unlock weapons here, then <span class="kbd-only">press <b>I</b> to </span>choose your weapon and class<span class="touch-only"> with the Weapon &amp; Class button</span>.</p>
                     <div id="weapons-list-container" class="weapons-list-container">
                         <!-- Populated by ui.js -->
                     </div>
@@ -491,9 +494,9 @@
                 <div id="results-fighters" class="results-fighters"></div>
                 <div id="results-rewards" class="results-rewards"></div>
                 <div class="results-actions">
-                    <button id="btn-results-again" class="btn-ctrl">Play Again (R)</button>
+                    <button id="btn-results-again" class="btn-ctrl">Play Again<span class="kbd-only"> (R)</span></button>
                     <button id="btn-results-details" class="btn-ctrl">Full Stats</button>
-                    <button id="btn-results-home" class="btn-ctrl">Home (H)</button>
+                    <button id="btn-results-home" class="btn-ctrl">Home<span class="kbd-only"> (H)</span></button>
                 </div>
             </div>
         </div>
@@ -502,11 +505,13 @@
 
     <!-- Mobile Touch Controls -->
     <div id="touch-controls" class="touch-controls hidden">
-        <div class="touch-cluster">
-            <button id="touch-left" class="touch-btn" aria-label="Left">&lt;</button>
-            <button id="touch-right" class="touch-btn" aria-label="Right">&gt;</button>
+        <div class="touch-cluster touch-cluster-move">
+            <button id="touch-size" class="touch-btn touch-btn-size" aria-label="Grow or shrink (Buddha)">SIZE</button>
+            <button id="touch-left" class="touch-btn touch-btn-left" aria-label="Left">&lt;</button>
+            <button id="touch-right" class="touch-btn touch-btn-right" aria-label="Right">&gt;</button>
         </div>
-        <div class="touch-cluster">
+        <p class="touch-rotate-hint">Turn your device sideways for a bigger arena</p>
+        <div class="touch-cluster touch-cluster-actions">
             <button id="touch-jump" class="touch-btn touch-btn-action" aria-label="Jump">JUMP</button>
             <button id="touch-dash" class="touch-btn touch-btn-dash" aria-label="Attack">HIT</button>
             <button id="touch-slam" class="touch-btn touch-btn-slam" aria-label="Slam">SLAM</button>

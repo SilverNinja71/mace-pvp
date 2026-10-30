@@ -4823,6 +4823,7 @@
           this.dpr = window.devicePixelRatio || 1;
   
           this.graphicStyle = "enhanced"; // "enhanced" or "classic"
+          this.touchUI = false; // phones/tablets: touch hints instead of keyboard hints
           this.frameCount = 0;
   
           // Clouds for background ambiance
@@ -5593,9 +5594,10 @@
           ctx.textBaseline = "middle";
           ctx.strokeStyle = "#000000";
           ctx.lineWidth = 3;
-          ctx.strokeText("F: parry", x + 18, cy - 2);
+          const label = this.touchUI ? "parry" : "F: parry"; // phones use the PARRY button
+          ctx.strokeText(label, x + 18, cy - 2);
           ctx.fillStyle = cooling ? "#9aa1ab" : "#ffffff";
-          ctx.fillText("F: parry", x + 18, cy - 2);
+          ctx.fillText(label, x + 18, cy - 2);
           if (cooling) {
               const frac = 1 - f.parryCooldown / PARRY_CONFIG.cooldown;
               ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
@@ -6559,7 +6561,10 @@
           ctx.textBaseline = "middle";
   
           const textX = bannerX + bannerW / 2;
-          if (isPvP) {
+          if (this.touchUI) {
+              // Phones/tablets: the on-screen buttons are labelled, so only explain tapping
+              ctx.fillText("TAP THE ARENA TO ATTACK (THE BOW AIMS WHERE YOU TAP) • II PAUSES", textX, bannerY + bannerH / 2);
+          } else if (isPvP) {
               ctx.fillText("P1: WASD • SPACE HIT • S SLAM • F PARRY   ••   P2: ARROWS • ENTER HIT • DOWN SLAM • / PARRY", textX, bannerY + bannerH / 2);
           } else {
               ctx.fillText("WASD MOVE • SPACE/CLICK ATTACK • S SLAM • F/SHIFT PARRY • Q SWAP • ESC PAUSE", textX, bannerY + bannerH / 2);
@@ -8504,13 +8509,16 @@
               backdrop.addEventListener("click", (e) => {
                   // Ignore clicks on buttons that were re-rendered (removed from the page) mid-click
                   if (e.target === backdrop || (e.target.isConnected && !e.target.closest(".modal-card"))) {
+                      // Phones/tablets have no toolbar to resume from: tapping outside the pause window resumes
+                      if (backdrop === this.pauseModal && this.touchUI && this.game.state === "paused") {
+                          this.game.togglePause();
+                          return;
+                      }
                       backdrop.classList.add("hidden");
                       sound.playClick();
                   }
               });
           });
-  
-          this.setupTouchButtons();
   
           // Wire game callbacks to ui
           if (this.game) {
@@ -10452,35 +10460,122 @@
   
               btn.addEventListener("touchstart", start, { passive: false });
               btn.addEventListener("touchend", end, { passive: false });
+              btn.addEventListener("touchcancel", end, { passive: false });
               btn.addEventListener("mousedown", start);
               btn.addEventListener("mouseup", end);
           };
   
+          // Left / right: each finger on the move pad picks the button it is over, so a
+          // thumb can slide from one to the other without lifting. Other fingers
+          // (jump, hit...) are separate touches and work at the same time.
           // A / D are Player 1's keys in every mode (arrows belong to Player 2 in local PvP)
-          bindButton("touch-left",
-              () => { this.game.keys["KeyA"] = true; },
-              () => { this.game.keys["KeyA"] = false; }
-          );
-          bindButton("touch-right",
-              () => { this.game.keys["KeyD"] = true; },
-              () => { this.game.keys["KeyD"] = false; }
-          );
+          const moveTouches = new Map(); // touch id -> "left" | "right" | null
+          const applyMove = () => {
+              const dirs = [...moveTouches.values()];
+              this.game.keys["KeyA"] = dirs.includes("left");
+              this.game.keys["KeyD"] = dirs.includes("right");
+          };
+          const dirAt = (touch) => {
+              const el = document.elementFromPoint(touch.clientX, touch.clientY);
+              const btn = el && el.closest ? el.closest("#touch-left, #touch-right") : null;
+              return btn ? (btn.id === "touch-left" ? "left" : "right") : null;
+          };
+          const pad = document.querySelector(".touch-cluster-move");
+          const leftBtn = document.getElementById("touch-left");
+          const rightBtn = document.getElementById("touch-right");
+          if (pad && leftBtn && rightBtn) {
+              const track = (e) => {
+                  const isMoveTouch = (t) => t.target === leftBtn || t.target === rightBtn;
+                  for (const t of e.changedTouches) {
+                      if (!isMoveTouch(t)) continue;
+                      if (e.type === "touchend" || e.type === "touchcancel") moveTouches.delete(t.identifier);
+                      else moveTouches.set(t.identifier, dirAt(t));
+                  }
+                  if (e.cancelable) e.preventDefault();
+                  if (e.type === "touchstart") sound.ensureContext();
+                  applyMove();
+                  leftBtn.classList.toggle("pressed", this.game.keys["KeyA"]);
+                  rightBtn.classList.toggle("pressed", this.game.keys["KeyD"]);
+              };
+              ["touchstart", "touchmove", "touchend", "touchcancel"].forEach((type) => pad.addEventListener(type, track, { passive: false }));
+              // Mouse (touch laptops with the on-screen buttons)
+              const mouse = (key, down) => (e) => { e.preventDefault(); this.game.keys[key] = down; };
+              leftBtn.addEventListener("mousedown", mouse("KeyA", true));
+              leftBtn.addEventListener("mouseup", mouse("KeyA", false));
+              leftBtn.addEventListener("mouseleave", mouse("KeyA", false));
+              rightBtn.addEventListener("mousedown", mouse("KeyD", true));
+              rightBtn.addEventListener("mouseup", mouse("KeyD", false));
+              rightBtn.addEventListener("mouseleave", mouse("KeyD", false));
+          }
           bindButton("touch-jump", () => this.game.localAction("jump"), () => {});
           bindButton("touch-dash", () => this.game.localAttack(), () => {});
           bindButton("touch-slam", () => this.game.localAction("slam"), () => {});
           bindButton("touch-parry", () => this.game.localAction("parry"), () => {});
           bindButton("touch-swap", () => this.game.localAction("swap"), () => {});
+          bindButton("touch-size", () => this.game.localAction("size"), () => {});
+  
+          // Small pause button over the arena on phones/tablets. Online matches can't
+          // pause, so there it opens the leave-match prompt instead.
+          const pauseBtn = document.getElementById("touch-pause");
+          if (pauseBtn) {
+              pauseBtn.addEventListener("click", () => {
+                  sound.playClick();
+                  if (this.game.mode === "online") this.handleHomeClick();
+                  else this.game.togglePause();
+              });
+          }
+  
+          // No long-press menus, callouts or pinch-zoom on the controls and the arena
+          const noMenu = (e) => e.preventDefault();
+          [this.touchControls, document.getElementById("game-canvas")].forEach((el) => {
+              if (el) el.addEventListener("contextmenu", noMenu);
+          });
+          if (this.touchControls) this.touchControls.addEventListener("touchmove", noMenu, { passive: false });
+          document.addEventListener("gesturestart", (e) => {
+              if (document.documentElement.classList.contains("in-play")) e.preventDefault();
+          });
       }
   
+      // Phones and tablets (touch is the main input, no mouse hover) get the full-screen
+      // touch layout (html.touch-ui, see style.css). Desktops are left as they are;
+      // a touchscreen laptop keeps the desktop layout with the buttons under the arena.
       detectTouchDevice() {
           const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+          const mq = (q) => !!(window.matchMedia && window.matchMedia(q).matches);
+          this.touchUI = isTouch && (mq("(pointer: coarse)") || mq("(hover: none)"));
           if (isTouch && this.touchControls) {
               this.touchControls.classList.remove("hidden");
+          }
+          if (this.touchUI) {
+              document.documentElement.classList.add("touch-ui");
+              this.game.renderer.touchUI = true;
+              // Phones/tablets only have the on-screen buttons: no "press X" key hints
+              document.querySelectorAll("[title]").forEach((el) => {
+                  el.title = el.title.replace(/\s*\((?:[A-Z]|ESC|Esc)\)\s*$/, "");
+              });
+          }
+          this.updatePlayClasses(this.game.state);
+      }
+  
+      // html.in-match while a match is on screen (playing, paused or results);
+      // html.in-play only while it is being played (touch buttons visible)
+      updatePlayClasses(state) {
+          const root = document.documentElement;
+          root.classList.toggle("in-match", state !== "menu");
+          root.classList.toggle("in-play", state === "play");
+          const f = this.game.localFighter;
+          root.classList.toggle("fighter-buddha", !!(f && f.classId === "buddha"));
+          if (state !== "play") {
+              // let go of any held on-screen direction
+              this.game.keys["KeyA"] = false;
+              this.game.keys["KeyD"] = false;
+              document.querySelectorAll(".touch-btn.pressed").forEach((b) => b.classList.remove("pressed"));
           }
       }
   
       onStateChanged(state) {
           this.syncCrazyGamesRoom();
+          this.updatePlayClasses(state);
           if (state !== "gameover") this.hideResultsScreen();
           if (state === "menu") {
               if (this.menuOverlay) this.menuOverlay.classList.remove("hidden");
@@ -10598,7 +10693,7 @@
           }).join("");
   
           const againBtn = document.getElementById("btn-results-again");
-          if (againBtn) againBtn.textContent = g.mode === "online" ? "Rematch (R)" : "Play Again (R)";
+          if (againBtn) againBtn.innerHTML = (g.mode === "online" ? "Rematch" : "Play Again") + '<span class="kbd-only"> (R)</span>';
   
           const fightersEl = document.getElementById("results-fighters");
           fightersEl.classList.toggle("compact", compact);
