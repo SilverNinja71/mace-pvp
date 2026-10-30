@@ -8,6 +8,7 @@
 // ==========================================
 
 import { ON_CRAZYGAMES_HOST } from './config.js';
+import { sound } from './audio.js';
 
 const CG_SDK_URL = "https://sdk.crazygames.com/crazygames-sdk-v3.js";
 const CG_INIT_TIMEOUT_MS = 6000;
@@ -80,6 +81,14 @@ class CrazyGamesBridge {
 
     activate() {
         document.documentElement.classList.add("on-crazygames");
+        // CrazyGames can mute the game (its own sound toggle). This silences all
+        // game audio on top of the player's own Sound setting, which is left as is.
+        const applyMute = (settings) => sound.setPlatformMuted(!!(settings && settings.muteAudio));
+        this.safe(() => applyMute(this.sdk.game.settings));
+        this.safe(() => this.sdk.game.addSettingsChangeListener((newSettings) => {
+            const live = (this.sdk.game && this.sdk.game.settings) || {};
+            applyMute({ ...live, ...(newSettings || {}) });
+        }));
         if (this.wantGameplay) this.setGameplay(true);
     }
 
