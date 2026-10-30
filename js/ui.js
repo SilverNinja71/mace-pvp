@@ -1007,17 +1007,7 @@ export class UIManager {
         // Host Private Room button
         const btnHost = document.getElementById("btn-host-private");
         if (btnHost) {
-            btnHost.onclick = () => {
-                const code = arena.generateRoomCode();
-                document.getElementById("private-room-code-display").textContent = code;
-                const linkInput = document.getElementById("private-room-link");
-                if (linkInput) linkInput.value = this.buildRoomLink(code);
-                const status = document.getElementById("copy-link-status");
-                if (status) status.textContent = "";
-                document.getElementById("private-room-panel").classList.remove("hidden");
-                sound.playClick();
-                this.hostOnlineRoom(code);
-            };
+            btnHost.onclick = () => this.createOnlineRoom();
         }
 
         // Copy Invite Link button
@@ -1047,6 +1037,7 @@ export class UIManager {
         }
 
         online.onMessage = (msg, peer) => this.handleOnlineMessage(msg, peer);
+        online.onClosed = () => crazyGames.hideInviteButton();
         online.onDisconnect = (reason, peer) => this.handleOnlineDisconnect(reason, peer);
 
         const btnOnlineStart = document.getElementById("btn-online-start");
@@ -1080,9 +1071,40 @@ export class UIManager {
 
     // ---- Host lobby: up to 4 players. Join order fills Blue, Red, Blue, Red. ----
 
+    createOnlineRoom() {
+        const code = arena.generateRoomCode();
+        document.getElementById("private-room-code-display").textContent = code;
+        const linkInput = document.getElementById("private-room-link");
+        if (linkInput) {
+            if (crazyGames.active) {
+                // On CrazyGames the invite link must come from their SDK
+                linkInput.value = "";
+                crazyGames.inviteLink(code).then((link) => {
+                    if (link && document.getElementById("private-room-code-display").textContent === code) linkInput.value = link;
+                });
+            } else {
+                linkInput.value = this.buildRoomLink(code);
+            }
+        }
+        const status = document.getElementById("copy-link-status");
+        if (status) status.textContent = "";
+        document.getElementById("private-room-panel").classList.remove("hidden");
+        sound.playClick();
+        this.hostOnlineRoom(code);
+    }
+
+    // CrazyGames invite button: shown while the host's lobby has free spots
+    updateInviteButton() {
+        const lobby = this.lobby;
+        const open = online.role === "host" && lobby && this.game.state === "menu"
+            && lobby.players.length < (lobby.matchType === "1v1" ? 2 : 4);
+        if (open) crazyGames.showInviteButton(lobby.code);
+        else crazyGames.hideInviteButton();
+    }
+
     hostOnlineRoom(code) {
         let matchType = this.selectedArenaMode === "1v1" ? "1v1" : "2v2";
-        this.lobby = { matchType, players: [{ peer: "host", info: this.myOnlineInfo() }] };
+        this.lobby = { code, matchType, players: [{ peer: "host", info: this.myOnlineInfo() }] };
         const note = this.selectedArenaMode === "5v5" ? " (online rooms go up to 2v2)" : "";
         this.setOnlineStatus("Opening room...");
         online.host(code, matchType === "1v1" ? 1 : 3, () => {
@@ -1090,6 +1112,7 @@ export class UIManager {
                 ? "Room open (1v1). Waiting for your friend to join..."
                 : `Room open (2v2)${note}. Invite up to 3 friends, then press Start. Empty spots become bots.`);
             this.renderOnlineLobby();
+            this.updateInviteButton();
         }, (err) => this.setOnlineStatus(err, true));
     }
 
@@ -1180,6 +1203,7 @@ export class UIManager {
     hostStartOnlineMatch() {
         if (!this.lobby || online.role !== "host") return;
         if (this.lobby.matchType === "1v1" && this.lobby.players.length < 2) return;
+        crazyGames.hideInviteButton();
         const setup = this.buildOnlineSetup();
         setup.slots.forEach((slot, i) => {
             if (slot.peer && slot.peer !== "host") online.sendTo(slot.peer, { t: "start", setup, you: i });
@@ -1197,6 +1221,7 @@ export class UIManager {
             } else {
                 this.setOnlineStatus(`${(msg.info && msg.info.name) || "A friend"} joined. Press Start when everyone's in.`);
                 this.broadcastLobby();
+                this.updateInviteButton();
             }
         } else if (msg.t === "lobby" && online.role === "guest") {
             this.setOnlineStatus("You're in! Waiting for the host to start...");
@@ -1227,6 +1252,7 @@ export class UIManager {
             if (!inMatch) {
                 this.setOnlineStatus(`${name} left the room.`);
                 this.broadcastLobby();
+                this.updateInviteButton();
                 return;
             }
         }
@@ -1277,7 +1303,7 @@ export class UIManager {
     parseRoomCode(text) {
         let raw = (text || "").trim();
         if (!raw) return null;
-        const match = raw.match(/[?&#]room=([^&#\s]+)/i);
+        const match = raw.match(/[?&#]room(?:Id)?=([^&#\s]+)/i);
         if (match) raw = decodeURIComponent(match[1]);
         const code = raw.toUpperCase().replace(/\s+/g, "");
         return /^[A-Z0-9-]{5,}$/.test(code) ? code : null;
@@ -1314,6 +1340,35 @@ export class UIManager {
         if (profileBtn) profileBtn.title = "Player Profile";
         const profileBanner = document.getElementById("home-profile-banner");
         if (profileBanner) profileBanner.title = "Profile and career stats";
+
+        // Opened from a CrazyGames invite: join that room (same checks as a typed code)
+        const joinFromInvite = (raw) => {
+            const code = this.parseRoomCode(raw);
+            if (!code) return false;
+            const joinInput = document.getElementById("input-join-code");
+            if (joinInput) joinInput.value = code;
+            this.openArenaModal("online");
+            this.joinOnlineRoom(code);
+            return true;
+        };
+        crazyGames.onJoinRoom((raw) => {
+            if (this.game.state === "menu" || this.game.state === "gameover") {
+                if (this.game.state === "gameover") this.game.goHome();
+                joinFromInvite(raw);
+            }
+        });
+        if (this.game.state !== "menu" || online.role) return; // player already started something
+        const invite = crazyGames.getInviteRoom();
+        if (invite && joinFromInvite(invite)) return;
+        // Party leader started "Play with friends": go straight to an open lobby
+        if (crazyGames.isInstantMultiplayer()) {
+            this.openArenaModal("online");
+            if (this.selectedArenaMode !== "2v2") {
+                const pill = this.arenaModal && this.arenaModal.querySelector('.arena-mode-pill[data-mode="2v2"]');
+                if (pill) pill.click();
+            }
+            this.createOnlineRoom();
+        }
     }
 
     // If the page was opened from an invite link (?room=CODE), open the arena hub with the code filled in
