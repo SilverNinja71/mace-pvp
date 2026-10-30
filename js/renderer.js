@@ -954,79 +954,107 @@ export class Renderer {
         ctx.save();
         ctx.globalAlpha = alpha;
 
+        // Skin ids are the stored save values; see BLOCK_FACES in auth.js for names
+        const fx = (dx, fw) => (facing > 0 ? x + dx : x + w - dx - fw); // mirror a front-facing x offset
         if (skin === "alex") {
-            // Minecraft Alex: Orange hair, olive green shirt, brown pants
-            ctx.fillStyle = "#e67e22"; // Orange Hair
-            ctx.fillRect(x, y, w, 8);
-            ctx.fillStyle = "#27ae60"; // Olive green tunic
-            ctx.fillRect(x, y + 8, w, 10);
-            ctx.fillStyle = "#795548"; // Pants
-            ctx.fillRect(x, y + 18, w, 7);
-            // Face
-            ctx.fillStyle = "#f5cd79";
-            ctx.fillRect(x + (facing > 0 ? 6 : 2), y + 4, 16, 8);
-            // Green Eyes
-            ctx.fillStyle = "#2ecc71";
-            ctx.fillRect(x + (facing > 0 ? 15 : 4), y + 7, 4, 4);
-        } else if (skin === "noob") {
-            // Roblox Classic Noob: Yellow head, royal blue torso, lime green legs
-            ctx.fillStyle = "#ffeb3b"; // Yellow head
-            ctx.fillRect(x, y, w, 10);
-            ctx.fillStyle = "#1976d2"; // Blue torso
-            ctx.fillRect(x, y + 10, w, 8);
-            ctx.fillStyle = "#4caf50"; // Green legs
-            ctx.fillRect(x, y + 18, w, 7);
-            // Cute Noob Face
-            ctx.fillStyle = "#212121";
-            const eyeX = facing > 0 ? x + 15 : x + 5;
-            ctx.fillRect(eyeX, y + 4, 3, 3);
-            ctx.fillRect(eyeX + (facing > 0 ? 4 : -4), y + 4, 3, 3);
-            // Smile
-            ctx.fillRect(x + (facing > 0 ? 14 : 4), y + 8, 6, 2);
-        } else if (skin === "man_face") {
-            // Roblox Iconic Man Face (The Smirk)
-            ctx.fillStyle = "#ffeaa7"; // Skin
-            ctx.fillRect(x, y, w, h);
-            ctx.fillStyle = "#2d3436"; // Hair
+            // Skye: side-swept sky-blue hair, white tunic with blue sash, charcoal pants
+            ctx.fillStyle = "#f0c8a0"; // Skin
+            ctx.fillRect(x, y + 4, w, 9);
+            ctx.fillStyle = "#4aa3df"; // Hair
             ctx.fillRect(x, y, w, 5);
-            // Man Face Smirk & Eyes
-            ctx.fillStyle = "#000000";
-            const mfX = facing > 0 ? x + 10 : x + 2;
-            // Smug raised eyebrow & sharp eye
-            ctx.fillRect(mfX, y + 6, 5, 2);
-            ctx.fillRect(mfX + 6, y + 5, 5, 2);
-            ctx.fillRect(mfX + 1, y + 9, 3, 2);
-            ctx.fillRect(mfX + 7, y + 8, 3, 2);
-            // Iconic smirk line
-            ctx.fillRect(mfX + 2, y + 15, 8, 2);
-            ctx.fillRect(mfX + 8, y + 13, 3, 3);
-            // Shirt trim
-            ctx.fillStyle = "#e74c3c";
+            ctx.fillRect(fx(0, 7), y + 4, 7, 7); // fringe swept to the back
+            ctx.fillStyle = "#f4f6f8"; // Tunic
+            ctx.fillRect(x, y + 13, w, 7);
+            ctx.fillStyle = "#2f80c9"; // Sash
+            ctx.fillRect(x, y + 15, w, 2);
+            ctx.fillStyle = "#3a3f47"; // Pants
+            ctx.fillRect(x, y + 20, w, 5);
+            // Amber eye and freckles
+            ctx.fillStyle = "#7a3e12";
+            ctx.fillRect(fx(16, 3), y + 6, 3, 3);
+            ctx.fillStyle = "#d98f6a";
+            ctx.fillRect(fx(14, 2), y + 10, 2, 1);
+            ctx.fillRect(fx(20, 2), y + 10, 2, 1);
+        } else if (skin === "noob") {
+            // Sunbolt: tangerine head, white headband, red jersey, grey shorts
+            ctx.fillStyle = "#f39c12";
+            ctx.fillRect(x, y, w, 12);
+            ctx.fillStyle = "#fbfbf2"; // Headband with trailing tail
+            ctx.fillRect(x, y + 2, w, 3);
+            ctx.fillRect(fx(-4, 4), y + 3, 4, 2);
+            ctx.fillStyle = "#c0392b"; // Jersey
+            ctx.fillRect(x, y + 12, w, 7);
+            ctx.fillStyle = "#fbfbf2"; // Jersey stripe
+            ctx.fillRect(x, y + 14, w, 1);
+            ctx.fillStyle = "#555b63"; // Shorts
             ctx.fillRect(x, y + 19, w, 6);
+            // Eyes and open grin
+            ctx.fillStyle = "#2b1a0e";
+            ctx.fillRect(fx(13, 2), y + 6, 2, 3);
+            ctx.fillRect(fx(19, 2), y + 6, 2, 3);
+            ctx.fillStyle = "#8e2b1c";
+            ctx.fillRect(fx(13, 9), y + 9, 9, 2);
+        } else if (skin === "man_face") {
+            // Dapper Duke: top hat, monocle, moustache, green waistcoat
+            ctx.fillStyle = "#f1cfa8"; // Skin
+            ctx.fillRect(x, y + 5, w, 9);
+            ctx.fillStyle = "#1f1f24"; // Top hat
+            ctx.fillRect(x + 2, y - 4, w - 4, 7);
+            ctx.fillRect(x - 1, y + 3, w + 2, 2); // brim
+            ctx.fillStyle = "#a3242f"; // Hat band
+            ctx.fillRect(x + 2, y + 1, w - 4, 2);
+            // Eye, monocle and moustache
+            ctx.fillStyle = "#2a1d14";
+            ctx.fillRect(fx(13, 2), y + 7, 2, 2);
+            ctx.fillStyle = "#e3b23c";
+            ctx.strokeStyle = "#e3b23c";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(fx(18, 5) + 0.5, y + 6.5, 4, 4);
+            ctx.fillRect(fx(20, 1), y + 11, 1, 3); // monocle chain
+            ctx.fillStyle = "#5a3a22";
+            ctx.fillRect(fx(11, 12), y + 11, 12, 2);
+            ctx.fillRect(fx(10, 2), y + 10, 2, 2);
+            ctx.fillRect(fx(21, 2), y + 10, 2, 2);
+            ctx.fillStyle = "#2e7d4f"; // Waistcoat
+            ctx.fillRect(x, y + 14, w, 11);
+            ctx.fillStyle = "#f4f6f8"; // Shirt front
+            ctx.fillRect(x + 10, y + 14, 5, 6);
         } else if (skin === "creeper") {
-            // Creeper Face: Mottled green with black frown
-            ctx.fillStyle = "#2ecc71";
+            // Moss Golem: grey stone block, moss tufts on top, amber eyes, carved mouth
+            ctx.fillStyle = "#7d8590";
             ctx.fillRect(x, y, w, h);
-            ctx.fillStyle = "#27ae60";
-            ctx.fillRect(x + 2, y + 2, 8, 8);
-            ctx.fillRect(x + 14, y + 14, 8, 8);
-            // Black Creeper Mouth
-            ctx.fillStyle = "#000000";
-            ctx.fillRect(x + 4, y + 6, 5, 5);  // Eye L
-            ctx.fillRect(x + 16, y + 6, 5, 5); // Eye R
-            ctx.fillRect(x + 9, y + 12, 7, 4); // Mouth top
-            ctx.fillRect(x + 7, y + 16, 4, 7); // Mouth bottom L
-            ctx.fillRect(x + 14, y + 16, 4, 7);// Mouth bottom R
+            ctx.fillStyle = "#6a717b"; // Stone cracks
+            ctx.fillRect(x + 3, y + 15, 6, 1);
+            ctx.fillRect(x + 15, y + 20, 7, 1);
+            ctx.fillRect(x + 2, y + 21, 1, 3);
+            ctx.fillStyle = "#5aa548"; // Moss
+            ctx.fillRect(x, y, w, 3);
+            ctx.fillRect(x + 2, y + 3, 4, 2);
+            ctx.fillRect(x + 14, y + 3, 5, 1);
+            ctx.fillRect(x + w - 3, y + 3, 3, 4);
+            // Glowing amber eyes
+            ctx.fillStyle = "#ffb238";
+            ctx.fillRect(fx(11, 4), y + 8, 4, 2);
+            ctx.fillRect(fx(18, 4), y + 8, 4, 2);
+            // Carved mouth line
+            ctx.fillStyle = "#4d535c";
+            ctx.fillRect(fx(11, 11), y + 13, 11, 1);
         } else if (skin === "enderman") {
-            // Enderman: Pitch black with purple glowing eyes
-            ctx.fillStyle = "#1e1e1e";
+            // Void Wraith: starry navy hood with a glowing cyan visor
+            ctx.fillStyle = "#2b3470";
             ctx.fillRect(x, y, w, h);
-            // Glowing purple eyes
-            ctx.fillStyle = "#a855f7";
-            const eEyeX = facing > 0 ? x + 14 : x + 3;
-            ctx.fillRect(eEyeX, y + 9, 7, 3);
-            ctx.fillStyle = "#d8b4fe";
-            ctx.fillRect(eEyeX + (facing > 0 ? 3 : 0), y + 9, 4, 3);
+            ctx.fillStyle = "#1b2147";
+            ctx.fillRect(x + 3, y + 3, w - 6, h - 3);
+            ctx.fillStyle = "#9fb0ff"; // Star specks
+            ctx.fillRect(x + 6, y + 5, 1, 1);
+            ctx.fillRect(x + 17, y + 4, 1, 1);
+            ctx.fillRect(x + 11, y + 18, 1, 1);
+            ctx.fillRect(x + 19, y + 21, 1, 1);
+            // Visor
+            ctx.fillStyle = "#5ef2ff";
+            ctx.fillRect(fx(8, 15), y + 9, 15, 3);
+            ctx.fillStyle = "#e8fbff";
+            ctx.fillRect(fx(18, 4), y + 10, 4, 1);
         } else if (skin === "skeleton") {
             // Skeleton: White bone with hollow gray eyes
             ctx.fillStyle = "#ecf0f1";
@@ -1061,21 +1089,25 @@ export class Renderer {
             ctx.fillStyle = "#ffffff";
             ctx.fillRect(x + (facing > 0 ? 18 : 4), y + 10, 3, 2);
         } else {
-            // Default: Minecraft Steve
-            ctx.fillStyle = "#5d4037"; // Dark brown hair
-            ctx.fillRect(x, y, w, 6);
-            ctx.fillStyle = "#f5cd79"; // Skin
-            ctx.fillRect(x, y + 6, w, 7);
-            ctx.fillStyle = "#00d2d3"; // Cyan tee
-            ctx.fillRect(x, y + 13, w, 7);
-            ctx.fillStyle = "#2980b9"; // Blue pants
-            ctx.fillRect(x, y + 20, w, 5);
-            // Blue eyes
-            ctx.fillStyle = "#2980b9";
-            const stEyeX = facing > 0 ? x + 15 : x + 4;
-            ctx.fillRect(stEyeX, y + 8, 4, 4);
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(stEyeX + (facing > 0 ? 2 : 0), y + 8, 2, 2);
+            // Default ("steve" id): Rook - navy flight cap, brass goggles, red scarf, blue jacket
+            ctx.fillStyle = "#d9a47a"; // Skin
+            ctx.fillRect(x, y + 5, w, 8);
+            ctx.fillStyle = "#2f4a7a"; // Cap
+            ctx.fillRect(x, y, w, 5);
+            ctx.fillRect(fx(-2, 4), y + 3, 4, 2); // cap flap at the back
+            ctx.fillStyle = "#b07a2a"; // Goggle strap
+            ctx.fillRect(x, y + 3, w, 2);
+            ctx.fillStyle = "#ffd36b"; // Goggle lens
+            ctx.fillRect(fx(15, 6), y + 2, 6, 3);
+            ctx.fillStyle = "#1b1b2a"; // Eye
+            ctx.fillRect(fx(17, 2), y + 7, 2, 2);
+            ctx.fillStyle = "#c0392b"; // Scarf
+            ctx.fillRect(x, y + 13, w, 3);
+            ctx.fillRect(fx(-3, 4), y + 14, 4, 3); // scarf tail
+            ctx.fillStyle = "#3b6ea5"; // Jacket
+            ctx.fillRect(x, y + 16, w, 5);
+            ctx.fillStyle = "#4a3b2c"; // Trousers
+            ctx.fillRect(x, y + 21, w, 4);
         }
 
         ctx.restore();

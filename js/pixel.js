@@ -198,35 +198,41 @@ export function applyMinecraftBackground(theme = "space") {
 // Pattern legend per skin palette: H hair, S skin, W white, P pupil, M mouth/nose, D dark
 // ------------------------------------------
 const PX_HEADS = {
+    // "steve" id: Rook - navy flight cap, brass goggles, red scarf
     steve: {
-        pal: { H: "#3b2a17", S: "#c4936a", W: "#ffffff", P: "#4a3f9e", M: "#7a4d30" },
-        hairRows: 3, hair: "#3b2a17", skin: "#c4936a",
-        front: ["HHHHHHHH", "HHHHHHHH", "HSSSSSSH", "SSSSSSSS", "SWPSSPWS", "SSSMMSSS", "SSMMMMSS", "SSMSSMSS"]
+        pal: { H: "#2f4a7a", G: "#b07a2a", L: "#ffd36b", S: "#d9a47a", E: "#1b1b2a", M: "#9a5a3c", R: "#c0392b" },
+        hairRows: 3, hair: "#2f4a7a", skin: "#d9a47a",
+        front: ["HHHHHHHH", "HHHHHHHH", "GLLGGLLG", "SSSSSSSS", "SESSSSES", "SSSSSSSS", "SSSMMSSS", "RRRRRRRR"]
     },
+    // "alex" id: Skye - side-swept sky-blue hair, amber eyes, freckles
     alex: {
-        pal: { H: "#c9792a", S: "#e6b48f", W: "#ffffff", P: "#3f8a3f", M: "#b9826b" },
-        hairRows: 3, hair: "#c9792a", skin: "#e6b48f",
-        front: ["HHHHHHHH", "HHHHHHHH", "HHSSSSHH", "HSSSSSSH", "SWPSSPWS", "SSSSSSSS", "SSSMMSSS", "SSSSSSSS"]
+        pal: { H: "#4aa3df", S: "#f0c8a0", E: "#7a3e12", F: "#d98f6a", M: "#b4675a" },
+        hairRows: 3, hair: "#4aa3df", skin: "#f0c8a0",
+        front: ["HHHHHHHH", "HHHHHHHH", "HSSSHHHH", "HSSSSSSH", "SESSSSES", "SFSSSSFS", "SSSMMSSS", "SSSSSSSS"]
     },
+    // "noob" id: Sunbolt - tangerine head, white headband, open grin
     noob: {
-        pal: { S: "#f2d21f", D: "#222222" },
-        hairRows: 0, skin: "#f2d21f", hair: "#f2d21f",
-        front: ["SSSSSSSS", "SSSSSSSS", "SSSSSSSS", "SSDSSDSS", "SSSSSSSS", "SDSSSSDS", "SSDDDDSS", "SSSSSSSS"]
+        pal: { S: "#f39c12", W: "#fbfbf2", D: "#2b1a0e", M: "#8e2b1c" },
+        hairRows: 0, skin: "#f39c12", hair: "#f39c12",
+        front: ["SSSSSSSS", "WWWWWWWW", "SSSSSSSS", "SDDSSDDS", "SSSSSSSS", "SSSSSSSS", "SMMMMMMS", "SSMMMMSS"]
     },
+    // "man_face" id: Dapper Duke - top hat, monocle, moustache
     man_face: {
-        pal: { H: "#2d2d2d", S: "#e8c690", D: "#111111" },
-        hairRows: 2, hair: "#2d2d2d", skin: "#e8c690",
-        front: ["HHHHHHHH", "HHHHHHHH", "SSSSSSSS", "SDDSSDDS", "SSDSSSDS", "SSSSSSSS", "SSSSDDDS", "SSSSSSSS"]
+        pal: { H: "#1f1f24", R: "#a3242f", S: "#f1cfa8", D: "#2a1d14", O: "#e3b23c", M: "#5a3a22" },
+        hairRows: 2, hair: "#1f1f24", skin: "#f1cfa8",
+        front: ["HHHHHHHH", "RRRRRRRR", "SSSSSSSS", "SDSSSODS", "SSSSSOOS", "SSSSSSSS", "SMMMMMMS", "MSSSSSSM"]
     },
+    // "creeper" id: Moss Golem - grey stone, moss tufts, amber eyes
     creeper: {
-        pal: { G: "#4fae3c", B: "#1a1a1a", L: "#3d8a2e" },
-        hairRows: 0, skin: "#4fae3c", hair: "#4fae3c",
-        front: ["GGLGGGLG", "GBBGGBBG", "GBBGGBBG", "GGGBBGGG", "GGBBBBGG", "GLBBBBGG", "GGBGGBGG", "GGGGLGGG"]
+        pal: { T: "#7d8590", D: "#4d535c", G: "#5aa548", A: "#ffb238" },
+        hairRows: 1, skin: "#7d8590", hair: "#5aa548",
+        front: ["GGGTTGGG", "GTTTTTTG", "TTTTTTTT", "TAATTAAT", "TTTTTTTT", "TTTDTTTT", "TDDDDDDT", "TTGTTTGT"]
     },
+    // "enderman" id: Void Wraith - starry navy hood, cyan visor
     enderman: {
-        pal: { K: "#16101c", P: "#e07cff", Q: "#ffffff" },
-        hairRows: 0, skin: "#16101c", hair: "#16101c",
-        front: ["KKKKKKKK", "KKKKKKKK", "KKKKKKKK", "KKKKKKKK", "KQPKKPQK", "KKKKKKKK", "KKKKKKKK", "KKKKKKKK"]
+        pal: { K: "#1b2147", N: "#2b3470", C: "#5ef2ff", s: "#9fb0ff" },
+        hairRows: 0, skin: "#1b2147", hair: "#2b3470",
+        front: ["NNNNNNNN", "NKKKKsKN", "NKsKKKKN", "NKKKKKKN", "NCCCCCCN", "NKKKKKKN", "NKKsKKKN", "NKKKKKKN"]
     },
     skeleton: {
         pal: { S: "#d6d6d6", L: "#bdbdbd", D: "#4a4a4a" },

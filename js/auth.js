@@ -8,26 +8,29 @@ import { WEAPON_TYPES } from './weapons.js';
 
 const STORAGE_KEY = "spear_mace_user_profile";
 
+// Internal ids ("steve", "alex", "noob", ...) are kept as-is because they are
+// stored in players' saves and sent to other players online; only the names
+// and the pixel art shown to players changed.
 export const AVATAR_PRESETS = [
-    { id: "steve", name: "Steve", icon: "", bg: "#2ecc71" },
-    { id: "alex", name: "Alex", icon: "", bg: "#e67e22" },
+    { id: "steve", name: "Rook", icon: "", bg: "#2ecc71" },
+    { id: "alex", name: "Skye", icon: "", bg: "#e67e22" },
     { id: "mace_knight", name: "Mace Knight", icon: "", bg: "#3498db" },
-    { id: "wind_breeze", name: "Wind Breeze", icon: "", bg: "#00d2d3" },
-    { id: "nether_warrior", name: "Nether Titan", icon: "", bg: "#e74c3c" },
-    { id: "ender_champion", name: "Ender Champion", icon: "", bg: "#9b59b6" },
+    { id: "wind_breeze", name: "Gale Rider", icon: "", bg: "#00d2d3" },
+    { id: "nether_warrior", name: "Magma Titan", icon: "", bg: "#e74c3c" },
+    { id: "ender_champion", name: "Void Champion", icon: "", bg: "#9b59b6" },
     { id: "golden_paladin", name: "Gold Paladin", icon: "", bg: "#f1c40f" },
     { id: "shadow_bot", name: "Shadow Rogue", icon: "", bg: "#2c3e50" }
 ];
 
 export const BLOCK_FACES = [
-    { id: "steve", name: "Minecraft Steve", icon: "", cost: 0, desc: "Classic Minecraft icon with cyan tee and brown hair." },
-    { id: "alex", name: "Minecraft Alex", icon: "", cost: 0, desc: "Classic Minecraft explorer with green tunic and orange hair." },
-    { id: "noob", name: "Roblox Noob", icon: "", cost: 200, desc: "The iconic yellow block head with simple smile and blue torso." },
-    { id: "man_face", name: "Roblox Man Face", icon: "", cost: 400, desc: "The legendary, unmistakable smirking block face." },
-    { id: "creeper", name: "Creeper Face", icon: "", cost: 500, desc: "Pixelated green explosive face with iconic black frown." },
-    { id: "enderman", name: "Enderman", icon: "", cost: 600, desc: "Deep dark obsidian head with glowing mystical violet eyes." },
+    { id: "steve", name: "Rook", icon: "", cost: 0, desc: "Sky-arena flier with a navy cap, brass goggles and a red scarf." },
+    { id: "alex", name: "Skye", icon: "", cost: 0, desc: "Wind-swept scout with sky-blue hair and a white tunic." },
+    { id: "noob", name: "Sunbolt", icon: "", cost: 200, desc: "Tangerine brawler with a white headband and a big grin." },
+    { id: "man_face", name: "Dapper Duke", icon: "", cost: 400, desc: "Top hat, monocle and a magnificent moustache." },
+    { id: "creeper", name: "Moss Golem", icon: "", cost: 500, desc: "Mossy stone sentinel with glowing amber eyes." },
+    { id: "enderman", name: "Void Wraith", icon: "", cost: 600, desc: "Starry navy hood with a glowing cyan visor." },
     { id: "skeleton", name: "Skeleton Skull", icon: "", cost: 500, desc: "Bone white archer skull with hollow dark eyes." },
-    { id: "zombie", name: "Zombie", icon: "", cost: 400, desc: "Infected undead Steve with necrotic green skin." },
+    { id: "zombie", name: "Zombie", icon: "", cost: 400, desc: "Shambling undead brawler with necrotic green skin." },
     { id: "diamond_knight", name: "Diamond Helmet", icon: "", cost: 800, desc: "Gleaming enchanted diamond helmet warrior." }
 ];
 
