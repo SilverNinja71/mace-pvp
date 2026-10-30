@@ -3439,3 +3439,7 @@ input, textarea, .selectable {
 .acct-transfer { margin-top: 8px; color: var(--text-muted); font-size: 13px; }
 .acct-transfer summary { cursor: pointer; }
 .acct-transfer textarea { width: 100%; box-sizing: border-box; margin: 6px 0; font-family: monospace; font-size: 12px; resize: vertical; }
+
+/* CrazyGames: no Google sign-in / shared accounts (popups fail in their iframe),
+   no download button and no outbound links */
+.on-crazygames .cg-hide { display: none !important; }

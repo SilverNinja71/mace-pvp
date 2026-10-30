@@ -11,8 +11,28 @@
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
-    <!-- Google Identity Services (GIS) Client Library -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script>
+        // CrazyGames serves the game in an iframe on its own domain. There, Google
+        // sign-in popups don't work and ../Empire/shared/accounts.js doesn't exist.
+        (function () {
+            var cgHost = /(^|\.)crazygames\.[a-z]{2,3}(\.[a-z]{2})?$/i;
+            var framed = false;
+            try { framed = window.self !== window.top; } catch (e) { framed = true; }
+            var ref = "";
+            try { ref = framed && document.referrer ? new URL(document.referrer).hostname : ""; } catch (e) { ref = ""; }
+            window.SMP_ON_CRAZYGAMES = cgHost.test(location.hostname) || cgHost.test(ref);
+            if (window.SMP_ON_CRAZYGAMES) document.documentElement.classList.add("on-crazygames");
+        })();
+    </script>
+    <!-- Google Identity Services (GIS) Client Library (not on CrazyGames) -->
+    <script>
+        if (!window.SMP_ON_CRAZYGAMES) {
+            var gsi = document.createElement("script");
+            gsi.src = "https://accounts.google.com/gsi/client";
+            gsi.async = true;
+            document.head.appendChild(gsi);
+        }
+    </script>
 </head>
 <body>
 
@@ -37,7 +57,7 @@
                 <div id="settings-menu" class="settings-menu hidden" role="menu">
                     <button id="btn-theme" class="btn-ctrl" role="menuitem" title="Cycle Biome Theme (Space, Meadow, Inferno, Void)">Theme: Space</button>
                     <button id="btn-mute" class="btn-ctrl" role="menuitem" title="Toggle Audio (M)">Sound: On</button>
-                    <button id="btn-download" class="btn-ctrl" role="menuitem" title="Download the game as one HTML file">Download Game</button>
+                    <button id="btn-download" class="btn-ctrl cg-hide" role="menuitem" title="Download the game as one HTML file">Download Game</button>
                 </div>
             </div>
         </div>
@@ -272,12 +292,12 @@
         <div id="auth-modal" class="modal-backdrop hidden">
             <div class="modal-card modal-auth-card">
                 <div class="modal-header">
-                    <h2>Player Profile & Google Sign-In</h2>
+                    <h2>Player Profile<span class="cg-hide"> &amp; Google Sign-In</span></h2>
                     <button class="btn-close-modal">&times;</button>
                 </div>
 
                 <!-- 0. Player account (shared account system) -->
-                <div class="auth-section">
+                <div class="auth-section cg-hide">
                     <h3 class="auth-sec-title">Player Account</h3>
                     <div id="auth-local-section">
                         <!-- Populated by ui.js -->
@@ -285,7 +305,7 @@
                 </div>
 
                 <!-- 1. Google Authentication Section -->
-                <div class="auth-section">
+                <div class="auth-section cg-hide">
                     <h3 class="auth-sec-title">Google Authentication</h3>
                     <div id="auth-google-section">
                         <!-- Populated by ui.js -->
@@ -500,7 +520,8 @@
     <!-- Game Script (Self-contained zero-dependency bundle) -->
     <!-- PeerJS: browser-to-browser connections for online play -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="../Empire/shared/accounts.js"></script>
+    <!-- Shared player accounts (only on the owner's own site; not on CrazyGames) -->
+    <script>if (!window.SMP_ON_CRAZYGAMES) document.write('<script src="../Empire/shared/accounts.js"><\/script>');</script>
     <script src="bundle.js"></script>
 </body>
 </html>

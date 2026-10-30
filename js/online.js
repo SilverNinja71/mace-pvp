@@ -18,6 +18,7 @@ class OnlineSession {
         this.onMessage = null; // (msg, fromPeerId) => void
         this.onDisconnect = null; // (reason, peerId) => void
         this.onGuestJoined = null; // (peerId) => void (host only)
+        this.onClosed = null; // () => void, after the room/connection is closed on purpose
         this.connectTimer = null;
     }
 
@@ -141,6 +142,7 @@ class OnlineSession {
             this.peer = null;
         }
         this.role = null;
+        if (this.onClosed) this.onClosed();
     }
 
     describeError(err) {

@@ -5,6 +5,7 @@
 import { Game } from './game.js';
 import { UIManager } from './ui.js';
 import { applyPageBackground } from './pixel.js';
+import { crazyGames } from './crazygames.js';
 
 window.addEventListener("DOMContentLoaded", () => {
     const canvas = document.getElementById("game-canvas");
@@ -21,6 +22,8 @@ window.addEventListener("DOMContentLoaded", () => {
     const game = new Game(canvas, {
         onStateChanged: (state) => {
             if (ui) ui.onStateChanged(state);
+            // CrazyGames gameplay tracking: only while a match is actually being played
+            crazyGames.setGameplay(state === "play");
         },
         onMuteToggled: (isMuted) => {
             if (ui) ui.updateMuteButton(isMuted);
@@ -38,6 +41,12 @@ window.addEventListener("DOMContentLoaded", () => {
 
     // Start 60fps game loop
     game.start();
+
+    // CrazyGames SDK: loads in the background and never delays the game.
+    // Off CrazyGames it resolves to false and nothing changes.
+    crazyGames.init().then((active) => {
+        if (active) ui.setupCrazyGames();
+    });
 
     console.log("Spear-Mace PVP initialized successfully!");
 });

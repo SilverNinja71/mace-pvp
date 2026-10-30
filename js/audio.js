@@ -16,7 +16,8 @@ class SoundEngine {
     constructor() {
         this.ctx = null;
         this.masterGain = null;
-        this.muted = false;
+        this.muted = false; // the player's own choice (M key / Sound button), saved
+        this.platformMuted = false; // muted by the host site (CrazyGames SDK); never saved
         this.volume = 0.7;
 
         // Restore mute preference if saved
@@ -32,6 +33,23 @@ class SoundEngine {
         this.cachedNoiseBuffer = null;
     }
 
+    // True when no sound should play: the player muted, or the site did
+    get silent() {
+        return this.muted || this.platformMuted;
+    }
+
+    applyGain() {
+        if (this.masterGain && this.ctx) {
+            this.masterGain.gain.setValueAtTime(this.silent ? 0 : this.volume, this.ctx.currentTime);
+        }
+    }
+
+    // CrazyGames' mute overrides the player's setting without changing it
+    setPlatformMuted(muted) {
+        this.platformMuted = !!muted;
+        this.applyGain();
+    }
+
     init() {
         if (this.ctx) return;
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -39,7 +57,7 @@ class SoundEngine {
         
         this.ctx = new AudioCtx();
         this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.setValueAtTime(this.muted ? 0 : this.volume, this.ctx.currentTime);
+        this.masterGain.gain.setValueAtTime(this.silent ? 0 : this.volume, this.ctx.currentTime);
         this.masterGain.connect(this.ctx.destination);
     }
 
@@ -54,9 +72,7 @@ class SoundEngine {
 
     setMuted(muted) {
         this.muted = muted;
-        if (this.masterGain && this.ctx) {
-            this.masterGain.gain.setValueAtTime(this.muted ? 0 : this.volume, this.ctx.currentTime);
-        }
+        this.applyGain();
         try {
             localStorage.setItem("spear_mace_muted", this.muted ? "true" : "false");
         } catch (e) {}
@@ -69,9 +85,7 @@ class SoundEngine {
 
     setVolume(vol) {
         this.volume = Math.max(0, Math.min(1, vol));
-        if (this.masterGain && this.ctx && !this.muted) {
-            this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
-        }
+        this.applyGain();
         try {
             localStorage.setItem("spear_mace_vol", this.volume.toString());
         } catch (e) {}
@@ -93,7 +107,7 @@ class SoundEngine {
 
     playJump() {
         this.ensureContext();
-        if (!this.ctx || this.muted) return;
+        if (!this.ctx || this.silent) return;
 
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
@@ -115,7 +129,7 @@ class SoundEngine {
 
     playDoubleJump() {
         this.ensureContext();
-        if (!this.ctx || this.muted) return;
+        if (!this.ctx || this.silent) return;
 
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
@@ -138,7 +152,7 @@ class SoundEngine {
     // Wind gust / Spear Dash swoosh
     playDash() {
         this.ensureContext();
-        if (!this.ctx || this.muted) return;
+        if (!this.ctx || this.silent) return;
 
         const now = this.ctx.currentTime;
         const noiseBuf = this.getNoiseBuffer();
@@ -169,7 +183,7 @@ class SoundEngine {
     // High velocity dive sound
     playSlamStart() {
         this.ensureContext();
-        if (!this.ctx || this.muted) return;
+        if (!this.ctx || this.silent) return;
 
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
@@ -192,7 +206,7 @@ class SoundEngine {
     // Signature Mace Heavy Crunch / Anvil smash
     playSlamHit(intensityRatio = 0.5) {
         this.ensureContext();
-        if (!this.ctx || this.muted) return;
+        if (!this.ctx || this.silent) return;
 
         const now = this.ctx.currentTime;
         const clampedRatio = Math.max(0.1, Math.min(1.0, intensityRatio));
@@ -253,7 +267,7 @@ class SoundEngine {
     // Ground slam shockwave
     playGroundSlam() {
         this.ensureContext();
-        if (!this.ctx || this.muted) return;
+        if (!this.ctx || this.silent) return;
 
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
@@ -276,7 +290,7 @@ class SoundEngine {
     // Dash attack hit (spear strike / thrust)
     playDashHit() {
         this.ensureContext();
-        if (!this.ctx || this.muted) return;
+        if (!this.ctx || this.silent) return;
 
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
@@ -300,7 +314,7 @@ class SoundEngine {
     // pitch < 1 gives the slightly lower clash variant.
     playParry(pitch = 1) {
         this.ensureContext();
-        if (!this.ctx || this.muted) return;
+        if (!this.ctx || this.silent) return;
 
         const now = this.ctx.currentTime;
         for (let i = 0; i < PARRY_PARTIALS.length; i++) {
@@ -341,7 +355,7 @@ class SoundEngine {
     // Raising the parry guard: a quick, quiet "shing"
     playParryReady() {
         this.ensureContext();
-        if (!this.ctx || this.muted) return;
+        if (!this.ctx || this.silent) return;
 
         const now = this.ctx.currentTime;
         const noiseBuf = this.getNoiseBuffer();
@@ -367,7 +381,7 @@ class SoundEngine {
     // Wind Geyser launch: a rising gust
     playGeyser() {
         this.ensureContext();
-        if (!this.ctx || this.muted) return;
+        if (!this.ctx || this.silent) return;
 
         const now = this.ctx.currentTime;
         const noiseBuf = this.getNoiseBuffer();
@@ -405,7 +419,7 @@ class SoundEngine {
     // Invisibility flicker / shroud sound
     playInvisWarning() {
         this.ensureContext();
-        if (!this.ctx || this.muted) return;
+        if (!this.ctx || this.silent) return;
 
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
@@ -428,7 +442,7 @@ class SoundEngine {
     // Victory fanfare
     playWin() {
         this.ensureContext();
-        if (!this.ctx || this.muted) return;
+        if (!this.ctx || this.silent) return;
 
         const notes = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5
         notes.forEach((freq, index) => {
@@ -454,7 +468,7 @@ class SoundEngine {
     // Defeat tone
     playLoss() {
         this.ensureContext();
-        if (!this.ctx || this.muted) return;
+        if (!this.ctx || this.silent) return;
 
         const notes = [311.13, 293.66, 277.18, 246.94]; // Eb4, D4, Db4, B3
         notes.forEach((freq, index) => {
@@ -478,7 +492,7 @@ class SoundEngine {
 
     playClick() {
         this.ensureContext();
-        if (!this.ctx || this.muted) return;
+        if (!this.ctx || this.silent) return;
 
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();

@@ -24,6 +24,7 @@ FILES_IN_ORDER = [
     "arena.js",
     "auth.js",
     "online.js",
+    "crazygames.js",
     "particles.js",
     "entity.js",
     "ai.js",

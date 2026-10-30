@@ -14,6 +14,11 @@
   // Leave empty to hide Google sign-in.
   const GOOGLE_CLIENT_ID = "";
   
+  // True when the page is served by CrazyGames (set by the small script at the top
+  // of index.html, before anything else loads). Google sign-in, shared accounts and
+  // the download button are switched off there.
+  const ON_CRAZYGAMES_HOST = typeof window !== "undefined" && window.SMP_ON_CRAZYGAMES === true;
+  
   // Overall game speed (1 = original). Lower = everything moves a bit slower.
   const GAME_SPEED = 0.85;
   
@@ -685,7 +690,8 @@
       constructor() {
           this.ctx = null;
           this.masterGain = null;
-          this.muted = false;
+          this.muted = false; // the player's own choice (M key / Sound button), saved
+          this.platformMuted = false; // muted by the host site (CrazyGames SDK); never saved
           this.volume = 0.7;
   
           // Restore mute preference if saved
@@ -701,6 +707,23 @@
           this.cachedNoiseBuffer = null;
       }
   
+      // True when no sound should play: the player muted, or the site did
+      get silent() {
+          return this.muted || this.platformMuted;
+      }
+  
+      applyGain() {
+          if (this.masterGain && this.ctx) {
+              this.masterGain.gain.setValueAtTime(this.silent ? 0 : this.volume, this.ctx.currentTime);
+          }
+      }
+  
+      // CrazyGames' mute overrides the player's setting without changing it
+      setPlatformMuted(muted) {
+          this.platformMuted = !!muted;
+          this.applyGain();
+      }
+  
       init() {
           if (this.ctx) return;
           const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -708,7 +731,7 @@
           
           this.ctx = new AudioCtx();
           this.masterGain = this.ctx.createGain();
-          this.masterGain.gain.setValueAtTime(this.muted ? 0 : this.volume, this.ctx.currentTime);
+          this.masterGain.gain.setValueAtTime(this.silent ? 0 : this.volume, this.ctx.currentTime);
           this.masterGain.connect(this.ctx.destination);
       }
   
@@ -723,9 +746,7 @@
   
       setMuted(muted) {
           this.muted = muted;
-          if (this.masterGain && this.ctx) {
-              this.masterGain.gain.setValueAtTime(this.muted ? 0 : this.volume, this.ctx.currentTime);
-          }
+          this.applyGain();
           try {
               localStorage.setItem("spear_mace_muted", this.muted ? "true" : "false");
           } catch (e) {}
@@ -738,9 +759,7 @@
   
       setVolume(vol) {
           this.volume = Math.max(0, Math.min(1, vol));
-          if (this.masterGain && this.ctx && !this.muted) {
-              this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
-          }
+          this.applyGain();
           try {
               localStorage.setItem("spear_mace_vol", this.volume.toString());
           } catch (e) {}
@@ -762,7 +781,7 @@
   
       playJump() {
           this.ensureContext();
-          if (!this.ctx || this.muted) return;
+          if (!this.ctx || this.silent) return;
   
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
@@ -784,7 +803,7 @@
   
       playDoubleJump() {
           this.ensureContext();
-          if (!this.ctx || this.muted) return;
+          if (!this.ctx || this.silent) return;
   
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
@@ -807,7 +826,7 @@
       // Wind gust / Spear Dash swoosh
       playDash() {
           this.ensureContext();
-          if (!this.ctx || this.muted) return;
+          if (!this.ctx || this.silent) return;
   
           const now = this.ctx.currentTime;
           const noiseBuf = this.getNoiseBuffer();
@@ -838,7 +857,7 @@
       // High velocity dive sound
       playSlamStart() {
           this.ensureContext();
-          if (!this.ctx || this.muted) return;
+          if (!this.ctx || this.silent) return;
   
           const now = this.ctx.currentTime;
           const osc = this.ctx.createOscillator();
@@ -861,7 +880,7 @@
       // Signature Mace Heavy Crunch / Anvil smash
       playSlamHit(intensityRatio = 0.5) {
           this.ensureContext();
-          if (!this.ctx || this.muted) return;
+          if (!this.ctx || this.silent) return;
   
           const now = this.ctx.currentTime;
           const clampedRatio = Math.max(0.1, Math.min(1.0, intensityRatio));
@@ -922,7 +941,7 @@
       // Ground slam shockwave
       playGroundSlam() {
           this.ensureContext();
-          if (!this.ctx || this.muted) return;
+          if (!this.ctx || this.silent) return;
   
           const now = this.ctx.currentTime;
           const osc = this.ctx.createOscillator();
@@ -945,7 +964,7 @@
       // Dash attack hit (spear strike / thrust)
       playDashHit() {
           this.ensureContext();
-          if (!this.ctx || this.muted) return;
+          if (!this.ctx || this.silent) return;
   
           const now = this.ctx.currentTime;
           const osc = this.ctx.createOscillator();
@@ -969,7 +988,7 @@
       // pitch < 1 gives the slightly lower clash variant.
       playParry(pitch = 1) {
           this.ensureContext();
-          if (!this.ctx || this.muted) return;
+          if (!this.ctx || this.silent) return;
   
           const now = this.ctx.currentTime;
           for (let i = 0; i < PARRY_PARTIALS.length; i++) {
@@ -1010,7 +1029,7 @@
       // Raising the parry guard: a quick, quiet "shing"
       playParryReady() {
           this.ensureContext();
-          if (!this.ctx || this.muted) return;
+          if (!this.ctx || this.silent) return;
   
           const now = this.ctx.currentTime;
           const noiseBuf = this.getNoiseBuffer();
@@ -1036,7 +1055,7 @@
       // Wind Geyser launch: a rising gust
       playGeyser() {
           this.ensureContext();
-          if (!this.ctx || this.muted) return;
+          if (!this.ctx || this.silent) return;
   
           const now = this.ctx.currentTime;
           const noiseBuf = this.getNoiseBuffer();
@@ -1074,7 +1093,7 @@
       // Invisibility flicker / shroud sound
       playInvisWarning() {
           this.ensureContext();
-          if (!this.ctx || this.muted) return;
+          if (!this.ctx || this.silent) return;
   
           const now = this.ctx.currentTime;
           const osc = this.ctx.createOscillator();
@@ -1097,7 +1116,7 @@
       // Victory fanfare
       playWin() {
           this.ensureContext();
-          if (!this.ctx || this.muted) return;
+          if (!this.ctx || this.silent) return;
   
           const notes = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5
           notes.forEach((freq, index) => {
@@ -1123,7 +1142,7 @@
       // Defeat tone
       playLoss() {
           this.ensureContext();
-          if (!this.ctx || this.muted) return;
+          if (!this.ctx || this.silent) return;
   
           const notes = [311.13, 293.66, 277.18, 246.94]; // Eb4, D4, Db4, B3
           notes.forEach((freq, index) => {
@@ -1147,7 +1166,7 @@
   
       playClick() {
           this.ensureContext();
-          if (!this.ctx || this.muted) return;
+          if (!this.ctx || this.silent) return;
   
           const now = this.ctx.currentTime;
           const osc = this.ctx.createOscillator();
@@ -2221,7 +2240,8 @@
       // ==========================================
   
       isGoogleConfigured() {
-          return !!GOOGLE_CLIENT_ID;
+          // Google's sign-in popup is blocked inside CrazyGames' iframe
+          return !!GOOGLE_CLIENT_ID && !ON_CRAZYGAMES_HOST;
       }
   
       // The Google script loads asynchronously; wait for it, then initialize once
@@ -2593,6 +2613,7 @@
           this.onMessage = null; // (msg, fromPeerId) => void
           this.onDisconnect = null; // (reason, peerId) => void
           this.onGuestJoined = null; // (peerId) => void (host only)
+          this.onClosed = null; // () => void, after the room/connection is closed on purpose
           this.connectTimer = null;
       }
   
@@ -2716,6 +2737,7 @@
               this.peer = null;
           }
           this.role = null;
+          if (this.onClosed) this.onClosed();
       }
   
       describeError(err) {
@@ -2731,6 +2753,170 @@
   }
   
   const online = new OnlineSession();
+  
+
+  // ===== crazygames.js =====
+  // ==========================================
+  // SPEAR-MACE PVP - CrazyGames SDK (v3) bridge
+  // Only does anything when the game runs on CrazyGames. Everywhere else
+  // (GitHub Pages, the downloaded .html file) the SDK is either not loaded or
+  // reports environment "disabled", and every call below is a no-op.
+  // The game never waits for the SDK: it boots straight away and the
+  // CrazyGames features switch on once SDK.init() resolves.
+  // ==========================================
+  
+  
+  const CG_SDK_URL = "https://sdk.crazygames.com/crazygames-sdk-v3.js";
+  const CG_INIT_TIMEOUT_MS = 6000;
+  // Invite links carry the room code under this parameter name
+  const CG_ROOM_PARAM = "roomId";
+  
+  class CrazyGamesBridge {
+      constructor() {
+          this.sdk = null;
+          this.active = false; // true only when SDK.environment says we're on CrazyGames
+          this.environment = null;
+          this.gameplayRunning = false;
+          this.wantGameplay = false;
+          this.inviteRoom = null; // room code the invite button currently points to
+          this.ready = null; // Promise<boolean>, resolves once we know whether the SDK is active
+      }
+  
+      // CrazyGames always runs games inside an iframe on its own domain. On the owner's
+      // site (top-level page, not framed) the SDK isn't even downloaded.
+      shouldLoad() {
+          if (typeof window === "undefined" || typeof document === "undefined") return false;
+          if (ON_CRAZYGAMES_HOST) return true;
+          let framed = false;
+          try { framed = window.self !== window.top; } catch (e) { framed = true; }
+          let localSdk = false;
+          try { localSdk = new URLSearchParams(window.location.search).get("useLocalSdk") === "true"; } catch (e) { /* no URL */ }
+          return framed || localSdk;
+      }
+  
+      init() {
+          if (this.ready) return this.ready;
+          this.ready = new Promise((resolve) => {
+              if (!this.shouldLoad()) return resolve(false);
+              let settled = false;
+              const finish = (ok) => {
+                  if (settled) return;
+                  settled = true;
+                  clearTimeout(timer);
+                  resolve(ok);
+              };
+              const timer = setTimeout(() => finish(false), CG_INIT_TIMEOUT_MS);
+              const script = document.createElement("script");
+              script.src = CG_SDK_URL;
+              script.async = true;
+              script.onerror = () => finish(false);
+              script.onload = () => {
+                  const sdk = window.CrazyGames && window.CrazyGames.SDK;
+                  if (!sdk || typeof sdk.init !== "function") return finish(false);
+                  Promise.resolve()
+                      .then(() => sdk.init())
+                      .then(() => {
+                          if (settled) return; // timed out: stay on normal behaviour
+                          this.sdk = sdk;
+                          this.environment = sdk.environment;
+                          let localSdk = false;
+                          try { localSdk = new URLSearchParams(window.location.search).get("useLocalSdk") === "true"; } catch (e) { /* no URL */ }
+                          this.active = sdk.environment === "crazygames" || (sdk.environment === "local" && localSdk);
+                          if (this.active) this.activate();
+                          finish(this.active);
+                      })
+                      .catch((e) => {
+                          console.warn("CrazyGames SDK init failed; playing without it.", e);
+                          finish(false);
+                      });
+              };
+              document.head.appendChild(script);
+          });
+          return this.ready;
+      }
+  
+      activate() {
+          document.documentElement.classList.add("on-crazygames");
+          // CrazyGames can mute the game (its own sound toggle). This silences all
+          // game audio on top of the player's own Sound setting, which is left as is.
+          const applyMute = (settings) => sound.setPlatformMuted(!!(settings && settings.muteAudio));
+          this.safe(() => applyMute(this.sdk.game.settings));
+          this.safe(() => this.sdk.game.addSettingsChangeListener((newSettings) => {
+              const live = (this.sdk.game && this.sdk.game.settings) || {};
+              applyMute({ ...live, ...(newSettings || {}) });
+          }));
+          if (this.wantGameplay) this.setGameplay(true);
+      }
+  
+      safe(fn) {
+          try {
+              const r = fn();
+              if (r && typeof r.catch === "function") r.catch((e) => console.warn("CrazyGames SDK:", e));
+              return r;
+          } catch (e) {
+              console.warn("CrazyGames SDK:", e);
+              return undefined;
+          }
+      }
+  
+      // ---- Gameplay tracking: call with true while a match is being played ----
+      setGameplay(running) {
+          this.wantGameplay = running;
+          if (!this.active || running === this.gameplayRunning) return;
+          this.gameplayRunning = running;
+          this.safe(() => running ? this.sdk.game.gameplayStart() : this.sdk.game.gameplayStop());
+      }
+  
+      // ---- Multiplayer invites ----
+  
+      // Room code from a CrazyGames invite link, or null
+      getInviteRoom() {
+          if (!this.active) return null;
+          let v = this.safe(() => this.sdk.game.getInviteParam(CG_ROOM_PARAM));
+          if (typeof v !== "string" || !v) v = null;
+          return v;
+      }
+  
+      isInstantMultiplayer() {
+          return this.active && !!this.safe(() => this.sdk.game.isInstantMultiplayer);
+      }
+  
+      // Resolves to the CrazyGames invite link for a room (null when not on CrazyGames)
+      inviteLink(roomCode) {
+          if (!this.active) return Promise.resolve(null);
+          return Promise.resolve()
+              .then(() => this.sdk.game.inviteLink({ [CG_ROOM_PARAM]: roomCode }))
+              .then((link) => (typeof link === "string" && link ? link : null))
+              .catch((e) => {
+                  console.warn("CrazyGames inviteLink failed:", e);
+                  return null;
+              });
+      }
+  
+      showInviteButton(roomCode) {
+          if (!this.active || !roomCode) return;
+          this.inviteRoom = roomCode;
+          this.safe(() => this.sdk.game.showInviteButton({ [CG_ROOM_PARAM]: roomCode }));
+      }
+  
+      hideInviteButton() {
+          if (!this.active || !this.inviteRoom) return;
+          this.inviteRoom = null;
+          this.safe(() => this.sdk.game.hideInviteButton());
+      }
+  
+      // A friend accepts an invite while the game is already open. Not every SDK
+      // build has this listener, so it is only used when present.
+      onJoinRoom(callback) {
+          if (!this.active || !this.sdk.game || typeof this.sdk.game.addJoinRoomListener !== "function") return;
+          this.safe(() => this.sdk.game.addJoinRoomListener((params) => {
+              const code = params && (params[CG_ROOM_PARAM] || params.room);
+              if (typeof code === "string" && code) callback(code);
+          }));
+      }
+  }
+  
+  const crazyGames = new CrazyGamesBridge();
   
 
   // ===== particles.js =====
@@ -8839,17 +9025,7 @@
           // Host Private Room button
           const btnHost = document.getElementById("btn-host-private");
           if (btnHost) {
-              btnHost.onclick = () => {
-                  const code = arena.generateRoomCode();
-                  document.getElementById("private-room-code-display").textContent = code;
-                  const linkInput = document.getElementById("private-room-link");
-                  if (linkInput) linkInput.value = this.buildRoomLink(code);
-                  const status = document.getElementById("copy-link-status");
-                  if (status) status.textContent = "";
-                  document.getElementById("private-room-panel").classList.remove("hidden");
-                  sound.playClick();
-                  this.hostOnlineRoom(code);
-              };
+              btnHost.onclick = () => this.createOnlineRoom();
           }
   
           // Copy Invite Link button
@@ -8879,6 +9055,7 @@
           }
   
           online.onMessage = (msg, peer) => this.handleOnlineMessage(msg, peer);
+          online.onClosed = () => crazyGames.hideInviteButton();
           online.onDisconnect = (reason, peer) => this.handleOnlineDisconnect(reason, peer);
   
           const btnOnlineStart = document.getElementById("btn-online-start");
@@ -8912,9 +9089,40 @@
   
       // ---- Host lobby: up to 4 players. Join order fills Blue, Red, Blue, Red. ----
   
+      createOnlineRoom() {
+          const code = arena.generateRoomCode();
+          document.getElementById("private-room-code-display").textContent = code;
+          const linkInput = document.getElementById("private-room-link");
+          if (linkInput) {
+              if (crazyGames.active) {
+                  // On CrazyGames the invite link must come from their SDK
+                  linkInput.value = "";
+                  crazyGames.inviteLink(code).then((link) => {
+                      if (link && document.getElementById("private-room-code-display").textContent === code) linkInput.value = link;
+                  });
+              } else {
+                  linkInput.value = this.buildRoomLink(code);
+              }
+          }
+          const status = document.getElementById("copy-link-status");
+          if (status) status.textContent = "";
+          document.getElementById("private-room-panel").classList.remove("hidden");
+          sound.playClick();
+          this.hostOnlineRoom(code);
+      }
+  
+      // CrazyGames invite button: shown while the host's lobby has free spots
+      updateInviteButton() {
+          const lobby = this.lobby;
+          const open = online.role === "host" && lobby && this.game.state === "menu"
+              && lobby.players.length < (lobby.matchType === "1v1" ? 2 : 4);
+          if (open) crazyGames.showInviteButton(lobby.code);
+          else crazyGames.hideInviteButton();
+      }
+  
       hostOnlineRoom(code) {
           let matchType = this.selectedArenaMode === "1v1" ? "1v1" : "2v2";
-          this.lobby = { matchType, players: [{ peer: "host", info: this.myOnlineInfo() }] };
+          this.lobby = { code, matchType, players: [{ peer: "host", info: this.myOnlineInfo() }] };
           const note = this.selectedArenaMode === "5v5" ? " (online rooms go up to 2v2)" : "";
           this.setOnlineStatus("Opening room...");
           online.host(code, matchType === "1v1" ? 1 : 3, () => {
@@ -8922,6 +9130,7 @@
                   ? "Room open (1v1). Waiting for your friend to join..."
                   : `Room open (2v2)${note}. Invite up to 3 friends, then press Start. Empty spots become bots.`);
               this.renderOnlineLobby();
+              this.updateInviteButton();
           }, (err) => this.setOnlineStatus(err, true));
       }
   
@@ -9012,6 +9221,7 @@
       hostStartOnlineMatch() {
           if (!this.lobby || online.role !== "host") return;
           if (this.lobby.matchType === "1v1" && this.lobby.players.length < 2) return;
+          crazyGames.hideInviteButton();
           const setup = this.buildOnlineSetup();
           setup.slots.forEach((slot, i) => {
               if (slot.peer && slot.peer !== "host") online.sendTo(slot.peer, { t: "start", setup, you: i });
@@ -9029,6 +9239,7 @@
               } else {
                   this.setOnlineStatus(`${(msg.info && msg.info.name) || "A friend"} joined. Press Start when everyone's in.`);
                   this.broadcastLobby();
+                  this.updateInviteButton();
               }
           } else if (msg.t === "lobby" && online.role === "guest") {
               this.setOnlineStatus("You're in! Waiting for the host to start...");
@@ -9059,6 +9270,7 @@
               if (!inMatch) {
                   this.setOnlineStatus(`${name} left the room.`);
                   this.broadcastLobby();
+                  this.updateInviteButton();
                   return;
               }
           }
@@ -9109,7 +9321,7 @@
       parseRoomCode(text) {
           let raw = (text || "").trim();
           if (!raw) return null;
-          const match = raw.match(/[?&#]room=([^&#\s]+)/i);
+          const match = raw.match(/[?&#]room(?:Id)?=([^&#\s]+)/i);
           if (match) raw = decodeURIComponent(match[1]);
           const code = raw.toUpperCase().replace(/\s+/g, "");
           return /^[A-Z0-9-]{5,}$/.test(code) ? code : null;
@@ -9133,6 +9345,47 @@
               navigator.clipboard.writeText(text).then(() => done(true), fallback);
           } else {
               fallback();
+          }
+      }
+  
+      // ==========================================
+      // CRAZYGAMES (runs once the SDK reports we're on CrazyGames)
+      // ==========================================
+  
+      setupCrazyGames() {
+          // Google sign-in and shared accounts are hidden there (index.html .cg-hide)
+          const profileBtn = document.getElementById("btn-user-profile");
+          if (profileBtn) profileBtn.title = "Player Profile";
+          const profileBanner = document.getElementById("home-profile-banner");
+          if (profileBanner) profileBanner.title = "Profile and career stats";
+  
+          // Opened from a CrazyGames invite: join that room (same checks as a typed code)
+          const joinFromInvite = (raw) => {
+              const code = this.parseRoomCode(raw);
+              if (!code) return false;
+              const joinInput = document.getElementById("input-join-code");
+              if (joinInput) joinInput.value = code;
+              this.openArenaModal("online");
+              this.joinOnlineRoom(code);
+              return true;
+          };
+          crazyGames.onJoinRoom((raw) => {
+              if (this.game.state === "menu" || this.game.state === "gameover") {
+                  if (this.game.state === "gameover") this.game.goHome();
+                  joinFromInvite(raw);
+              }
+          });
+          if (this.game.state !== "menu" || online.role) return; // player already started something
+          const invite = crazyGames.getInviteRoom();
+          if (invite && joinFromInvite(invite)) return;
+          // Party leader started "Play with friends": go straight to an open lobby
+          if (crazyGames.isInstantMultiplayer()) {
+              this.openArenaModal("online");
+              if (this.selectedArenaMode !== "2v2") {
+                  const pill = this.arenaModal && this.arenaModal.querySelector('.arena-mode-pill[data-mode="2v2"]');
+                  if (pill) pill.click();
+              }
+              this.createOnlineRoom();
           }
       }
   
@@ -10268,6 +10521,8 @@
       const game = new Game(canvas, {
           onStateChanged: (state) => {
               if (ui) ui.onStateChanged(state);
+              // CrazyGames gameplay tracking: only while a match is actually being played
+              crazyGames.setGameplay(state === "play");
           },
           onMuteToggled: (isMuted) => {
               if (ui) ui.updateMuteButton(isMuted);
@@ -10285,6 +10540,12 @@
   
       // Start 60fps game loop
       game.start();
+  
+      // CrazyGames SDK: loads in the background and never delays the game.
+      // Off CrazyGames it resolves to false and nothing changes.
+      crazyGames.init().then((active) => {
+          if (active) ui.setupCrazyGames();
+      });
   
       console.log("Spear-Mace PVP initialized successfully!");
   });
