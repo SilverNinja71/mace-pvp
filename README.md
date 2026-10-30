@@ -1,6 +1,6 @@
 # ⚔️ Spear-Mace PVP
 
-A fast-paced 2D aerial platformer fighting game inspired by **Minecraft's Mace and Spear mechanics**, remastered from an original Khan Academy ProcessingJS project into a modern, zero-dependency HTML5 application with procedural Web Audio sound synthesis, particle effects, multiple difficulty archetypes, and local 2-Player duel mode.
+A fast-paced 2D aerial platformer fighting game built around **aerial Mace slams and Spear dashes** in a pixel-art sky arena, remastered from an original Khan Academy ProcessingJS project into a modern, zero-dependency HTML5 application with procedural Web Audio sound synthesis, particle effects, multiple difficulty archetypes, and local 2-Player duel mode.
 
 ![Game Preview](index.html)
 
@@ -64,7 +64,7 @@ You can launch or share the game immediately in multiple ways:
 - **Ground Shockwave**: If you land a slam on the ground near an opponent ($\le 30\text{px}$ radius), it unleashes a ground shockwave for 20 area-of-effect damage.
 - **Attacker Bounce**: Successfully connecting with a slam launches you back into the air with $-12$ velocity, resetting your dash so you can immediately chain aerial strikes!
 
-### 2. The Spear Dash (Wind Charge)
+### 2. The Spear Dash (Wind Dash)
 - Dashing horizontally into an opponent deals **20 dash damage** and knocks them back.
 - Works both on the ground and mid-air.
 - You can even dash **mid-slam** to adjust your horizontal alignment!
@@ -108,38 +108,38 @@ Spear-Mace PVP includes a dedicated player profile and authentication system:
   - Built-in zero-config Google authentication flow so you can test and link your Google profile instantly without requiring GCP console setup.
 - **Custom Gamer Tag**: Set a personalized display name (e.g. `MaceMaster_99`) or use the random tag generator (<kbd>🎲 Random</kbd>).
 - **In-Game Display**: Your chosen username appears on the match HUD, health bars, and game-over victory banners!
-- **8 Hero Avatars**: Pick between Steve, Alex, Mace Knight, Wind Breeze, Nether Titan, Ender Champion, Gold Paladin, or your synced Google profile picture.
+- **8 Hero Avatars**: Pick between Rook, Skye, Mace Knight, Gale Rider, Magma Titan, Void Champion, Gold Paladin, or your synced Google profile picture.
 - **Career Battle Record**: Tracks matches, wins, losses, win rate, total mace slams, peak slam damage, and win streaks with an XP leveling progression system saved locally in your browser.
 
 ---
 
 ---
 
-## 🗡️ Minecraft Weapons Arsenal & Enchantments
-Visit the **⚔️ Armory** to unlock and equip different Minecraft-themed weapons:
-- **Minecraft Mace**: Signature aerial slam weapon. Height-scaled damage, orbital launches, and ground shockwaves.
-  - *Enchantments*: **Density V** (more height damage), **Wind Burst III** (extra launch bounce), **Breach IV** (penetrates armor).
-- **Wind Spear**: Extended wind charges on ground and air. Pierces through incoming attacks.
-  - *Enchantments*: **Impaling V** (dash damage), **Piercing IV** (velocity & range), **Breeze Agility III** (lower cooldown).
+## 🗡️ Weapons Arsenal & Enchantments
+Visit the **⚔️ Armory** to unlock and equip different sky-arena weapons:
+- **Storm Mace**: Signature aerial slam weapon. Height-scaled damage, orbital launches, and ground shockwaves.
+  - *Enchantments*: **Heavy Drop V** (more height damage), **Updraft III** (extra launch bounce), **Armor Crack IV** (penetrates armor).
+- **Wind Spear**: Extended wind dashes on ground and air. Pierces through incoming attacks.
+  - *Enchantments*: **Lunge V** (dash damage), **Swift Tip IV** (velocity & range), **Gale Agility III** (lower cooldown).
 - **Diamond Sword**: Precision dash slice with a shorter dash distance but dealing **massive swift blade damage**.
-  - *Enchantments*: **Sharpness V** (slash damage), **Knockback II** (launches opponents further), **Sweeping Edge III** (wider hit area).
-- **Steve Bare Fists**: Brutal close-range knuckle punches with rapid combo recovery and high damage.
-  - *Enchantments*: **Strength II** (punch impact), **Haste IV** (faster attack barrages), **Heavy Impact III** (longer stun).
+  - *Enchantments*: **Keen Edge V** (slash damage), **Heavy Swing II** (launches opponents further), **Wide Arc III** (wider hit area).
+- **Bare Fists**: Brutal close-range knuckle punches with rapid combo recovery and high damage.
+  - *Enchantments*: **Iron Knuckles II** (punch impact), **Rapid Jabs IV** (faster attack barrages), **Heavy Fist Impact III** (longer stun).
 - **Enchanted Bow**: Marksman bow that fires **ranged arrow projectiles** (space key to shoot) with gravity and reload cooldown.
-  - *Enchantments*: **Power V** (arrow damage), **Infinity IV** (rapid reload), **Punch II** (arrow knockback).
+  - *Enchantments*: **Draw Force V** (arrow damage), **Quick Draw IV** (rapid reload), **Impact Shot II** (arrow knockback).
 
 ---
 
-## 🎭 Block Face Skins (Minecraft & Roblox)
-Equip iconic characters in the **🎭 Skins Shop**:
-- **Minecraft Steve** (Classic blue shirt & brown hair)
-- **Minecraft Alex** (Classic green tunic & orange hair)
-- **Roblox Classic Noob** (Iconic yellow head, blue torso & green legs)
-- **Roblox Man Face** (The legendary smirk block face!)
-- **Creeper** (Pixelated green frown)
-- **Enderman** (Deep obsidian head with glowing purple eyes)
+## 🎭 Block Face Skins
+Equip original sky-arena characters in the **🎭 Skins Shop**:
+- **Rook** (Navy flight cap, brass goggles & red scarf) - default hero
+- **Skye** (Sky-blue hair & white tunic) - default hero
+- **Sunbolt** (Tangerine brawler with a white headband)
+- **Dapper Duke** (Top hat, monocle & moustache)
+- **Moss Golem** (Mossy stone sentinel with amber eyes)
+- **Void Wraith** (Starry navy hood with a cyan visor)
 - **Skeleton Skull** (Bone white undead archer)
-- **Zombie** (Rotten green Steve)
+- **Zombie** (Shambling undead brawler)
 - **Diamond Helmet Hero** (Gleaming diamond knight armor)
 
 ---
@@ -148,7 +148,7 @@ Equip iconic characters in the **🎭 Skins Shop**:
 - Defeating single-player bots awards **Gold and XP** (scaled by difficulty: Easy, Normal, Pro, God).
 - **Leveling up automatically creates Gold** (+200 Gold per level up!).
 - Arena victories award **Gold, XP, and Arena Rating Points (RP)**.
-- Spend your Gold to unlock weapons, Minecraft enchantments, and rare block face skins!
+- Spend your Gold to unlock weapons, enchantments, and rare block face skins!
 
 ---
 
@@ -188,14 +188,14 @@ spear-mace-pvp/
 ├── js/
 │   ├── config.js         # Game constants, physics variables, BOT_SETTINGS table
 │   ├── audio.js          # Procedural Web Audio API sound generator (zero asset files)
-│   ├── weapons.js        # Minecraft weapons (Mace, Spear, Sword, Fists, Bow) & Arrows
+│   ├── weapons.js        # Weapons (Mace, Spear, Sword, Fists, Bow) & Arrows
 │   ├── arena.js          # 1v1, 2v2, 5v5 matchmaking, tiers, and national leaderboard
 │   ├── auth.js           # Google Sign-In, Gold economy, skins inventory & career stats
 │   ├── particles.js      # Shockwaves, sparks, wind trails, floating damage numbers
 │   ├── entity.js         # Fighter physics, weapon stats, skin rendering & arrow attacks
 │   ├── ai.js             # Bot AI decision tree (dodges, lead prediction, climbs)
 │   ├── combat.js         # Combat resolution, weapon damage, friendly-fire filtering
-│   ├── renderer.js       # Canvas renderer with Minecraft weapons, skins & team HUDs
+│   ├── renderer.js       # Canvas renderer with weapons, skins & team HUDs
 │   ├── game.js           # 60 FPS loop, arrow update, team matches & state controller
 │   ├── ui.js             # Armory, Skins, Arena hub, Leaderboard, and touch controls
 │   └── main.js           # Application entry point
@@ -208,7 +208,7 @@ spear-mace-pvp/
 
 ## 🎨 Graphics Styles
 You can toggle between two visual styles at any time using the **🎨 Style** button in the top navigation bar:
-- **Enhanced Style**: Stylized pixel characters holding animated 3D-effect Minecraft Maces & Wind Spears with dynamic combat posing and aura effects.
+- **Enhanced Style**: Stylized pixel characters holding animated 3D-effect Storm Maces & Wind Spears with dynamic combat posing and aura effects.
 - **Classic Style**: The nostalgic Khan Academy ProcessingJS green square player and colored bot boxes.
 
 ---

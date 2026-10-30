@@ -37,8 +37,8 @@ When editing in your IDE, all modular game logic lives inside the [`js/`](js/) f
 | [`js/auth.js`](js/auth.js) | Profiles, economy & skins | Block face skins, gold payouts, level progression, and Google Auth. |
 | [`js/entity.js`](js/entity.js) | Fighter physics engine | Input buffering, jump dynamics, squash & stretch, collision detection. |
 | [`js/ai.js`](js/ai.js) | Bot combat intelligence | Dodge calculations, lead targeting, climbing, and punishment logic. |
-| [`js/combat.js`](js/combat.js) | Hit resolution | Slam damage formulas, knockback, armor breach, and friendly-fire filters. |
-| [`js/renderer.js`](js/renderer.js) | Canvas rendering | Draw functions for Minecraft weapons, block face skins, clouds, and HUD. |
+| [`js/combat.js`](js/combat.js) | Hit resolution | Slam damage formulas, knockback, armor crack, and friendly-fire filters. |
+| [`js/renderer.js`](js/renderer.js) | Canvas rendering | Draw functions for weapons, block face skins, clouds, and HUD. |
 | [`js/audio.js`](js/audio.js) | Synthesized sound engine | Procedural Web Audio API sound effects (crunches, swooshes, sparkles). |
 | [`js/particles.js`](js/particles.js) | Particle FX | Shockwaves, wind dash trails, hit sparks, and floating damage numbers. |
 | [`js/game.js`](js/game.js) | Game loop & controller | Fixed 60Hz physics accumulator, input listeners, team management. |
