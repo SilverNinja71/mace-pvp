@@ -58,10 +58,15 @@ export class UI {
         click($('btn-pause-touch'), () => g.pause());
         click($('click-to-play'), () => { g.input.requestLock(); });
         click($('res-again'), () => this.afterResults(() => {
-            if (this.game.mode === 'online') {
+            if (this.game.remote) {
+                // online rematch: back to the same room's lobby
                 const r = this.room;
-                g.quitToMenu();
-                if (r) { $('room-info').classList.add('hidden'); $('online-status').textContent = 'Make a new room, or join a friend\'s.'; this.openPanel('online'); }
+                const connected = r && r.peer && (r.isHost || (r.hostConn && r.hostConn.open));
+                g.quitToMenu(connected);
+                if (r) {
+                    if (!connected) { $('room-info').classList.add('hidden'); $('online-status').textContent = 'The room closed. Make a new room, or join a friend\'s.'; }
+                    this.openPanel('online');
+                }
                 return;
             }
             this.start(this.lastStart);
@@ -155,6 +160,7 @@ export class UI {
             $('room-link').value = room.inviteLink();
             $('room-players').innerHTML = list.map((n, i) => `${i === 0 ? '👑 ' : ''}${esc(n)}`).join(' · ') + (list.length < 2 ? ' — waiting for a friend…' : '');
             $('btn-room-start').classList.toggle('hidden', !isHost);
+            $('room-mode').classList.toggle('hidden', !isHost);
             $('btn-room-start').disabled = list.length < 2;
             if (!isHost) status('Connected! Waiting for the host to start the match.');
         };
@@ -186,7 +192,9 @@ export class UI {
             if (navigator.clipboard) navigator.clipboard.writeText(t.value).then(done, () => { document.execCommand('copy'); done(); });
             else { document.execCommand('copy'); done(); }
         });
-        $('btn-room-start').addEventListener('click', () => { audio.play('click'); if (!room.startMatch()) status('Wait for a friend to join first.'); });
+        this.roomMode = 'ko';
+        this.seg($('room-mode'), 'v', (v) => { this.roomMode = v; });
+        $('btn-room-start').addEventListener('click', () => { audio.play('click'); if (!room.startMatch(this.roomMode)) status('Wait for a friend to join first.'); });
         $('online-back').addEventListener('click', () => { if (!room.inMatch) { room.leave(true); $('room-info').classList.add('hidden'); status(''); } });
     }
 

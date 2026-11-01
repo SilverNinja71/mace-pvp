@@ -261,6 +261,7 @@ export class Game {
         this.modeDef = MODES[opts.mode];
         this.remote = opts.remote || null;
         if (opts.mode === 'online') this.modeDef = { ...MODES.online, kos: opts.kos || MATCH.duelKOs, time: opts.roster.length > 2 ? MATCH.timeLimit + 60 : MATCH.timeLimit };
+        if (opts.roster && opts.mode === 'hill') this.modeDef = { ...MODES.hill, bots: 0 };
         this.time = 0;
         this.acc = 0;
         this.matchT = 0;
@@ -271,7 +272,7 @@ export class Game {
         this.wave = 0;
 
         let me;
-        if (opts.mode === 'online') {
+        if (opts.roster) {
             opts.roster.forEach((r, i) => {
                 const f = this.makeFighter(i, { name: r.name, classId: r.classId, skinId: r.skinId, glowId: GLOWS[r.glowId] ? r.glowId : 'sun', isLocal: i === opts.localIndex });
                 if (i === opts.localIndex) me = f;
@@ -283,11 +284,11 @@ export class Game {
             d.maxHp = 200;
         } else if (opts.mode === 'gauntlet') {
             for (let i = 1; i <= 3; i++) this.makeFighter(i, this.randomBotOpts('easy'));
-        } else if (opts.mode !== 'online') {
+        } else if (!opts.roster) {
             for (let i = 1; i <= this.modeDef.bots; i++) this.makeFighter(i, this.randomBotOpts(this.level));
         }
         // spawns: duels face each other across the arena (online, everyone must agree, so no shuffling)
-        const order = this.fighters.length <= 2 ? [2, 0] : (opts.mode === 'online' ? [0, 2, 1, 3] : shuffle([0, 1, 2, 3]));
+        const order = this.fighters.length <= 2 ? [2, 0] : (opts.roster ? [0, 2, 1, 3] : shuffle([0, 1, 2, 3]));
         this.fighters.forEach((f, i) => {
             f.reset(this.arena.spawns[order[i % order.length]]);
             f.kos = 0; f.deaths = 0; f.hill = 0; f.out = false;
@@ -386,7 +387,7 @@ export class Game {
         this.lastFrame = performance.now();
     }
 
-    quitToMenu() {
+    quitToMenu(keepRoom = false) {
         this.state = 'menu';
         this.input.active = false;
         this.input.exitLock();
@@ -394,7 +395,11 @@ export class Game {
         this.overlayPause = false;
         this.endT = 0;
         this.pendingResults = null;
-        if (this.remote) { const r = this.remote; this.remote = null; r.leave(true); }
+        if (this.remote) {
+            const r = this.remote;
+            this.remote = null;
+            if (keepRoom && r.peer) r.backToLobby(); else r.leave(true);
+        }
         this.clearMatch();
         this.refreshShowcase();
         audio.setIntensity(0);
@@ -733,19 +738,20 @@ export class Game {
 
     hillTick(dt) {
         const z = this.hillZone;
+        const guest = this.remote && !this.remote.isHost;
         let inside = null, count = 0;
         for (const f of this.fighters) if (this.inHill(f)) { inside = f; count++; }
         z.contested = count > 1;
         const owner = count === 1 ? inside : null;
         if (owner !== z.owner && owner === this.local) audio.play('score');
         z.owner = owner;
-        if (owner) {
+        if (owner && !guest) {
             const before = Math.floor(owner.hill);
             owner.hill += dt;
             if (Math.floor(owner.hill) !== before && owner === this.local && Math.floor(owner.hill) % 10 === 0) this.ui.banner('', `${Math.floor(owner.hill)} POINTS`, '#ffd54a', 0.8, true);
             if (owner.hill >= this.modeDef.hill) return this.endMatch();
         }
-        if (this.suddenDeath && !this.tied()) this.endMatch();
+        if (!guest && this.suddenDeath && !this.tied()) this.endMatch();
     }
 
     endMatch() {
@@ -785,7 +791,7 @@ export class Game {
         const reward = profile.recordMatch(win, 'online', this.local.stats);
         const done = missions.record(this.local.stats, { win });
         audio.play(win ? 'win' : 'lose');
-        this.finishSlowly({ win, ranked, local: this.local, reward, mode: 'online', missions: done });
+        this.finishSlowly({ win, ranked, local: this.local, reward, mode: this.mode, missions: done });
     }
 
     // The winning knockout plays out in slow motion before the results appear

@@ -85,6 +85,14 @@ export class OnlineRoom {
         this.peer.on('error', (e) => { clearTimeout(timer); this.status(describe(e)); });
     }
 
+    // After a match: keep the room and its players, ready for a rematch
+    backToLobby() {
+        this.inMatch = false;
+        for (const g of this.guests.values()) g.fighterId = -1;
+        if (this.isHost) this.pushLobby();
+        else if (this.onLobby) this.onLobby(this.lobby, false);
+    }
+
     leave(quiet = false) {
         const g = this.game;
         if (this.peer) {
@@ -135,27 +143,28 @@ export class OnlineRoom {
     }
 
     // ---------------- starting ----------------
-    startMatch() {
+    startMatch(mode = 'ko') {
         if (!this.isHost || this.guests.size === 0) return false;
+        this.matchMode = mode === 'hill' ? 'hill' : 'online';
         const roster = [{ ...this.me() }];
         let i = 1;
         for (const g of this.guests.values()) { g.fighterId = i++; roster.push({ name: g.name, classId: g.classId, skinId: g.skinId, glowId: g.glowId }); }
         const kos = roster.length === 2 ? MATCH.duelKOs : MATCH.brawlKOs;
         const layout = Math.random() < 0.5 ? 'colosseum' : 'ruins';
         const theme = ['sunset', 'sunset', 'night', 'storm'][Math.floor(Math.random() * 4)];
-        for (const [, g] of this.guests) g.conn.send({ t: 'start', roster, you: g.fighterId, kos, layout, theme });
-        this.begin(roster, 0, kos, layout, theme);
+        for (const [, g] of this.guests) g.conn.send({ t: 'start', roster, you: g.fighterId, kos, layout, theme, mode: this.matchMode });
+        this.begin(roster, 0, kos, layout, theme, this.matchMode);
         return true;
     }
 
-    begin(roster, you, kos, layout, theme) {
+    begin(roster, you, kos, layout, theme, mode = 'online') {
         this.inMatch = true;
         this.clock = 0;
         this.spawnSeq = 0;
         this.buffers = roster.map(() => []);
         this.lastState = roster.map(() => 0);
         this.ui.closeAllPanels();
-        this.game.startMatch({ mode: 'online', roster, localIndex: you, kos, remote: this,
+        this.game.startMatch({ mode: mode === 'hill' ? 'hill' : 'online', roster, localIndex: you, kos, remote: this,
             layout: layout === 'ruins' ? 'ruins' : 'colosseum', theme: ['sunset', 'night', 'storm'].includes(theme) ? theme : 'sunset' });
     }
 
@@ -175,7 +184,7 @@ export class OnlineRoom {
         const g = this.game;
         const f = g.fighters.map((x) => [
             x.id, r2(x.pos.x), r2(x.pos.y), r2(x.pos.z), r2(x.vel.x), r2(x.vel.y), r2(x.vel.z), r2(x.yaw), r2(x.pitch),
-            Math.round(x.hp), x.alive ? 1 : 0, x.kos, x.deaths, flags(x), Math.round(x.maxHp)
+            Math.round(x.hp), x.alive ? 1 : 0, x.kos, x.deaths, flags(x), Math.round(x.maxHp), Math.floor(x.hill || 0)
         ]);
         return { t: 'snap', c: r2(this.clock), m: [r2(g.matchT), g.suddenDeath ? 1 : 0], f };
     }
@@ -299,7 +308,8 @@ export class OnlineRoom {
     }
 
     relayEnd(ranked) {
-        this.broadcast({ t: 'end', o: ranked.map(f => f.id) });
+        // final scores travel with the result, in case the last snapshot hasn't arrived yet
+        this.broadcast({ t: 'end', o: ranked.map(f => f.id), s: this.game.fighters.map(f => [f.kos, f.deaths, Math.floor(f.hill || 0)]) });
         this.inMatch = false;
     }
 
@@ -309,7 +319,7 @@ export class OnlineRoom {
         const g = this.game;
         if (m.t === 'lobby') { this.lobby = m.p || []; if (this.onLobby) this.onLobby(this.lobby, false); return; }
         if (m.t === 'full') { this.status(m.why || 'That room is full.'); this.leave(true); return; }
-        if (m.t === 'start') { this.begin(m.roster, m.you | 0, m.kos | 0, m.layout, m.theme); return; }
+        if (m.t === 'start') { this.begin(m.roster, m.you | 0, m.kos | 0, m.layout, m.theme, m.mode); return; }
         if (!this.inMatch) return;
         const me = g.local;
         if (m.t === 'snap') {
@@ -317,7 +327,7 @@ export class OnlineRoom {
             for (const s of m.f) {
                 const f = g.fighters[s[0]];
                 if (!f) continue;
-                f.hp = s[9]; f.kos = s[11]; f.deaths = s[12]; f.maxHp = s[14] || f.maxHp;
+                f.hp = s[9]; f.kos = s[11]; f.deaths = s[12]; f.maxHp = s[14] || f.maxHp; f.hill = s[15] || 0;
                 if (f === me) continue;
                 const buf = this.buffers[f.id];
                 buf.push({ t: this.clock, x: s[1], y: s[2], z: s[3], yaw: s[7], pitch: s[8] });
@@ -365,6 +375,7 @@ export class OnlineRoom {
             if (f) { f.alive = false; f.left = true; if (g.models[f.id]) g.models[f.id].root.visible = false; this.ui.toast(`${f.name} left the match.`); }
         } else if (m.t === 'end') {
             this.inMatch = false;
+            if (Array.isArray(m.s)) m.s.forEach((v, i) => { const f = g.fighters[i]; if (f && Array.isArray(v)) { f.kos = v[0] | 0; f.deaths = v[1] | 0; f.hill = v[2] | 0; } });
             g.endMatchRemote(m.o || []);
         }
     }
