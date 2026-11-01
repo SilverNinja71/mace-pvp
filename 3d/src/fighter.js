@@ -5,7 +5,7 @@
 // so everyone plays by the same rules. Hits are resolved in combat.js.
 // ==========================================
 
-import { PHYS, SPEAR, MACE, PARRY, MATCH, CLASSES } from './config.js';
+import { PHYS, SPEAR, MACE, PARRY, CLASSES, classHp } from './config.js';
 import { GEYSER_R, GEYSER_VEL } from './arena.js';
 
 export function makeIntent() {
@@ -30,7 +30,7 @@ export class Fighter {
         this.dashDir = v3();
         this.yaw = 0; this.pitch = 0; this.prevYaw = 0;
         this.radius = PHYS.radius; this.height = PHYS.height;
-        this.maxHp = this.classId === 'normal' ? MATCH.maxHp + 10 : MATCH.maxHp;
+        this.maxHp = classHp(this.classId);
         this.stats = { damageDealt: 0, slamsLanded: 0, dashesLanded: 0, maxSlamDamage: 0, kos: 0, deaths: 0, parries: 0, crits: 0, voidKos: 0, bigSlams: 0 };
         this.kos = 0; this.deaths = 0;
         this.big = false; this.bigScale = 1;
@@ -330,7 +330,7 @@ export class Fighter {
             const tick = 0.5;
             if (this.dotT >= tick) {
                 this.dotT -= tick;
-                const dmg = (this.poisonT > 0 ? 1 : 0) + (this.fireT > 0 ? CLASSES.pyro.fireDps * tick : 0);
+                const dmg = (this.poisonT > 0 ? CLASSES.potion.poisonDps * tick : 0) + (this.fireT > 0 ? CLASSES.pyro.fireDps * tick : 0);
                 if (dmg > 0) game.combat.dot(this, dmg);
             }
         } else {
@@ -357,8 +357,8 @@ export class Fighter {
                 if (t) {
                     game.emit('blinkOut', this);
                     const a = Math.random() * Math.PI * 2;
-                    this.pos.x = t.pos.x + Math.cos(a) * 1.2;
-                    this.pos.z = t.pos.z + Math.sin(a) * 1.2;
+                    this.pos.x = t.pos.x + Math.cos(a) * 2.4;
+                    this.pos.z = t.pos.z + Math.sin(a) * 2.4;
                     this.pos.y = t.pos.y + c.height;
                     this.prevPos.x = this.pos.x; this.prevPos.y = this.pos.y; this.prevPos.z = this.pos.z;
                     this.vel.x = this.vel.z = 0; this.vel.y = 0;

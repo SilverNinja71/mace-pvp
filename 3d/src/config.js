@@ -83,46 +83,47 @@ export const MATCH = {
 // The eight classes from the 2D game, reworked for 3D. Times are in seconds.
 export const CLASSES = {
     normal: {
-        name: "Normal", color: "#9fb6c8",
+        name: "Normal", color: "#9fb6c8", bonusHp: 10,
         desc: "No special ability. Balanced and reliable: a little extra health."
     },
     shadow: {
         name: "Shadow", color: "#6c5ce7",
-        desc: "Every 22 s you vanish for 5 s: enemies can barely see you, you move 25% faster and hit 1.2x harder.",
-        visibleTime: 22, invisTime: 5, speedMult: 1.25, damageMult: 1.2
+        desc: "Every 16 s you vanish for 5 s: enemies can barely see you, you move 25% faster and hit 1.2x harder.",
+        visibleTime: 16, invisTime: 5, speedMult: 1.25, damageMult: 1.2
     },
     lightning: {
         name: "Lightning", color: "#ffd84a",
-        desc: "Mace slams stun longer, and every slam has a 12% chance to call down a bolt for +20 damage.",
-        stunBonus: 0.25, boltChance: 0.12, boltDamage: 20
+        desc: "Mace slams stun longer, and every slam has a 25% chance to call down a bolt for +20 damage.",
+        stunBonus: 0.35, boltChance: 0.25, boltDamage: 20
     },
     energy: {
         name: "Energy", color: "#3df5ff",
-        desc: "Two spear dashes in the air, a shorter dash cooldown and 1.15x dash damage.",
-        airCharges: 2, cooldown: 0.6, dashMult: 1.15
+        desc: "Two spear dashes in the air, a shorter dash cooldown and 1.05x dash damage.",
+        airCharges: 2, cooldown: 0.7, dashMult: 1.05
     },
     potion: {
         name: "Potionmaster", color: "#5ce65c",
-        desc: "Hits: 25% chance to slow (3 s), 20% to poison (2 s), 6% to blind (2 s).",
-        slowChance: 0.25, slowTime: 3, poisonChance: 0.2, poisonTime: 2, blindChance: 0.06, blindTime: 2
+        desc: "Hits: 35% chance to slow (3 s), 30% to poison (4 s, 2.2 damage a second), 8% to blind (2 s).",
+        slowChance: 0.35, slowTime: 3, poisonChance: 0.3, poisonTime: 4, poisonDps: 2.2, blindChance: 0.08, blindTime: 2
     },
     pyro: {
         name: "Pyro", color: "#ff7a2f",
-        desc: "Hits have an 18% chance to set enemies on fire for 5 s: 2 damage a second.",
-        fireChance: 0.18, fireTime: 5, fireDps: 2
+        desc: "Hits have a 24% chance to set enemies on fire for 5 s: 2.5 damage a second.",
+        fireChance: 0.24, fireTime: 5, fireDps: 2.5
     },
     void: {
         name: "Void Walker", color: "#b05cff",
-        desc: "Every 10-20 s you blink high above a random enemy, ready to slam.",
-        minDelay: 10, maxDelay: 20, height: 15
+        desc: "Every 18-28 s you blink high above a random enemy, ready to slam.",
+        minDelay: 18, maxDelay: 28, height: 8
     },
     buddha: {
-        name: "Buddha", color: "#ffb347",
-        desc: "Press B to grow big or shrink back. Big: 1.3x damage and a higher single jump, but a body twice as big.",
+        name: "Buddha", color: "#ffb347", bonusHp: 15,
+        desc: "Press B to grow big or shrink back. Big: 1.3x damage and a higher single jump, but a body twice as big. +15 health.",
         bigScale: 1.8, damageMult: 1.3, jumpMult: 1.3
     }
 };
 export const CLASS_IDS = Object.keys(CLASSES);
+export function classHp(id) { return MATCH.maxHp + ((CLASSES[id] && CLASSES[id].bonusHp) || 0); }
 
 // Player level needed to use each class (bots can use any). Levels come every 200 XP.
 export const CLASS_LEVEL = { normal: 1, energy: 1, lightning: 2, pyro: 3, potion: 4, shadow: 5, void: 6, buddha: 7 };

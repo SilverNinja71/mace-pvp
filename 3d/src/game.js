@@ -5,7 +5,7 @@
 // ==========================================
 
 import * as THREE from 'three';
-import { SIM_DT, MATCH, CLASSES, CLASS_IDS, BOT_LEVELS, BOT_NAMES, TEAM_COLORS, HIT, PHYS } from './config.js';
+import { SIM_DT, MATCH, CLASSES, CLASS_IDS, BOT_LEVELS, BOT_NAMES, TEAM_COLORS, HIT, PHYS, classHp } from './config.js';
 import { Arena, LAYOUTS } from './arena.js';
 import { Fighter, makeIntent } from './fighter.js';
 import { Combat } from './combat.js';
@@ -206,7 +206,7 @@ export class Game {
         const f = this.fighters[i];
         f.name = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
         f.classId = CLASS_IDS[Math.floor(Math.random() * CLASS_IDS.length)];
-        f.maxHp = f.classId === 'normal' ? MATCH.maxHp + 10 : MATCH.maxHp;
+        f.maxHp = classHp(f.classId);
         f.botLevel = level;
         f.dmgMult = L.damage;
         f.speedMult = L.speed;
