@@ -77,6 +77,8 @@ export class Game {
         }
 
         this.arena = new Arena(this.scene, this.qualityName);
+        this.arena.setTheme('sunset', this.scene, this.hemi, this.sun);
+        this.arena.onThunder = () => audio.play('thunder');
         this.physics = this.arena.physics;
         this.combat = new Combat(this);
         this.fx = new FX(this.scene, this.camera, document.getElementById('fx-layer'));
@@ -259,6 +261,10 @@ export class Game {
         this.ui.matchStarted(this);
         crazyGames.setGameplay(true);
         audio.setIntensity(opts.mode === 'training' ? 0 : 1);
+        // time of day: training and first matches at sunset, then any
+        const themes = ['sunset', 'sunset', 'night', 'storm'];
+        const theme = opts.theme || (opts.mode === 'training' || opts.mode === 'online' || (profile.data.stats.matches || 0) < 3 ? 'sunset' : themes[Math.floor(Math.random() * themes.length)]);
+        this.arena.setTheme(theme, this.scene, this.hemi, this.sun);
         this.timeScale = 1;
     }
 
@@ -338,6 +344,7 @@ export class Game {
         this.clearMatch();
         audio.setIntensity(0);
         this.timeScale = 1;
+        this.arena.setTheme('sunset', this.scene, this.hemi, this.sun);
         this.ui.showMenu();
     }
 

@@ -169,6 +169,9 @@ class Audio3D {
                 [392, 330, 262].forEach((f, i) => this.tone('triangle', f, f * 0.98, 0.4, 0.12, null, i * 0.16)); break;
             case 'score': this.tone('triangle', 784, 1175, 0.2, 0.12, null); break;
             case 'hurt': this.tone('sawtooth', 180, 80, 0.2, 0.12, null); break;
+            case 'thunder':
+                this.noise('lowpass', 900, 60, 0.6, 2.2, 0.35, null, 0.3);
+                this.tone('sine', 55, 30, 1.6, 0.18, null, 0.3); break;
         }
     }
 }

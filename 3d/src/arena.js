@@ -283,6 +283,7 @@ export class Arena {
                   else { c = mix(horizon, bottom, smoothstep(0.0, -0.3, h)); }
                   gl_FragColor = vec4(c, 1.0); }`
         });
+        this.skyMat = m;
         this.sky = new THREE.Mesh(g, m);
         this.sky.renderOrder = -10;
         this.sky.frustumCulled = false;
@@ -292,6 +293,18 @@ export class Arena {
         sun.position.set(-260, 210, -320);
         sun.scale.set(180, 180, 1);
         this.sky.add(sun);
+        this.sunSprite = sun;
+        // stars for night matches
+        const n = 500, pos = new Float32Array(n * 3);
+        for (let i = 0; i < n; i++) {
+            const a = Math.random() * Math.PI * 2, y = Math.random() * 0.9 + 0.08, r = Math.sqrt(1 - y * y);
+            pos[i * 3] = Math.cos(a) * r * 550; pos[i * 3 + 1] = y * 550; pos[i * 3 + 2] = Math.sin(a) * r * 550;
+        }
+        const sg = new THREE.BufferGeometry();
+        sg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        this.stars = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffffff, size: 2, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.9 }));
+        this.stars.visible = false;
+        this.sky.add(this.stars);
     }
 
     buildClouds() {
@@ -361,6 +374,29 @@ export class Arena {
         this.scene.add(this.dust);
     }
 
+    // Sky colours for each time of day: [top, mid, horizon, bottom, fog, hemi sky, hemi ground, sun colour, sun strength, hemi strength]
+    static THEMES = {
+        sunset: { top: 0x2f7fe0, mid: 0x8ecbff, horizon: 0xffe2c4, bottom: 0xc6dcf5, fog: 0xd6e8fb, fogFar: 320, hs: 0xe4f2ff, hg: 0x8f7f70, sun: 0xfff0d8, sunI: 2.4, hemiI: 1.25, stars: false, sunSprite: 0xfff1c9 },
+        night:  { top: 0x070b24, mid: 0x1b2a5c, horizon: 0x5a4a8a, bottom: 0x141c3c, fog: 0x2a3060, fogFar: 260, hs: 0x8fa6ff, hg: 0x2a2440, sun: 0xb8c8ff, sunI: 1.5, hemiI: 0.9, stars: true, sunSprite: 0xdfe8ff },
+        storm:  { top: 0x2b3240, mid: 0x4f5a6e, horizon: 0x8a94a6, bottom: 0x3a4250, fog: 0x7a8496, fogFar: 200, hs: 0xc8d2e6, hg: 0x5a5560, sun: 0xdde4f0, sunI: 1.4, hemiI: 1.1, stars: false, sunSprite: 0x9aa4b4 }
+    };
+
+    setTheme(name, scene, hemi, sun) {
+        const t = Arena.THEMES[name] || Arena.THEMES.sunset;
+        this.theme = name;
+        const u = this.skyMat.uniforms;
+        u.top.value.set(t.top); u.mid.value.set(t.mid); u.horizon.value.set(t.horizon); u.bottom.value.set(t.bottom);
+        scene.fog.color.set(t.fog); scene.fog.far = t.fogFar;
+        hemi.color.set(t.hs); hemi.groundColor.set(t.hg); hemi.intensity = t.hemiI;
+        sun.color.set(t.sun); sun.intensity = t.sunI;
+        this.baseHemi = t.hemiI;
+        this.stars.visible = t.stars;
+        this.sunSprite.material.color.set(t.sunSprite);
+        this.flashT = 0;
+        this.nextFlash = 4 + Math.random() * 6;
+        this.hemi = hemi;
+    }
+
     setPointScale(heightPx) {
         if (this.dustMat) this.dustMat.uniforms.scale.value = heightPx;
     }
@@ -371,6 +407,16 @@ export class Arena {
         if (this.geyserMesh) this.geyserMesh.rotation.y += dt * 1.4;
         if (this.dustMat) this.dustMat.uniforms.time.value = this.time;
         if (this.clouds) this.clouds.rotation.y += dt * 0.004;
+        // storm: distant lightning lights up the sky now and then
+        if (this.theme === 'storm' && this.hemi) {
+            this.nextFlash -= dt;
+            if (this.nextFlash <= 0) { this.flashT = 0.35; this.nextFlash = 5 + Math.random() * 9; if (this.onThunder) this.onThunder(); }
+            if (this.flashT > 0) {
+                this.flashT -= dt;
+                const k = this.flashT > 0.25 || (this.flashT > 0.08 && this.flashT < 0.14) ? 1 : 0;
+                this.hemi.intensity = this.baseHemi + k * 2.2;
+            } else this.hemi.intensity = this.baseHemi;
+        }
         for (let i = 0; i < this.pads.length; i++) {
             const p = this.pads[i];
             const s = 2.8 + Math.sin(this.time * 4 + i) * 0.4;
