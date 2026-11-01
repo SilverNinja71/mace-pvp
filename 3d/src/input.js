@@ -71,10 +71,13 @@ export class InputController {
         document.addEventListener('pointerlockchange', () => {
             const was = this.locked;
             this.locked = document.pointerLockElement === c;
+            if (this.locked) this.lockErrors = 0;
             if (was && !this.locked && this.active && this.onUnlock) this.onUnlock();
         });
         // a refused lock (asked too soon after Esc) is retried on the next click
-        document.addEventListener('pointerlockerror', () => { this.lockPending = false; });
+        // a refused lock right after Esc is normal; refused again and again means the page can't lock
+        // the mouse at all (an iframe without permission), so fall back to plain mouse movement
+        document.addEventListener('pointerlockerror', () => { this.lockErrors = (this.lockErrors || 0) + 1; if (this.lockErrors >= 3) this.lockFailed = true; });
 
         // touch: first touch switches to touch controls
         window.addEventListener('touchstart', () => { this.usingTouch = true; }, { passive: true });

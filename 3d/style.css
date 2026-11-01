@@ -124,7 +124,7 @@ kbd { display: inline-block; padding: 0.05em 0.45em; margin: 0 0.15em; border-ra
 #room-code { font-family: var(--title); font-size: 1.5em; letter-spacing: 0.12em; color: var(--gold); }
 
 /* ---------- HUD ---------- */
-#hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+#hud { position: fixed; inset: 0; z-index: 12; pointer-events: none; }
 #hud button, #hud #tutorial, #hud #tu-done, #hud #revive { pointer-events: auto; }
 #crosshair { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; transform: translate(-50%, -50%); }
 #crosshair i { position: absolute; background: #fff; box-shadow: 0 0 2px rgba(0,0,0,0.8); border-radius: 1px; }
@@ -262,6 +262,7 @@ table.scores tr.me td { color: var(--gold); font-weight: 700; }
 .t-mace { right: 40px; bottom: 124px; width: 70px; height: 70px; }
 .t-parry { right: 128px; bottom: 124px; width: 58px; height: 58px; font-size: 11px; }
 .t-view { right: 24px; top: 70px; width: 44px; height: 44px; font-size: 18px; }
+.t-size { right: 24px; top: 124px; width: 44px; height: 44px; font-size: 13px; }
 .touch-only { display: none; }
 body.touch .touch-only { display: block; }
 body.touch #abilities { transform: translateX(-50%) scale(0.8); transform-origin: bottom center; left: 38%; }

@@ -54,7 +54,12 @@ export class UI {
         click($('btn-pause-touch'), () => g.pause());
         click($('click-to-play'), () => { g.input.requestLock(); });
         click($('res-again'), () => this.afterResults(() => {
-            if (this.game.mode === 'online') { const r = this.room; g.quitToMenu(); if (r) this.openPanel('online'); return; }
+            if (this.game.mode === 'online') {
+                const r = this.room;
+                g.quitToMenu();
+                if (r) { $('room-info').classList.add('hidden'); $('online-status').textContent = 'Make a new room, or join a friend\'s.'; this.openPanel('online'); }
+                return;
+            }
             this.start(this.lastStart);
         }));
         click($('res-menu'), () => this.afterResults(() => g.quitToMenu()));
@@ -323,17 +328,8 @@ export class UI {
         $('tu-done').classList.add('hidden');
         $('killfeed').innerHTML = '';
         this.cache = {};
-        // name tags for everyone else
-        const tags = $('tags');
-        tags.innerHTML = '';
-        this.tags = g.fighters.map((f) => {
-            if (f === g.local) return null;
-            const el = document.createElement('div');
-            el.className = 'tag';
-            el.innerHTML = `<div class="tn" style="color:${TEAM_COLORS[f.id % 4]}">${esc(f.name)}${f.botLevel && f.botLevel !== 'dummy' ? ` <small>${BOT_LEVELS[f.botLevel].name}</small>` : ''}</div><div class="tb"><i></i></div>`;
-            tags.appendChild(el);
-            return { el, bar: el.querySelector('i'), name: el.querySelector('.tn'), hp: -1, vis: true, f };
-        });
+        this.buildTags(g);
+        $('t-size').classList.toggle('hidden', g.local.classId !== 'buddha');
         // first matches: show the controls for a while
         this.hintsT = (!profile.tutorialDone && g.mode !== 'training') ? 28 : 0;
         const h = $('ctl-hints');
@@ -344,6 +340,20 @@ export class UI {
             h.classList.remove('hidden', 'fade');
         } else h.classList.add('hidden');
         this.speedLines(0);
+    }
+
+    // Name tags over everyone else (rebuilt when Gauntlet brings new bots)
+    buildTags(g) {
+        const tags = $('tags');
+        tags.innerHTML = '';
+        this.tags = g.fighters.map((f) => {
+            if (f === g.local) return null;
+            const el = document.createElement('div');
+            el.className = 'tag';
+            el.innerHTML = `<div class="tn" style="color:${TEAM_COLORS[f.id % 4]}">${esc(f.name)}${f.botLevel && f.botLevel !== 'dummy' ? ` <small>${BOT_LEVELS[f.botLevel].name}</small>` : ''}</div><div class="tb"><i></i></div>`;
+            tags.appendChild(el);
+            return { el, bar: el.querySelector('i'), name: el.querySelector('.tn'), hp: -1, vis: true, f };
+        });
     }
 
     showPause(on) {

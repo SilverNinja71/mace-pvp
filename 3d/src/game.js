@@ -192,6 +192,7 @@ export class Game {
             this.scene.add(this.models[i].root);
         }
         this.brains[i] = new BotBrain(f, level, this);
+        f.team = 1; // Gauntlet bots are on one side: they don't fight each other
     }
 
     clearMatch() {
@@ -221,6 +222,9 @@ export class Game {
         const layout = opts.layout || (fresh ? 'colosseum' : pickOne(Object.keys(LAYOUTS)));
         this.matchTheme = opts.theme || (fresh ? 'sunset' : pickOne(['sunset', 'sunset', 'night', 'storm']));
         this.useLayout(layout);
+        this.endT = 0;
+        this.pendingResults = null;
+        this.timeScale = 1;
         this.mode = opts.mode;
         this.level = opts.level || 'normal';
         this.modeDef = MODES[opts.mode];
@@ -266,6 +270,7 @@ export class Game {
         if (opts.mode === 'gauntlet') this.startWave(1, true);
 
         this.look.yaw = me.yaw; this.look.pitch = me.pitch;
+        if (this.viewModel) this.viewModel.dispose();
         this.viewModel = new ViewModel(profile.skinId);
         this.viewModel.setAspect(this.width / this.height);
         this.state = 'intro';
@@ -305,6 +310,7 @@ export class Game {
             }
         }
         this.waveT = 0;
+        this.ui.buildTags(this);
         if (!first) {
             this.ui.banner(`WAVE ${n}`, `${count} ${BOT_LEVELS[level].name} bot${count > 1 ? 's' : ''}`, '#ffd54a', 2);
             audio.play('score');
@@ -354,6 +360,8 @@ export class Game {
         this.input.exitLock();
         crazyGames.setGameplay(false);
         this.overlayPause = false;
+        this.endT = 0;
+        this.pendingResults = null;
         if (this.remote) { const r = this.remote; this.remote = null; r.leave(true); }
         this.clearMatch();
         audio.setIntensity(0);
@@ -502,7 +510,8 @@ export class Game {
         if (this.remote && !this.remote.isHost) return; // the host decides KOs
         f.deaths++;
         f.stats.deaths++;
-        let killer = (f.lastHitBy && f.lastHitBy !== f && this.time - f.lastHitTime < HIT.koCreditTime) ? f.lastHitBy : null;
+        // the last attacker gets the KO if it was recent, or if you never touched the ground after their hit
+        let killer = (f.lastHitBy && f.lastHitBy !== f && (this.time - f.lastHitTime < HIT.koCreditTime || f.airborneSinceHit)) ? f.lastHitBy : null;
         if (!killer && this.fighters.length === 2 && this.mode !== 'training') killer = this.fighters[f.id === 0 ? 1 : 0];
         if (killer) { killer.kos++; killer.stats.kos++; if (cause === 'void') killer.stats.voidKos++; }
         const causeText = cause === 'void' ? 'VOID' : (cause === 'slam' || cause === 'shock') ? 'SLAM' : cause === 'swing' ? 'MACE' : cause === 'dot' ? 'BURN' : 'SPEAR';
@@ -565,6 +574,8 @@ export class Game {
             this.state = 'play';
             this.pendingGauntlet = null; // the run goes on: rewards are counted when it really ends
             this.ui.hideResults();
+            delete this.ui.cache.touch; delete this.ui.cache.ctp; // let the HUD show the touch controls again
+            this.input.clear();
             this.input.active = true;
             this.input.requestLock();
             crazyGames.setGameplay(true);
@@ -614,6 +625,8 @@ export class Game {
     endMatch() {
         if (this.state === 'over') return;
         this.state = 'over';
+        this.overlayPause = false;
+        this.ui.showPause(false);
         this.input.active = false;
         this.input.exitLock();
         crazyGames.setGameplay(false);

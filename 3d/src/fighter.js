@@ -207,7 +207,8 @@ export class Fighter {
             // gravity, glide
             v.y += PHYS.gravity * dt;
             if (v.y < PHYS.maxFall) v.y = PHYS.maxFall;
-            this.glide = !this.onGround && !this.slamming && !stunned && I.jumpHeld && this.jumpHoldT > 0.22 && this.jumpsLeft === 0 && v.y < 0;
+            // no gliding once you're below every platform: the fall should end quickly
+            this.glide = !this.onGround && !this.slamming && !stunned && I.jumpHeld && this.jumpHoldT > 0.22 && this.jumpsLeft === 0 && v.y < 0 && p.y > -5;
             if (this.glide) {
                 if (v.y < PHYS.glideFall) v.y += (PHYS.glideFall - v.y) * Math.min(1, dt * 10);
                 const fx = -sy, fz = -cy;
@@ -276,6 +277,7 @@ export class Fighter {
         game.physics.move(this, dt);
 
         if (this.onGround) {
+            this.airborneSinceHit = false;
             if (!wasGround) this.onLand(-fallV, game);
             this.coyote = PHYS.coyoteTime;
             this.apexY = p.y;

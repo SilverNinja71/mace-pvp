@@ -200,9 +200,11 @@ export class BotBrain {
                 tx = f.pos.x + dx / l * (l - c.r + inset); tz = f.pos.z + dz / l * (l - c.r + inset); ty = c.y;
             }
         }
+        this.plan = 'recover';
+        // far below the nearest platform: no way back up, so don't drag it out
+        if (f.pos.y < ty - 5) { this.jumpHold = 0; return; }
         this.goToward(tx, tz, 1);
         this.lookAt(tx, ty + 3 + Math.max(0, ty - f.pos.y), tz);
-        this.plan = 'recover';
         if (f.vel.y < 1 && f.jumpsLeft > 0) { this.press.jump = true; this.jumpHold = 0.5; }
         else if (f.vel.y < -2 && f.airDashes > 0 && f.spearCd <= 0 && this.aimed(0.3)) this.press.spear = true;
         else if (f.jumpsLeft === 0 && f.airDashes === 0) this.jumpHold = 0.2; // glide the rest

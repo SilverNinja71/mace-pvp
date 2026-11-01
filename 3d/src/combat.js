@@ -207,6 +207,7 @@ export class Combat {
         d.padFlight = false;
         d.lastHitBy = a;
         d.lastHitTime = g.time;
+        d.airborneSinceHit = true;
         // the lower your health, the farther you fly: knockouts into the void get likelier
         const pressure = 1 + (1 - Math.max(0, d.hp) / d.maxHp) * 0.8;
         const kb = knock * pressure * (d.big ? 0.75 : 1);
@@ -215,8 +216,6 @@ export class Combat {
         d.vel.y = up * (0.85 + 0.25 * pressure);
         d.onGround = false;
         d.apexY = d.pos.y;
-        const R = g.remote;
-        if (R && R.isGuestFighter(d)) R.sendBody(d, 'hit');
 
         let bolt = false;
         if ((kind === 'slam' || kind === 'shock') && a.classId === 'lightning') {
@@ -228,6 +227,8 @@ export class Combat {
             }
         }
         this.statusEffects(a, d);
+        const R = g.remote;
+        if (R && R.isGuestFighter(d)) R.sendBody(d, 'hit');
         const crit = kind === 'spearCrit' || ((kind === 'slam' || kind === 'shock') && dmg >= 60);
         g.emit('hit', a, d, dmg, kind, crit, bolt);
         g.hitstop(Math.min(HIT.hitstopMax, dmg * HIT.hitstopPer));
@@ -251,6 +252,7 @@ export class Combat {
     // Poison and fire ticks
     dot(d, dmg) {
         if (!d.alive) return;
+        if (this.game.remote && !this.game.remote.isHost) return; // the host deals it
         d.hp -= dmg;
         const src = d.dotSrc;
         if (src) { src.stats.damageDealt += dmg; d.lastHitBy = src; d.lastHitTime = this.game.time; }

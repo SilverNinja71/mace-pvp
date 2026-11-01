@@ -151,6 +151,7 @@ export class OnlineRoom {
     begin(roster, you, kos, layout, theme) {
         this.inMatch = true;
         this.clock = 0;
+        this.spawnSeq = 0;
         this.buffers = roster.map(() => []);
         this.lastState = roster.map(() => 0);
         this.ui.closeAllPanels();
@@ -167,7 +168,7 @@ export class OnlineRoom {
         this.sendT = 0;
         const g = this.game;
         if (this.isHost) this.broadcast(this.snapshot());
-        else if (g.local) this.toHost({ t: 'st', s: packSelf(g.local) });
+        else if (g.local && g.local.alive) this.toHost({ t: 'st', s: packSelf(g.local, this.spawnSeq) });
     }
 
     snapshot() {
@@ -189,6 +190,11 @@ export class OnlineRoom {
         f.stunT = Math.max(0, f.stunT - dt);
         f.parryT = Math.max(0, f.parryT - dt);
         f.spawnShield = Math.max(0, f.spawnShield - dt);
+        f.swingT = Math.max(0, f.swingT - dt);
+        f.slowT = Math.max(0, f.slowT - dt);
+        f.blindT = Math.max(0, f.blindT - dt);
+        f.tickStatus(dt, g); // burn and poison damage, decided here
+        if (!f.alive) return;
         if (f.dashT > 0) {
             f.pos.x += f.dashDir.x * SPEAR.speed * dt; f.pos.y += f.dashDir.y * SPEAR.speed * dt; f.pos.z += f.dashDir.z * SPEAR.speed * dt;
             f.dashT -= dt;
@@ -234,6 +240,8 @@ export class OnlineRoom {
         const f = g.fighters[gu.fighterId];
         if (!f) return;
         if (m.t === 'st' && Array.isArray(m.s)) {
+            // ignore reports sent before the guest heard about their latest respawn
+            if ((m.s[13] | 0) !== (f.spawnSeq | 0)) return;
             unpackSelf(f, m.s);
             this.lastState[f.id] = this.clock;
         } else if (m.t === 'ev' && MOVE_EVENTS.has(m.n)) {
@@ -277,7 +285,8 @@ export class OnlineRoom {
     sendBody(f, kind) {
         const gq = this.guestOf(f);
         if (!gq) return;
-        gq.g.conn.send({ t: 'kb', k: kind, v: [r2(f.vel.x), r2(f.vel.y), r2(f.vel.z)], s: r2(f.stunT), i: r2(f.invulnT) });
+        gq.g.conn.send({ t: 'kb', k: kind, v: [r2(f.vel.x), r2(f.vel.y), r2(f.vel.z)], s: r2(f.stunT), i: r2(f.invulnT),
+            fx: [r2(f.slowT), r2(f.poisonT), r2(f.blindT), r2(f.fireT)] });
     }
 
     relayKO(f, killer, cause) {
@@ -285,7 +294,8 @@ export class OnlineRoom {
     }
 
     relaySpawn(f) {
-        this.broadcast({ t: 'spawn', i: f.id, p: [r2(f.pos.x), r2(f.pos.y), r2(f.pos.z), r2(f.yaw)] });
+        f.spawnSeq = (f.spawnSeq | 0) + 1;
+        this.broadcast({ t: 'spawn', i: f.id, q: f.spawnSeq, p: [r2(f.pos.x), r2(f.pos.y), r2(f.pos.z), r2(f.yaw)] });
     }
 
     relayEnd(ranked) {
@@ -330,6 +340,8 @@ export class OnlineRoom {
             me.cancelActions();
             me.vel.x = m.v[0]; me.vel.y = m.v[1]; me.vel.z = m.v[2];
             me.stunT = m.s; me.invulnT = m.i;
+            // statuses show on our screen; the host deals the burn and poison damage
+            if (Array.isArray(m.fx)) { me.slowT = +m.fx[0] || 0; me.poisonT = +m.fx[1] || 0; me.blindT = +m.fx[2] || 0; me.fireT = +m.fx[3] || 0; }
             me.onGround = false; me.padFlight = false; me.apexY = me.pos.y;
             if (m.k === 'bounce') { g.combat.bounce(me); me.stunT = 0; }
         } else if (m.t === 'ko') {
@@ -340,6 +352,7 @@ export class OnlineRoom {
             if (!f) return;
             const p = m.p;
             if (f === me) {
+                this.spawnSeq = m.q | 0;
                 f.reset({ x: p[0], y: p[1] - 0.05, z: p[2], yaw: p[3] });
                 g.look.yaw = p[3]; g.look.pitch = f.pitch;
             } else {
@@ -363,11 +376,11 @@ export class OnlineRoom {
         else if (name === 'pad') a = [this.game.arena.pads.indexOf(b)];
         else if (typeof b === 'number') a = [r2(b)];
         this.toHost({ t: 'ev', n: name, a });
-        if (name !== 'swing' && name !== 'dash') this.toHost({ t: 'st', s: packSelf(f) });
+        if (name !== 'swing' && name !== 'dash' && f.alive) this.toHost({ t: 'st', s: packSelf(f, this.spawnSeq) });
     }
 
     sendSlam(f) {
-        this.toHost({ t: 'st', s: packSelf(f) });
+        this.toHost({ t: 'st', s: packSelf(f, this.spawnSeq) });
         this.toHost({ t: 'slam', x: r2(f.pos.x), y: r2(f.pos.y), z: r2(f.pos.z), apex: r2(f.apexY) });
     }
 
@@ -402,9 +415,9 @@ function applyFlags(f, b) {
     f.fireT = b & 512 ? 0.5 : 0;
 }
 
-function packSelf(f) {
+function packSelf(f, seq) {
     return [r2(f.pos.x), r2(f.pos.y), r2(f.pos.z), r2(f.vel.x), r2(f.vel.y), r2(f.vel.z), r2(f.yaw), r2(f.pitch), flags(f), r2(f.apexY),
-        r3(f.dashDir.x), r3(f.dashDir.y), r3(f.dashDir.z)];
+        r3(f.dashDir.x), r3(f.dashDir.y), r3(f.dashDir.z), seq | 0];
 }
 
 // Host: a guest's own report of where they are

@@ -73,7 +73,7 @@ export function buildSpear(scale = 1) {
     const halo = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0), new THREE.MeshBasicMaterial({ color: 0xffe28a, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
     halo.scale.set(1, 1, 3);
     halo.position.z = -1.6;
-    halo.material.userData.shared = true;
+    halo.material.userData.noFlash = true;
     g.add(halo);
     g.userData.glow = halo;
     g.scale.setScalar(scale);
@@ -106,6 +106,7 @@ export function buildMace(scale = 1) {
 
 // ---------- third-person fighter ----------
 const outlineMat = new THREE.MeshBasicMaterial({ color: 0x14121c, side: THREE.BackSide });
+outlineMat.userData.shared = true;
 
 function part(w, h, d, mat, outline = true) {
     const geo = new THREE.BoxGeometry(w, h, d);
@@ -285,7 +286,7 @@ export class CharacterModel {
             this.root.traverse((n) => {
                 if (!n.isMesh) return;
                 const ms = Array.isArray(n.material) ? n.material : [n.material];
-                for (const m of ms) if (m.emissive && !m.userData.shared) m.emissive.setRGB(k, k, k);
+                for (const m of ms) if (m.emissive && !m.userData.shared && !m.userData.noFlash) m.emissive.setRGB(k, k, k);
             });
             this.flashOn = this.flashT > 0;
         }
@@ -296,8 +297,17 @@ export class CharacterModel {
     }
 
     dispose() {
-        this.root.traverse((n) => { if (n.isMesh && n.geometry) n.geometry.dispose(); });
+        disposeTree(this.root);
     }
+}
+
+// Free geometry and this model's own materials (shared weapon/outline materials stay)
+function disposeTree(root) {
+    root.traverse((n) => {
+        if (!n.isMesh) return;
+        if (n.geometry) n.geometry.dispose();
+        for (const m of Array.isArray(n.material) ? n.material : [n.material]) if (m && !m.userData.shared) m.dispose();
+    });
 }
 
 // ---------- first-person viewmodel ----------
@@ -341,6 +351,8 @@ export class ViewModel {
     }
 
     setAspect(a) { this.camera.aspect = a; this.camera.updateProjectionMatrix(); }
+
+    dispose() { disposeTree(this.scene); }
 
     // lookDX/DY: how much the view turned this frame (for sway)
     animate(f, dt, lookDX, lookDY, reducedMotion) {
