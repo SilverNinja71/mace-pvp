@@ -332,6 +332,10 @@ export class UI {
         const g = this.game;
         $('set-sound').addEventListener('change', (e) => g.setSetting('sound', e.target.checked));
         $('set-music').addEventListener('change', (e) => g.setSetting('music', e.target.checked));
+        for (const [id, key] of [['set-vol-master', 'volMaster'], ['set-vol-sfx', 'volSfx'], ['set-vol-music', 'volMusic']]) {
+            $(id).addEventListener('input', (e) => { g.setSetting(key, +e.target.value); $(id + '-v').textContent = Math.round(e.target.value * 100) + '%'; });
+            $(id).addEventListener('change', () => audio.play('hit'));
+        }
         $('set-sens').addEventListener('input', (e) => { g.setSetting('sens', +e.target.value); $('set-sens-v').textContent = (+e.target.value).toFixed(2); });
         $('set-fov').addEventListener('input', (e) => { g.setSetting('fov', +e.target.value); $('set-fov-v').textContent = e.target.value + '°'; });
         $('set-invert').addEventListener('change', (e) => g.setSetting('invertY', e.target.checked));
@@ -347,6 +351,9 @@ export class UI {
         const s = this.game.settings;
         $('set-sound').checked = s.sound;
         $('set-music').checked = s.music !== false;
+        for (const [id, key] of [['set-vol-master', 'volMaster'], ['set-vol-sfx', 'volSfx'], ['set-vol-music', 'volMusic']]) {
+            $(id).value = s[key]; $(id + '-v').textContent = Math.round(s[key] * 100) + '%';
+        }
         $('set-sens').value = s.sens; $('set-sens-v').textContent = (+s.sens).toFixed(2);
         $('set-fov').value = s.fov; $('set-fov-v').textContent = s.fov + '°';
         $('set-invert').checked = s.invertY;

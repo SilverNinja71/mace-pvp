@@ -44,7 +44,7 @@ export class Game {
         this.canvas = canvas;
         this.ui = ui;
         this.input = input;
-        this.settings = Object.assign({ quality: 'auto', fov: 90, sens: 1, invertY: false, reducedMotion: false, sound: true, music: true, view: 'first' }, profile.settings);
+        this.settings = Object.assign({ quality: 'auto', fov: 90, sens: 1, invertY: false, reducedMotion: false, sound: true, music: true, view: 'first', volMaster: 0.8, volSfx: 1, volMusic: 0.8 }, profile.settings);
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent));
         this.isMobile = isMobile;
         this.qualityName = this.settings.quality === 'auto' ? (isMobile ? 'medium' : 'high') : this.settings.quality;
@@ -166,6 +166,7 @@ export class Game {
         this.fx.reduced = s.reducedMotion;
         audio.setUserOn(s.sound);
         audio.musicOn = s.music;
+        audio.setVolumes(s.volMaster, s.volSfx, s.volMusic);
         audio.setMusic(s.music);
     }
 

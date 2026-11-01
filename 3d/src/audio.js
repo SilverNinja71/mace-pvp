@@ -14,7 +14,9 @@ class Audio3D {
         this.platformMuted = false;
         this.adMuted = false;
         this.hashMuted = typeof location !== 'undefined' && /(^|[#&])mute\b/.test(location.hash);
-        this.volume = 0.8;
+        this.volume = 0.8;       // master
+        this.sfxVolume = 1;
+        this.musicVolume = 1;
         this.noiseBuf = null;
         this.listener = { x: 0, y: 0, z: 0, yaw: 0 };
     }
@@ -29,7 +31,15 @@ class Audio3D {
             if (!AC) return;
             this.ctx = new AC();
             this.master = this.ctx.createGain();
-            this.master.connect(this.ctx.destination);
+            // a limiter at the end so many sounds at once never clip
+            const lim = this.ctx.createDynamicsCompressor();
+            lim.threshold.value = -8; lim.knee.value = 6; lim.ratio.value = 12; lim.attack.value = 0.003; lim.release.value = 0.15;
+            this.master.connect(lim);
+            lim.connect(this.ctx.destination);
+            // effects go through their own bus so they have their own volume
+            this.sfx = this.ctx.createGain();
+            this.sfx.gain.value = this.sfxVolume;
+            this.sfx.connect(this.master);
             const n = this.ctx.sampleRate;
             this.noiseBuf = this.ctx.createBuffer(1, n, n);
             const d = this.noiseBuf.getChannelData(0);
@@ -70,9 +80,9 @@ class Audio3D {
                 const p = c.createStereoPanner();
                 p.pan.value = Math.max(-0.85, Math.min(0.85, right));
                 g.connect(p);
-                p.connect(this.master);
-            } else g.connect(this.master);
-        } else g.connect(this.master);
+                p.connect(this.sfx);
+            } else g.connect(this.sfx);
+        } else g.connect(this.sfx);
         g.gain.value = vol;
         return g;
     }
@@ -116,29 +126,29 @@ class Audio3D {
     play(name, pos = null, k = 1) {
         if (!this.ready()) return;
         switch (name) {
-            case 'jump': this.noise('bandpass', 500, 1400, 1.2, 0.16, 0.18, pos); break;
+            case 'jump': this.noise('bandpass', 500, 1400, 1.2, 0.16, 0.5, pos); break;
             case 'windJump':
                 this.noise('bandpass', 300, 2400, 0.9, 0.35, 0.3, pos);
                 this.tone('sine', 220, 660, 0.25, 0.12, pos); break;
             case 'dash':
                 this.noise('bandpass', 2600, 500, 1.5, 0.28, 0.35, pos);
                 this.tone('sawtooth', 900, 300, 0.18, 0.06, pos); break;
-            case 'slamStart': this.noise('lowpass', 400, 2400, 0.7, 0.45, 0.22, pos); break;
-            case 'swing': this.noise('bandpass', 900, 300, 1, 0.2, 0.25, pos); break;
+            case 'slamStart': this.noise('lowpass', 400, 2400, 0.7, 0.45, 0.55, pos); break;
+            case 'swing': this.noise('bandpass', 900, 300, 1, 0.2, 0.6, pos); break;
             case 'shock': {
-                const v = 0.35 + k * 0.5;
+                const v = 0.18 + k * 0.27;
                 this.tone('sine', 120, 38, 0.5 + k * 0.4, v, pos);
                 this.noise('lowpass', 1800, 120, 0.8, 0.45 + k * 0.4, v * 0.8, pos);
                 if (k > 0.5) this.tone('square', 70, 30, 0.6, 0.12, pos);
                 break;
             }
             case 'hit':
-                this.tone('square', 260 + k * 80, 90, 0.12, 0.16, pos);
-                this.noise('highpass', 2500, 800, 0.8, 0.1, 0.3, pos); break;
+                this.tone('square', 260 + k * 80, 90, 0.12, 0.12, pos);
+                this.noise('highpass', 2500, 800, 0.8, 0.1, 0.2, pos); break;
             case 'crit':
-                this.tone('square', 520, 140, 0.18, 0.2, pos);
-                this.tone('triangle', 1320, 880, 0.25, 0.14, pos, 0.02);
-                this.noise('highpass', 3500, 1200, 0.8, 0.16, 0.35, pos); break;
+                this.tone('square', 520, 140, 0.18, 0.14, pos);
+                this.tone('triangle', 1320, 880, 0.25, 0.1, pos, 0.02);
+                this.noise('highpass', 3500, 1200, 0.8, 0.16, 0.22, pos); break;
             case 'parry':
                 for (const f of [1180, 1770, 2490, 3130]) this.tone('triangle', f, f * 0.98, 0.5, 0.09, pos);
                 this.noise('highpass', 6000, 3000, 1, 0.08, 0.3, pos); break;
@@ -148,15 +158,15 @@ class Audio3D {
             case 'pad':
                 this.tone('sine', 300, 900, 0.32, 0.18, pos);
                 this.noise('bandpass', 800, 3000, 1, 0.3, 0.15, pos); break;
-            case 'geyser': this.noise('bandpass', 200, 2200, 0.7, 0.9, 0.35, pos); break;
-            case 'land': this.noise('lowpass', 600, 100, 0.8, 0.18, 0.25 * k, pos); break;
+            case 'geyser': this.noise('bandpass', 200, 2200, 0.7, 0.9, 0.7, pos); break;
+            case 'land': this.noise('lowpass', 600, 100, 0.8, 0.18, 0.6 * k, pos); break;
             case 'ko':
                 this.tone('sawtooth', 440, 55, 0.7, 0.14, pos);
                 this.tone('sine', 220, 40, 0.8, 0.2, pos); break;
-            case 'voidFall': this.noise('bandpass', 1500, 120, 1.4, 1.2, 0.25, pos); break;
+            case 'voidFall': this.noise('bandpass', 1500, 120, 1.4, 1.2, 0.4, pos); break;
             case 'bolt':
-                this.noise('highpass', 7000, 500, 0.5, 0.6, 0.45, pos);
-                this.tone('square', 90, 40, 0.5, 0.15, pos); break;
+                this.noise('highpass', 7000, 500, 0.5, 0.6, 0.25, pos);
+                this.tone('square', 90, 40, 0.5, 0.1, pos); break;
             case 'status': this.tone('triangle', 660, 990, 0.12, 0.08, pos); break;
             case 'blink': this.tone('sine', 1600, 200, 0.3, 0.12, pos); break;
             case 'click': this.tone('triangle', 880, 660, 0.06, 0.08, null); break;
@@ -186,8 +196,17 @@ const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
 
 Audio3D.prototype.setMusic = function (on) {
     this.musicOn = on;
-    if (this.musicGain) this.musicGain.gain.setTargetAtTime(on ? 0.32 : 0, this.ctx.currentTime, 0.3);
+    if (this.musicGain) this.musicGain.gain.setTargetAtTime(on ? 0.32 * this.musicVolume : 0, this.ctx.currentTime, 0.3);
     if (on) this.startMusic();
+};
+
+// Volumes 0-1 for everything, effects and music
+Audio3D.prototype.setVolumes = function (master, sfx, music) {
+    this.volume = master; this.sfxVolume = sfx; this.musicVolume = music;
+    if (!this.ctx) return;
+    this.applyVolume();
+    if (this.sfx) this.sfx.gain.setTargetAtTime(sfx, this.ctx.currentTime, 0.02);
+    if (this.musicGain) this.musicGain.gain.setTargetAtTime(this.musicOn === false ? 0 : 0.32 * music, this.ctx.currentTime, 0.05);
 };
 
 Audio3D.prototype.setIntensity = function (k) { this.intensity = k; };
@@ -195,7 +214,7 @@ Audio3D.prototype.setIntensity = function (k) { this.intensity = k; };
 Audio3D.prototype.startMusic = function () {
     if (!this.ctx || this.musicTimer || this.musicOn === false) return;
     this.musicGain = this.ctx.createGain();
-    this.musicGain.gain.value = 0.32;
+    this.musicGain.gain.value = 0.32 * this.musicVolume;
     this.musicGain.connect(this.master);
     this.beat = 0;
     this.nextBeat = this.ctx.currentTime + 0.1;
