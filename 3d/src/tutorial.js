@@ -8,7 +8,7 @@ import { profile } from './profile.js';
 
 const STEPS = [
     { id: 'move',  title: 'Move and look', keys: 'WASD to move · Mouse to look', touch: 'Left thumb moves · drag right side to look', text: 'Walk around a bit.' },
-    { id: 'jump',  title: 'Double jump',   keys: 'SPACE, then SPACE again in the air', touch: 'JUMP twice', text: 'Your second jump is a wind-charge burst.' },
+    { id: 'jump',  title: 'Double jump',   keys: 'SPACE, then SPACE again in the air', touch: 'JUMP twice', text: 'Your second jump is a wind burst.' },
     { id: 'spear', title: 'Spear thrust',  keys: 'LEFT CLICK', touch: 'SPEAR button', text: 'Dash where you look and spear the dummy. Hits at full reach are critical.' },
     { id: 'geyser', title: 'Wind geyser',  keys: 'Walk onto the glowing centre', touch: 'Walk onto the glowing centre', text: 'Ride the geyser high into the air.' },
     { id: 'slam',  title: 'Mace slam',     keys: 'RIGHT CLICK or SHIFT in the air', touch: 'MACE button in the air', text: 'Slam down on the dummy. The higher you fall, the harder it hits, and a hit bounces you back up.' },

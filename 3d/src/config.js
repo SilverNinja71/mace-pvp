@@ -15,7 +15,7 @@ export const PHYS = {
     airAccel: 26,
     airDrag: 0.6,
     jumpVel: 10.2,
-    windJumpVel: 12.2,      // the second jump is a wind-charge burst
+    windJumpVel: 12.2,      // the second jump is a wind burst
     coyoteTime: 0.12,
     jumpBuffer: 0.12,
     radius: 0.42,

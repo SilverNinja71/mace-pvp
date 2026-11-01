@@ -231,7 +231,7 @@ export class Fighter {
                 this.padFlight = false;
                 game.emit('jump', this);
             } else if (this.jumpsLeft > 0 && I.jump) {
-                // second jump: a wind-charge burst under your feet
+                // second jump: a wind burst under your feet
                 v.y = Math.max(v.y, PHYS.windJumpVel);
                 this.jumpsLeft--;
                 this.jumpBuf = 0;
