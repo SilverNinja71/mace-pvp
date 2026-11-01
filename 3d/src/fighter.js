@@ -136,7 +136,6 @@ export class Fighter {
         let speed = PHYS.walkSpeed * this.speedMult;
         if (this.slowT > 0) speed *= 0.5;
         if (this.invisible) speed *= CLASSES.shadow.speedMult;
-        if (this.padFlight && (wx || wz)) this.padFlight = false; // steering ends the pad's guided arc
 
         // ---- abilities (pressed this step) ----
         if (!stunned) {
@@ -191,16 +190,19 @@ export class Fighter {
                 const accel = (wx || wz) ? PHYS.groundAccel : PHYS.groundFriction * speed;
                 approach(v, tx, tz, accel * dt);
                 if (this.swingT > 0) { v.x *= 0.9; v.z *= 0.9; }
-            } else if (!this.padFlight) {
-                // air: steer toward the keys without killing momentum you already have
-                const ctl = this.slamming ? 0.45 : 1;
+            } else {
+                // air: steer toward the keys without killing momentum you already have.
+                // A jump pad's arc has no drag, so it always reaches its island.
+                const ctl = this.slamming ? 0.45 : (this.padFlight ? 0.5 : 1);
                 if (wx || wz) {
                     const along = v.x * wx + v.z * wz;
                     const add = Math.min(PHYS.airAccel * ctl * dt, Math.max(0, speed - along));
                     v.x += wx * add; v.z += wz * add;
                 }
-                const drag = 1 - PHYS.airDrag * dt * (wx || wz ? 0.3 : 1);
-                v.x *= drag; v.z *= drag;
+                if (!this.padFlight) {
+                    const drag = 1 - PHYS.airDrag * dt * (wx || wz ? 0.3 : 1);
+                    v.x *= drag; v.z *= drag;
+                }
             }
             // gravity, glide
             v.y += PHYS.gravity * dt;

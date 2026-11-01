@@ -110,8 +110,12 @@ export class Arena {
             for (let s = 0; s < 4; s++) {
                 const sa = s * Math.PI / 2;
                 const ox = Math.sin(sa) * (MONO_HALF + 0.01), oz = Math.cos(sa) * (MONO_HALF + 0.01);
-                glow.addAt(new THREE.BoxGeometry(0.22, 1.7, 0.03), x + ox, MONO_BOTTOM + hgt / 2, z + oz, 0xb48cff, 0, sa);
-                glow.addAt(new THREE.BoxGeometry(1.2, 0.18, 0.03), x + ox, MONO_BOTTOM + hgt / 2 + 0.5, z + oz, 0xb48cff, 0, sa);
+                // a forked wind rune: a stem with two branches rising from its middle
+                const cy = MONO_BOTTOM + hgt / 2;
+                const sx = Math.cos(sa) * 0.32, sz = -Math.sin(sa) * 0.32; // sideways along this face
+                glow.addAt(new THREE.BoxGeometry(0.2, 1.8, 0.03), x + ox, cy, z + oz, 0xb48cff, 0, sa);
+                glow.addAt(new THREE.BoxGeometry(0.17, 0.95, 0.03), x + ox + sx, cy + 0.42, z + oz + sz, 0xb48cff, 0, sa, 1, 1, 1, 0, -0.6);
+                glow.addAt(new THREE.BoxGeometry(0.17, 0.95, 0.03), x + ox - sx, cy + 0.42, z + oz - sz, 0xb48cff, 0, sa, 1, 1, 1, 0, 0.6);
             }
             glow.addAt(new THREE.BoxGeometry(MONO_HALF * 2 + 0.06, 0.1, MONO_HALF * 2 + 0.06), x, MONO_TOP - 0.15, z, 0xd2b8ff);
         }

@@ -103,6 +103,9 @@ export class BotBrain {
             this.goToward(0, 0, 0.6);
         }
 
+        // Riding a jump pad: let the arc carry us
+        if (f.padFlight) { this.moveX = 0; this.moveZ = 0; }
+
         // Stuck against something while trying to move: hop and change sides
         this.stuckT += dt;
         if (this.stuckT > 1.2) {
@@ -265,7 +268,8 @@ export class BotBrain {
             const px = s.x + s.vx * tFall * lead, pz = s.z + s.vz * tFall * lead;
             const d = this.goToward(px, pz, 1);
             this.lookAt(px, s.y, pz);
-            if (d < 1.5 + h * 0.04) { this.press.mace = true; this.plan = 'approach'; }
+            const solidBelow = g.physics.groundAt(f.pos.x, f.pos.z, 0.5, f.pos.y) > -Infinity;
+            if (d < 1.5 + h * 0.04 && solidBelow) { this.press.mace = true; this.plan = 'approach'; }
             else if (d > 7 && f.airDashes > 0 && f.spearCd <= 0 && f.vel.y < 0 && h < 14) {
                 this.lookAt(s.x + s.vx * 0.2 * L.aim, s.y + 1, s.z + s.vz * 0.2 * L.aim);
                 if (this.aimed(0.25)) this.press.spear = true;

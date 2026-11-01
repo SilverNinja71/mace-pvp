@@ -29,3 +29,6 @@ venv/
 *.log
 test_*.js
 scratch/
+
+# CrazyGames build output (made by 3d/tools/build-crazygames.py)
+3d/dist/
