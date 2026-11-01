@@ -103,7 +103,13 @@ class CrazyGames {
                 audio.setAdMuted(true);
                 if (this.onPause) this.onPause(true);
             };
+            // an ad that never starts (blocked, or the shared 3-minute ad cooldown) must not hang the game
+            const noStart = setTimeout(() => { if (!this.adPlaying) end(false); }, 5000);
+            let ended = false;
             const end = (ok) => {
+                if (ended) return;
+                ended = true;
+                clearTimeout(noStart);
                 const was = this.adPlaying;
                 this.adPlaying = false;
                 audio.setAdMuted(false);
