@@ -30,7 +30,7 @@ class Profile {
         if (!p || typeof p !== 'object') {
             p = {
                 id: 'guest_' + Math.random().toString(36).slice(2, 8),
-                username: 'Steve', authProvider: 'guest', level: 1, xp: 0, gold: 300,
+                username: 'Fighter' + Math.floor(100 + Math.random() * 900), authProvider: 'guest', level: 1, xp: 0, gold: 300,
                 equippedWeapon: 'mace', secondaryWeapon: null, classId: 'normal',
                 skinId: 'steve', unlockedSkins: ['steve', 'alex'], arenaRP: 250, isMinor: false,
                 stats: { matches: 0, wins: 0, losses: 0, slamsLanded: 0, dashesLanded: 0, maxSlamDamage: 0, kills: 0, damageDealt: 0, currentStreak: 0, bestStreak: 0 }
@@ -55,7 +55,7 @@ class Profile {
         try { if (window.GameAccounts && window.GameAccounts.trophies) window.GameAccounts.trophies.check(); } catch (e) { /* no accounts */ }
     }
 
-    get name() { return this.data.username || 'Steve'; }
+    get name() { return this.data.username || 'Fighter'; }
     // The class used in 3D matches: the saved one if your level has unlocked it, else Normal
     // (the saved choice is left alone, since the 2D game shares this save)
     get classId() { return this.classUnlocked(this.data.classId) ? this.data.classId : 'normal'; }

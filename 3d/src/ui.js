@@ -240,7 +240,7 @@ export class UI {
     refreshProfile() {
         const p = profile.data;
         if (this.game && this.game.state === 'menu' && (!this.game.showcase || this.shownSkin !== p.skinId)) { this.shownSkin = p.skinId; this.game.refreshShowcase(); }
-        $('pc-name').textContent = p.username || 'Steve';
+        $('pc-name').textContent = p.username || 'Fighter';
         $('pc-level').textContent = 'Lv ' + p.level;
         $('pc-xp').style.width = (profile.levelProgress() * 100).toFixed(0) + '%';
         $('pc-gold').textContent = p.gold;

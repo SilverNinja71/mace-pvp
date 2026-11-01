@@ -12,15 +12,15 @@ const SPEAR_RECOVER = 0.6; // spear cooldown left while the arm is still pulling
 // Skin palettes, keyed by the skin ids saved in the shared profile
 // (internal ids kept from the 2D game: "steve", "alex", "noob", ...)
 export const SKINS = {
-    steve:          { name: 'Steve',          skin: '#e0ac7e', shirt: '#2f6fb3', pants: '#2b3a67', hair: '#3b2a1e', accent: '#d8402f', cap: '#1d2c55', eyes: '#2b5fae' },
-    alex:           { name: 'Alex',           skin: '#f1c39a', shirt: '#f2f2ea', pants: '#6b4a2f', hair: '#7fd3ff', accent: '#3aa86b', eyes: '#2e8b57' },
+    steve:          { name: 'Skye',           skin: '#e8b48c', shirt: '#e8553a', pants: '#4a4f5c', hair: '#f2c14e', accent: '#2f6fb3', cap: '#1d2c55', eyes: '#2b5fae' },
+    alex:           { name: 'Gale',           skin: '#f1c39a', shirt: '#f2f2ea', pants: '#3a7d5c', hair: '#7fd3ff', accent: '#7b5cff', eyes: '#2e8b57' },
     noob:           { name: 'Sunbolt',        skin: '#f6b26b', shirt: '#ff8a1f', pants: '#3d5a99', hair: '#ffffff', accent: '#ffffff', eyes: '#3b2a1e', grin: true },
     man_face:       { name: 'Dapper Duke',    skin: '#e8b48f', shirt: '#3a3a4a', pants: '#24242e', hair: '#1c1c22', accent: '#c9a227', eyes: '#222', moustache: true },
-    creeper:        { name: 'Creeper',        skin: '#6aa84f', shirt: '#4f8a3a', pants: '#3e6e2e', hair: '#6aa84f', accent: '#ffb300', eyes: '#ffb300', mossy: true },
+    creeper:        { name: 'Moss Golem',     skin: '#8a8f86', shirt: '#6b7a4f', pants: '#55604a', hair: '#5f8a3a', accent: '#ffb300', eyes: '#ffb300', mossy: true },
     enderman:       { name: 'Void Wraith',    skin: '#1d1f3d', shirt: '#14152b', pants: '#0e0f20', hair: '#1d1f3d', accent: '#3df5ff', eyes: '#3df5ff', visor: true },
-    skeleton:       { name: 'Skeleton Skull', skin: '#e9e5d6', shirt: '#cfcab8', pants: '#a8a392', hair: '#e9e5d6', accent: '#555', eyes: '#222' },
-    zombie:         { name: 'Zombie',         skin: '#5f9e6e', shirt: '#2e8b8b', pants: '#4b3f8c', hair: '#3f6e4b', accent: '#2e8b8b', eyes: '#1b1b1b' },
-    diamond_knight: { name: 'Diamond Helmet', skin: '#e0ac7e', shirt: '#4fd1e0', pants: '#2a7f8c', hair: '#6ff0ff', accent: '#bffcff', eyes: '#123', helmet: true }
+    skeleton:       { name: 'Bone Knight',    skin: '#e9e5d6', shirt: '#7a6a55', pants: '#4a4038', hair: '#9aa3ad', accent: '#c0392b', eyes: '#222', helmet: true },
+    zombie:         { name: 'Bog Brute',      skin: '#8a9a4a', shirt: '#6b4a2f', pants: '#2f2f38', hair: '#4a5a2a', accent: '#c9a227', eyes: '#ffef8a' },
+    diamond_knight: { name: 'Crystal Knight', skin: '#e0ac7e', shirt: '#7a5cd6', pants: '#3d2f7a', hair: '#b48cff', accent: '#e2c2ff', eyes: '#123', helmet: true }
 };
 
 // 8x8 pixel face, drawn once per skin
@@ -34,10 +34,15 @@ function faceTexture(id) {
         ctx.fillStyle = s.hair; ctx.fillRect(0, 0, 8, 2);
         if (s.helmet) { ctx.fillStyle = s.hair; ctx.fillRect(0, 0, 8, 3); ctx.fillRect(0, 0, 1, 8); ctx.fillRect(7, 0, 1, 8); }
         if (s.visor) { ctx.fillStyle = s.eyes; ctx.fillRect(1, 3, 6, 1); return; }
-        if (s.mossy) { px(1, 2, '#4f8a3a'); px(5, 1, '#8fd16a'); px(6, 5, '#4f8a3a'); }
+        if (s.mossy) { px(5, 1, '#8fd16a'); px(2, 0, '#8fd16a'); }
         // eyes
         px(1, 3, '#ffffff'); px(2, 3, s.eyes); px(5, 3, s.eyes); px(6, 3, '#ffffff');
-        if (s.mossy) { ctx.fillStyle = '#1b2b14'; ctx.fillRect(3, 5, 2, 2); px(2, 6, '#1b2b14'); px(5, 6, '#1b2b14'); return; }
+        if (s.mossy) {
+            // stone brow over glowing eyes, and a mossy beard
+            ctx.fillStyle = '#5f645c'; ctx.fillRect(1, 2, 6, 1);
+            ctx.fillStyle = '#5f8a3a'; ctx.fillRect(1, 6, 6, 2); px(3, 5, '#5f8a3a'); px(4, 5, '#5f8a3a');
+            return;
+        }
         if (s.moustache) { ctx.fillStyle = '#2a1a10'; ctx.fillRect(2, 5, 4, 1); px(1, 6, '#2a1a10'); px(6, 6, '#2a1a10'); }
         else if (s.grin) { ctx.fillStyle = '#7a2b16'; ctx.fillRect(2, 5, 4, 1); px(2, 4, '#7a2b16'); px(5, 4, '#7a2b16'); ctx.fillStyle = '#fff'; ctx.fillRect(3, 5, 2, 1); }
         else { ctx.fillStyle = '#8a4b38'; ctx.fillRect(3, 5, 2, 1); }
