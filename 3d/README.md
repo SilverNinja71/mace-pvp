@@ -1,37 +1,51 @@
-# Spear-Mace: Sky Arena (3D), work in progress
+# Spear-Mace: Sky Arena (3D)
 
-This is the 3D rebuild of Spear-Mace PVP for CrazyGames. It is **not playable yet**: there is no page to open.
-The 2D game at the top of this repository is unchanged and still works.
+A fast 3D arena fighter built from Spear-Mace PVP for CrazyGames (and later Poki and itch.io).
+Dash with the Wind Spear, slam down from the clouds with the Storm Mace, and knock rivals into the void.
+The 2D game at the top of this repository is unchanged.
 
-## Done (in `src/`, about 3,400 lines, every file passes a syntax check)
+**Play locally:** run a simple web server from the repository folder (for example `python3 -m http.server 8000`)
+and open <http://localhost:8000/3d/>. Add `#mute` to the address for silent testing.
+Once this branch is merged, GitHub Pages serves it at `https://silverninja71.github.io/mace-pvp/3d/`.
+
+## Controls
+
+| Action | Keyboard and mouse | Gamepad | Touch |
+|---|---|---|---|
+| Move / look | WASD / mouse | Left / right stick | Left thumb / drag right side |
+| Jump, wind jump (press again in the air), glide (hold) | Space | A | JUMP |
+| Spear dash (where you look; ground or air) | Left click | X, RB or RT | SPEAR |
+| Mace slam (in the air) / mace swing (on the ground) | Right click or Shift | B or LT | MACE |
+| Parry | F, E or middle click | LB | PARRY |
+| Camera: first or third person | V | Back | 👁 |
+| Buddha grow/shrink | B | Y | — |
+| Pause | P or Esc | Start | ❚❚ |
+| Scores | Hold Tab | — | — |
+
+## Modes
+- **Quick Play**: one click from the title screen. A duel against a bot whose level follows your record (Easy for your first wins, then Normal, then Pro).
+- **Duel**: 1 vs 1 bot (Easy, Normal, Pro, God), first to 3 knockouts, 3 minutes, then sudden death.
+- **Brawl**: free-for-all against 3 bots, first to 7.
+- **Gauntlet**: one life, waves of tougher bots. On CrazyGames you can revive once by watching an ad.
+- **Training**: a 7-step tutorial (skippable), then free practice on a dummy.
+- **Online**: rooms for up to 4 friends with a room code or a `?room=CODE` link (GitHub Pages copy only).
+
+## How it's built
+Plain ES modules in `src/`, with Three.js r160 bundled in `lib/three`. There's no build step for the web
+copy. `tools/build-crazygames.py` makes `dist/spear-mace-crazygames.zip` for the CrazyGames upload.
 
 | File | What it does |
 |---|---|
-| `config.js` | Tuning: gravity -28 m/s², 0.12 s coyote time, jump buffer, spear and mace numbers, parry, match rules, the 8 classes from the 2D game, bot levels |
-| `physics.js` | Fast collision: upright cylinders and boxes, step-up, ground and ceiling checks, raycasts, line of sight. No allocations per frame |
-| `arena.js` | The Floating Sky Pillar Arena: round colosseum, 12 pillars (tall and broken), 4 floating monoliths, a centre wind geyser, 4 tiered islands with jump pads, gradient sky, instanced clouds, dust motes moved by a shader. Static parts are merged into 2 draw calls |
-| `gfx.js` | Cel-shading ramp, geometry merging, glow and ring textures |
-| `character.js` | Low-poly fighters with 8×8 pixel faces for every skin in the shared save, a procedural spear (silver shaft, glowing gold tip) and a rune mace, walk/attack animation, first-person viewmodel arms with bob and sway |
-| `fighter.js` | Movement and abilities: jump, wind-charge double jump, glide, spear dash in the look direction (ground or air), mace slam, ground swing, parry, jump pads, geyser, void, class abilities |
-| `combat.js` | Spear pierce with crit at full extension, slam damage from fall height, a landed hit bounces you up and resets the fall, shockwave, swing, parry, clash, poison/fire/slow/blind, lightning bolts, knockback that grows as health drops |
-| `bot.js` | Bot AI: jump-pad navigation, spear dashes that lead the target, geyser climbs for high slams, slam and dash dodging, parries, getting back from the void |
-| `fx.js` | Pooled voxel sparks, shockwave rings, lightning, floating damage numbers, screen shake |
-| `audio.js` | Procedural positional sound effects, mute switch, `#mute` in the address |
-| `input.js` | Keyboard and mouse with pointer lock, latched taps, gamepad, touch joystick and buttons |
-| `camera.js` | First person or over the shoulder (V), wall collision, FOV kick 90→105 on dashes |
-| `profile.js` | Reads and writes the shared `spear_mace_user_profile` save (same XP and gold rules as 2D) and checks trophies |
-| `crazygames.js` | CrazyGames SDK v3: gameplayStart/Stop, loading events, rewarded and midgame ads with mute and pause, invite links |
-
-`lib/three/` is Three.js r160 and `fonts/` holds Fredoka and Lilita One. Both are copied from Penguin League's
-vendor folder, so nothing loads from a CDN.
-
-## Still to do, in order
-
-1. `game.js`: scene, renderer, the fixed 120 Hz loop with interpolation, modes (Quick Play, Duel, Brawl, Gauntlet,
-   Training), KOs, respawns, timer, and effects and sound for each event.
-2. `ui.js` + `index.html` + CSS: title screen with one-click Quick Play, class and skin pickers, settings, HUD,
-   pause screen, results, the rewarded "Revive with full health" button, and touch buttons.
-3. Tutorial (short and skippable) and control hints for the first minute.
-4. Auto quality with dynamic resolution, and Reduced motion.
-5. `tools/build-crazygames.py`: the upload zip, built the same way as Penguin League's.
-6. Online rooms (PeerJS, `?room=` links) to finish last. The 2D game's online play still works in the meantime.
+| `config.js` | Every tuning number: gravity -28 m/s², coyote time 0.12 s, spear, mace, parry, match rules, the 8 classes, bot levels |
+| `physics.js` | Fast collision against cylinders and boxes, step-up, raycasts |
+| `arena.js` | The Floating Sky Pillar Arena: the colosseum, pillars, monoliths, centre geyser, islands, jump pads, sky, clouds, dust, sunset/night/storm themes |
+| `fighter.js` | Movement and abilities for players, bots and online friends alike |
+| `combat.js` | Spear pierce and crits, slam damage from fall height with bounce, shockwave, parry, clash, status effects |
+| `bot.js` | Bot AI: jump pads, aimed dashes, geyser climbs, slam dodging, parries, getting back from the void |
+| `game.js` | The fixed 120 Hz loop with interpolation, modes, knockouts, respawns, the camera, effects and sounds for each event |
+| `ui.js`, `tutorial.js`, `missions.js` | Menus, HUD, results, the tutorial, daily missions |
+| `character.js` | Low-poly fighters with pixel faces, the procedural spear and mace, first-person arms |
+| `fx.js`, `audio.js`, `camera.js`, `input.js` | Effects, procedural sound and music, cameras, keyboard/mouse/gamepad/touch |
+| `profile.js` | The shared `spear_mace_user_profile` save (same gold, XP and stats as the 2D game) |
+| `crazygames.js` | CrazyGames SDK v3: gameplay start/stop, happytime, midgame and rewarded ads, invite links |
+| `online.js` | PeerJS rooms: the host decides hits and knockouts, and every player moves their own fighter |
