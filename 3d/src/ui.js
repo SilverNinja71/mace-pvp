@@ -10,6 +10,7 @@ import { profile } from './profile.js';
 import { audio } from './audio.js';
 import { crazyGames } from './crazygames.js';
 import { Tutorial } from './tutorial.js';
+import { missions } from './missions.js';
 
 // Skin prices in gold, the same as the 2D game's shop
 const SKIN_COST = { steve: 0, alex: 0, noob: 200, man_face: 400, creeper: 500, enderman: 600, skeleton: 500, zombie: 400, diamond_knight: 800 };
@@ -58,6 +59,19 @@ export class UI {
         }));
         click($('res-menu'), () => this.afterResults(() => g.quitToMenu()));
         click($('res-revive'), () => this.watchRevive());
+        click($('res-double'), () => {
+            const r = this.lastReward;
+            if (!r || r.doubled) return;
+            crazyGames.showAd('rewarded').then((ok) => {
+                if (!ok) { this.toast("The ad couldn't play this time."); return; }
+                r.doubled = true;
+                profile.data.gold += r.gold;
+                profile.save();
+                $('res-double').classList.add('hidden');
+                this.toast(`+${r.gold} bonus gold!`);
+                this.refreshProfile();
+            });
+        });
         click($('btn-revive'), () => this.watchRevive());
         click($('tu-skip'), () => { if (g.tutorial) g.tutorial.skip(); });
         click($('tu-play'), () => this.start({ mode: 'quick', level: quickLevel() }));
@@ -102,7 +116,7 @@ export class UI {
         const g = this.game;
         if (g.mode === 'gauntlet') {
             const r = g.finishGauntlet();
-            if (r) this.toast(`+${r.gold} gold · +${r.xp} XP${r.best ? ' · new best!' : ''}`);
+            if (r) this.toast(`+${r.gold} gold · +${r.xp} XP${r.best ? ' · new best!' : ''}${r.missions && r.missions.length ? ` · mission done: +${r.missions[0].gold} gold` : ''}`);
         }
         $('results').classList.add('hidden');
         crazyGames.showAd('midgame').then(() => next());
@@ -211,6 +225,8 @@ export class UI {
         $('pc-rp').textContent = p.arenaRP || 0;
         const c = CLASSES[p.classId];
         $('pc-class').textContent = `${c.name} · ${(SKINS[p.skinId] || SKINS.steve).name}`;
+        $('missions-card').innerHTML = '<h5>DAILY MISSIONS</h5>' + missions.list().map(m =>
+            `<div class="mi${m.done ? ' done' : ''}"><span>${m.done ? '✓ ' : ''}${esc(m.text)}</span><b>${m.done ? 'done' : `${m.progress}/${m.goal} · 🪙${m.gold}`}</b></div>`).join('');
     }
 
     bindFighter() {
@@ -349,14 +365,18 @@ export class UI {
             $('res-table').innerHTML = this.statTable([d.local]);
             $('res-rewards').innerHTML = `<span>🪙 +${d.waves * 25} gold</span><span>✦ +${d.waves * 30 + 10} XP</span>`;
             rv.classList.toggle('hidden', !d.canRevive);
+            $('res-double').classList.add('hidden');
         } else {
             t.textContent = d.win ? 'VICTORY!' : 'DEFEAT';
             t.className = d.win ? 'win' : 'lose';
             $('res-sub').textContent = d.mode === 'training' ? '' : `${g.modeDef.name}${d.level && !g.remote ? ' · ' + (BOT_LEVELS[d.level] ? BOT_LEVELS[d.level].name : '') : ''}`;
             $('res-table').innerHTML = this.statTable(d.ranked);
             const r = d.reward;
+            this.lastReward = r;
+            $('res-double').classList.toggle('hidden', !(r && r.gold > 0 && crazyGames.adsAvailable));
             $('res-rewards').innerHTML = r ? `<span>🪙 +${r.gold} gold</span><span>✦ +${r.xp} XP</span>${r.rp ? `<span>⚔ ${r.rp > 0 ? '+' : ''}${r.rp} RP</span>` : ''}${r.levelUps ? `<span>⬆ Level up! +${r.levelUps * 200} gold</span>` : ''}` : '';
             rv.classList.add('hidden');
+            for (const m of d.missions || []) $('res-rewards').innerHTML += `<span>✓ Mission: ${esc(m.text)} +${m.gold} gold</span>`;
         }
         $('results').classList.remove('hidden');
         this.refreshProfile();

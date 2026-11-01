@@ -185,6 +185,7 @@ export class Combat {
 
     slamStats(a, dmg) {
         a.stats.slamsLanded++;
+        if (dmg >= 60) a.stats.bigSlams++;
         if (dmg > a.stats.maxSlamDamage) a.stats.maxSlamDamage = dmg;
     }
 

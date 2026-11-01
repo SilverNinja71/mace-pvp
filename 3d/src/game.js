@@ -16,6 +16,7 @@ import { CharacterModel, ViewModel, SKINS } from './character.js';
 import { audio } from './audio.js';
 import { profile } from './profile.js';
 import { crazyGames } from './crazygames.js';
+import { missions } from './missions.js';
 
 export const MODES = {
     quick:    { name: 'Quick Play', bots: 1, kos: MATCH.duelKOs, time: MATCH.timeLimit },
@@ -480,7 +481,7 @@ export class Game {
         f.stats.deaths++;
         let killer = (f.lastHitBy && f.lastHitBy !== f && this.time - f.lastHitTime < HIT.koCreditTime) ? f.lastHitBy : null;
         if (!killer && this.fighters.length === 2 && this.mode !== 'training') killer = this.fighters[f.id === 0 ? 1 : 0];
-        if (killer) { killer.kos++; killer.stats.kos++; }
+        if (killer) { killer.kos++; killer.stats.kos++; if (cause === 'void') killer.stats.voidKos++; }
         const causeText = cause === 'void' ? 'VOID' : (cause === 'slam' || cause === 'shock') ? 'SLAM' : cause === 'swing' ? 'MACE' : cause === 'dot' ? 'BURN' : 'SPEAR';
         this.koEffects(f, killer, causeText);
         if (this.remote && this.remote.isHost) this.remote.relayKO(f, killer, causeText);
@@ -596,11 +597,15 @@ export class Game {
         const ranked = this.fighters.slice().sort((a, b) => b.kos - a.kos || a.deaths - b.deaths || b.stats.damageDealt - a.stats.damageDealt);
         const win = ranked[0] === this.local;
         let reward = null;
-        if (this.mode !== 'training') reward = profile.recordMatch(win, this.remote ? 'online' : this.level, this.local.stats);
+        let done = [];
+        if (this.mode !== 'training') {
+            reward = profile.recordMatch(win, this.remote ? 'online' : this.level, this.local.stats);
+            done = missions.record(this.local.stats, { win });
+        }
         audio.play(win ? 'win' : 'lose');
         if (win) crazyGames.happytime();
         if (this.remote && this.remote.isHost) this.remote.relayEnd(ranked);
-        this.finishSlowly({ win, ranked, local: this.local, reward, mode: this.mode, level: this.level });
+        this.finishSlowly({ win, ranked, local: this.local, reward, mode: this.mode, level: this.level, missions: done });
     }
 
     // Guest: the host says the match is over
@@ -615,8 +620,9 @@ export class Game {
         const ranked = order.map(i => this.fighters[i]).filter(Boolean);
         const win = ranked[0] === this.local;
         const reward = profile.recordMatch(win, 'online', this.local.stats);
+        const done = missions.record(this.local.stats, { win });
         audio.play(win ? 'win' : 'lose');
-        this.finishSlowly({ win, ranked, local: this.local, reward, mode: 'online' });
+        this.finishSlowly({ win, ranked, local: this.local, reward, mode: 'online', missions: done });
     }
 
     // The winning knockout plays out in slow motion before the results appear
@@ -643,6 +649,7 @@ export class Game {
     finishGauntlet() {
         if (!this.pendingGauntlet) return null;
         const r = profile.recordGauntlet(this.pendingGauntlet.waves, this.local.stats);
+        r.missions = missions.record(this.local.stats, { wave: this.wave });
         this.pendingGauntlet = null;
         return r;
     }

@@ -31,7 +31,7 @@ export class Fighter {
         this.yaw = 0; this.pitch = 0; this.prevYaw = 0;
         this.radius = PHYS.radius; this.height = PHYS.height;
         this.maxHp = this.classId === 'normal' ? MATCH.maxHp + 10 : MATCH.maxHp;
-        this.stats = { damageDealt: 0, slamsLanded: 0, dashesLanded: 0, maxSlamDamage: 0, kos: 0, deaths: 0, parries: 0, crits: 0 };
+        this.stats = { damageDealt: 0, slamsLanded: 0, dashesLanded: 0, maxSlamDamage: 0, kos: 0, deaths: 0, parries: 0, crits: 0, voidKos: 0, bigSlams: 0 };
         this.kos = 0; this.deaths = 0;
         this.big = false; this.bigScale = 1;
         this.reset();

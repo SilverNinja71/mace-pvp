@@ -77,6 +77,14 @@ kbd { display: inline-block; padding: 0.05em 0.45em; margin: 0 0.15em; border-ra
 .hint-keys { background: rgba(10, 18, 40, 0.5); border-radius: 0.8em; padding: 0.6em 0.9em; font-size: 0.85em; line-height: 1.9; color: #dfe8ff; }
 .hint-keys.inline { margin: 0.8em 0; text-align: left; }
 
+.missions-card { background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 1em; padding: 0.6em 0.9em; min-width: 16em; font-size: 0.85em;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.missions-card h5 { margin: 0 0 0.35em; font-size: 0.95em; color: var(--gold); letter-spacing: 0.05em; }
+.mi { display: flex; justify-content: space-between; gap: 0.8em; line-height: 1.7; }
+.mi.done { color: var(--green); }
+.mi b { color: var(--muted); font-weight: 600; }
+@media (max-height: 520px) { .menu-right .hint-keys { display: none; } }
+
 /* ---------- panels ---------- */
 .panel { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(8, 14, 34, 0.45); }
 .panel-card { background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 1.2em; padding: 1.2em 1.5em; width: min(40em, 94vw);
