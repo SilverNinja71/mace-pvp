@@ -186,6 +186,18 @@ export class InputController {
         if (gp.buttons.some((b) => b && b.pressed)) this.usingPad = true;
     }
 
+    // Gamepad rumble (strength 0-1), only while a pad is being used
+    rumble(strength, ms) {
+        if (!this.usingPad || !navigator.getGamepads) return;
+        for (const gp of navigator.getGamepads()) {
+            const a = gp && gp.vibrationActuator;
+            if (a && a.playEffect) {
+                try { a.playEffect('dual-rumble', { duration: ms, strongMagnitude: strength, weakMagnitude: Math.min(1, strength * 1.2) }); } catch (e) { /* not supported */ }
+                return;
+            }
+        }
+    }
+
     // Look change since last frame, in radians
     takeLook() {
         const k = 0.0022 * this.sensitivity;

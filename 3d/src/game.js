@@ -390,6 +390,7 @@ export class Game {
                 fx.emit(a.pos.x, c + 0.2, a.pos.z, 10 + Math.round(b * 10), '#ffd27a', 5 + b * 6, 0.1, 0.5, -10, 0.5);
                 audio.play('shock', a === this.local ? null : a.pos, b);
                 this.shakeNear(a.pos, 6 + b * 14, 0.25 + b * 0.25);
+                if (a === this.local) this.input.rumble(0.35 + b * 0.6, 200 + b * 200);
                 if (a === this.local && b > 0.6) this.ui.banner('', 'MEGA SLAM', '#ffb43a', 0.9, true);
                 break;
             }
@@ -405,7 +406,8 @@ export class Game {
                 audio.play(e ? 'crit' : 'hit', localInvolved ? null : b.pos, Math.min(1, c / 60));
                 if (this.models[b.id]) this.models[b.id].flash();
                 if (a === this.local) { this.ui.hitmarker(e); if (e || c >= 40) this.fx.shake(e ? 9 : 6, 0.25); }
-                if (b === this.local) { this.ui.hurt(c); this.fx.shake(Math.min(16, 5 + c * 0.15), 0.3); audio.play('hurt'); }
+                if (b === this.local) { this.ui.hurt(c); this.fx.shake(Math.min(16, 5 + c * 0.15), 0.3); audio.play('hurt'); this.input.rumble(Math.min(1, 0.3 + c / 80), 220); }
+                else if (a === this.local) this.input.rumble(e ? 0.6 : 0.25, e ? 160 : 90);
                 if (this.tutorial) this.tutorial.event('hit', a, b, c, d);
                 break;
             }
