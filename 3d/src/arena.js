@@ -152,7 +152,7 @@ export class Arena {
             }
             // spawn point faces the centre
             const spx = Math.cos(a) * (ISLAND_DIST - 2), spz = Math.sin(a) * (ISLAND_DIST - 2);
-            this.spawns.push({ x: spx, y, z: spz, yaw: Math.atan2(-spx, -spz) });
+            this.spawns.push({ x: spx, y, z: spz, yaw: Math.atan2(spx, spz) }); // forward (-sin, -cos) points at the centre
         }
 
         // ---------- jump pads ----------

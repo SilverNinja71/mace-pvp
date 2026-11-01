@@ -36,6 +36,7 @@ export class BotBrain {
         this.dodgeCd = 0;
         this.passive = levelId === 'dummy';
         this.stuckT = 0;
+        this.unstickT = 0;
     }
 
     pickTarget() {
@@ -102,6 +103,27 @@ export class BotBrain {
             this.goToward(0, 0, 0.6);
         }
 
+        // Stuck against something while trying to move: hop and change sides
+        this.stuckT += dt;
+        if (this.stuckT > 1.2) {
+            const moved = Math.hypot(f.pos.x - (this.lastX || 0), f.pos.z - (this.lastZ || 0));
+            if (moved < 0.8 && f.onGround && (this.moveX || this.moveZ) && this.plan !== 'pad') {
+                this.press.jump = true;
+                this.strafe = -this.strafe;
+                this.strafeT = 1.5;
+                this.unstickT = 0.8;
+            }
+            this.lastX = f.pos.x; this.lastZ = f.pos.z;
+            this.stuckT = 0;
+        }
+        if (this.unstickT > 0) {
+            this.unstickT -= dt;
+            // slide sideways for a moment
+            const mx = this.moveX, mz = this.moveZ;
+            this.moveX = -mz * this.strafe + mx * 0.3;
+            this.moveZ = mx * this.strafe + mz * 0.3;
+        }
+
         // Don't walk off edges by accident
         if (f.onGround && (this.moveX || this.moveZ) && this.plan !== 'pad') {
             const ax = f.pos.x + this.moveX * 1.6, az = f.pos.z + this.moveZ * 1.6;
@@ -155,7 +177,7 @@ export class BotBrain {
         const f = this.f, g = this.game;
         // nearest landing spot: the colosseum or the closest island
         let tx = 0, tz = 0, ty = 0, best = Infinity;
-        const cands = [{ x: 0, z: 0, y: 0, r: CENTER_R }, ...g.arena.islands];
+        const cands = this.cands || (this.cands = [{ x: 0, z: 0, y: 0, r: CENTER_R }, ...g.arena.islands]);
         for (const c of cands) {
             const dx = c.x - f.pos.x, dz = c.z - f.pos.z;
             const d = Math.hypot(dx, dz) - c.r + Math.max(0, c.y - f.pos.y) * 1.5;
@@ -297,7 +319,7 @@ export class BotBrain {
             const az = s.z + s.vz * travel * L.aim + (Math.random() - 0.5) * err;
             this.lookAt(ax, chestY + s.vy * travel * 0.5 * L.aim, az);
             this.goToward(s.x, s.z, 0.5);
-            if (this.aimed(0.12) && Math.random() < L.aggression * 0.25 && g.physics.lineClear(f.pos.x, f.pos.y + 1.5, f.pos.z, s.x, chestY, s.z)) {
+            if (this.aimed(0.12) && Math.random() < L.aggression * 0.25 && this.dashLandsSafe() && g.physics.lineClear(f.pos.x, f.pos.y + 1.5, f.pos.z, s.x, chestY, s.z)) {
                 this.press.spear = true;
             }
             return;
@@ -328,6 +350,15 @@ export class BotBrain {
         // hop over gaps now and then to look alive
         if (f.onGround && Math.random() < 0.004) this.press.jump = true;
         void ground; void PHYS;
+    }
+
+    // Would a spear dash along the current aim end over solid ground?
+    dashLandsSafe() {
+        const f = this.f;
+        const reach = SPEAR.speed * SPEAR.time + 1.5;
+        const cp = Math.cos(this.aimPitch);
+        const ex = f.pos.x - Math.sin(this.aimYaw) * cp * reach, ez = f.pos.z - Math.cos(this.aimYaw) * cp * reach;
+        return this.game.physics.groundAt(ex, ez, 0.4, f.pos.y + 4) > f.pos.y - 6;
     }
 
     // Training dummy: strolls back and forth slowly

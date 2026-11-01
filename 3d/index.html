@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Spear-Mace: Sky Arena</title>
+<meta name="description" content="Fast 3D arena duels in the sky: dash with the Wind Spear, slam from the clouds with the Storm Mace, knock rivals into the void.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="style.css">
+<script>
+  // On CrazyGames: no shared accounts, no links out
+  (function () {
+    var cg = /(^|\.)crazygames\.[a-z]{2,3}(\.[a-z]{2})?$/i, ref = '';
+    try { ref = document.referrer ? new URL(document.referrer).hostname : ''; } catch (e) {}
+    window.SMA_ON_CRAZYGAMES = window.SMA_ON_CRAZYGAMES || cg.test(location.hostname) || cg.test(ref);
+    if (window.SMA_ON_CRAZYGAMES) document.documentElement.classList.add('on-crazygames');
+  })();
+</script>
+<!-- shared accounts (trophies) from the hub site; not on CrazyGames -->
+<script>if (!window.SMA_ON_CRAZYGAMES && !window.SMA_OFFLINE) document.write('<script src="../../Empire/shared/accounts.js"><\/script>');</script>
+<script type="importmap">{ "imports": { "three": "./lib/three/three.module.min.js" } }</script>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="fx-layer"></div>
+<div id="speedlines"></div>
+<div id="vignette"></div>
+<div id="hurt"></div>
+<div id="blind"></div>
+
+<!-- ============ loading ============ -->
+<div id="loading" class="screen">
+  <div class="logo"><span class="logo-a">SPEAR</span><span class="logo-dot">✦</span><span class="logo-b">MACE</span></div>
+  <div class="logo-sub">SKY ARENA</div>
+  <div class="loadbar"><i></i></div>
+</div>
+
+<!-- ============ main menu ============ -->
+<div id="menu" class="screen hidden">
+  <div class="menu-left">
+    <div class="logo"><span class="logo-a">SPEAR</span><span class="logo-dot">✦</span><span class="logo-b">MACE</span></div>
+    <div class="logo-sub">SKY ARENA</div>
+    <button id="btn-play" class="btn btn-play"><span class="btn-icon">▶</span> PLAY<small>Quick duel vs a bot</small></button>
+    <div class="menu-row">
+      <button class="btn btn-sec" data-panel="modes">Modes</button>
+      <button class="btn btn-sec" data-panel="fighter">Fighter</button>
+      <button class="btn btn-sec online-only" data-panel="online">Online</button>
+      <button class="btn btn-sec" data-panel="settings">Settings</button>
+    </div>
+    <button id="btn-training" class="btn btn-ghost">Training &amp; tutorial</button>
+  </div>
+  <div class="menu-right">
+    <div class="profile-card">
+      <div class="pc-name" id="pc-name">Steve</div>
+      <div class="pc-line"><span id="pc-level">Lv 1</span><span class="pc-bar"><i id="pc-xp"></i></span></div>
+      <div class="pc-stats"><span>🪙 <b id="pc-gold">0</b></span><span>🏆 <b id="pc-wins">0</b> wins</span><span>⚔ <b id="pc-rp">0</b> RP</span></div>
+      <div class="pc-class" id="pc-class">Normal</div>
+    </div>
+    <div class="hint-keys">
+      <div><kbd>WASD</kbd> move <kbd>Mouse</kbd> look</div>
+      <div><kbd>Space</kbd> jump ×2 · hold to glide</div>
+      <div><kbd>L-Click</kbd> spear dash</div>
+      <div><kbd>R-Click</kbd>/<kbd>Shift</kbd> mace slam</div>
+      <div><kbd>F</kbd> parry <kbd>V</kbd> camera <kbd>P</kbd> pause</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ panels ============ -->
+<div id="panel-modes" class="panel hidden">
+  <div class="panel-card">
+    <h2>Modes</h2>
+    <div class="mode-grid">
+      <div class="mode-card" data-mode="duel">
+        <h3>Duel</h3><p>1 vs 1. First to 3 knockouts.</p>
+        <div class="seg" id="duel-level">
+          <button data-level="easy">Easy</button><button data-level="normal" class="on">Normal</button><button data-level="pro">Pro</button><button data-level="god">God</button>
+        </div>
+        <button class="btn btn-go" data-start="duel">Fight</button>
+      </div>
+      <div class="mode-card" data-mode="brawl">
+        <h3>Brawl</h3><p>Free-for-all against 3 bots. First to 7 knockouts.</p>
+        <div class="seg" id="brawl-level">
+          <button data-level="easy">Easy</button><button data-level="normal" class="on">Normal</button><button data-level="pro">Pro</button>
+        </div>
+        <button class="btn btn-go" data-start="brawl">Fight</button>
+      </div>
+      <div class="mode-card" data-mode="gauntlet">
+        <h3>Gauntlet</h3><p>One life. Wave after wave of tougher bots. How far can you go?</p>
+        <div class="best">Best: <b id="gauntlet-best">0</b> waves</div>
+        <button class="btn btn-go" data-start="gauntlet">Start</button>
+      </div>
+      <div class="mode-card" data-mode="training">
+        <h3>Training</h3><p>A quick tutorial, then free practice on a dummy.</p>
+        <button class="btn btn-go" data-start="training">Practice</button>
+      </div>
+    </div>
+    <button class="btn btn-ghost panel-close">Back</button>
+  </div>
+</div>
+
+<div id="panel-fighter" class="panel hidden">
+  <div class="panel-card wide">
+    <h2>Fighter</h2>
+    <div class="fighter-cols">
+      <div>
+        <h4>Class</h4>
+        <div id="class-list" class="pick-list"></div>
+        <p id="class-desc" class="desc"></p>
+      </div>
+      <div>
+        <h4>Look</h4>
+        <div id="skin-list" class="pick-list skins"></div>
+        <h4>Name</h4>
+        <div class="name-row"><input id="name-input" maxlength="16" autocomplete="off" spellcheck="false"><button id="name-save" class="btn btn-sec small">Save</button></div>
+        <p id="name-msg" class="desc"></p>
+      </div>
+    </div>
+    <button class="btn btn-ghost panel-close">Back</button>
+  </div>
+</div>
+
+<div id="panel-settings" class="panel hidden">
+  <div class="panel-card">
+    <h2>Settings</h2>
+    <div class="set-list">
+      <label class="set">Sound <input type="checkbox" id="set-sound"></label>
+      <label class="set">Mouse sensitivity <input type="range" id="set-sens" min="0.2" max="3" step="0.05"><span id="set-sens-v"></span></label>
+      <label class="set">Field of view <input type="range" id="set-fov" min="70" max="110" step="1"><span id="set-fov-v"></span></label>
+      <label class="set">Invert look up/down <input type="checkbox" id="set-invert"></label>
+      <label class="set">Camera
+        <span class="seg" id="set-view"><button data-v="first">First person</button><button data-v="third">Third person</button></span></label>
+      <label class="set">Graphics
+        <span class="seg" id="set-quality"><button data-v="auto">Auto</button><button data-v="high">High</button><button data-v="medium">Medium</button><button data-v="low">Low</button></span></label>
+      <label class="set">Reduced motion (less shake and FOV kick) <input type="checkbox" id="set-reduced"></label>
+      <p class="desc" id="quality-note"></p>
+    </div>
+    <button class="btn btn-ghost panel-close">Back</button>
+  </div>
+</div>
+
+<div id="panel-online" class="panel hidden">
+  <div class="panel-card">
+    <h2>Play with friends</h2>
+    <p class="desc">Make a room and send the invite link, or type a friend's room code.</p>
+    <div class="online-box">
+      <button id="btn-host" class="btn btn-go">Create room</button>
+      <div class="name-row"><input id="room-input" maxlength="8" placeholder="ROOM CODE" autocomplete="off" spellcheck="false"><button id="btn-join" class="btn btn-sec small">Join</button></div>
+      <div id="online-status" class="desc"></div>
+      <div id="room-info" class="room-info hidden">
+        <div>Room code: <b id="room-code"></b></div>
+        <div class="name-row"><input id="room-link" readonly><button id="btn-copy" class="btn btn-sec small">Copy link</button></div>
+        <div id="room-players" class="desc"></div>
+        <button id="btn-room-start" class="btn btn-go">Start match</button>
+      </div>
+    </div>
+    <button class="btn btn-ghost panel-close" id="online-back">Back</button>
+  </div>
+</div>
+
+<!-- ============ in-game HUD ============ -->
+<div id="hud" class="hidden">
+  <div id="crosshair"><i></i><i></i><i></i><i></i></div>
+  <div id="hitmarker"></div>
+  <div id="slam-meter"><b id="slam-dmg">0</b><span>SLAM</span></div>
+  <div id="scorebar"></div>
+  <div id="timer"></div>
+  <div id="killfeed"></div>
+  <div id="banner"><div class="b-title"></div><div class="b-sub"></div></div>
+  <div id="countdown"></div>
+  <div id="tags"></div>
+  <div id="hpbox">
+    <div class="hp-name"><span id="hp-name"></span><span id="hp-class"></span></div>
+    <div class="hp-bar"><i id="hp-fill"></i><i id="hp-ghost"></i><b id="hp-text">100</b></div>
+    <div class="status-row" id="status-row"></div>
+  </div>
+  <div id="abilities">
+    <div class="ab" id="ab-spear"><span class="ab-key">LMB</span><span class="ab-ico">➹</span><span class="ab-cd"></span><span class="ab-pips"></span></div>
+    <div class="ab" id="ab-mace"><span class="ab-key">RMB</span><span class="ab-ico">⬢</span><span class="ab-cd"></span></div>
+    <div class="ab" id="ab-parry"><span class="ab-key">F</span><span class="ab-ico">⛨</span><span class="ab-cd"></span></div>
+    <div class="ab" id="ab-jump"><span class="ab-key">SPC</span><span class="ab-ico">⇧</span><span class="ab-pips"></span></div>
+  </div>
+  <div id="ctl-hints" class="hidden"></div>
+  <div id="tutorial" class="hidden">
+    <div class="tu-top"><span id="tu-count"></span><button id="tu-skip" class="btn btn-ghost small">Skip tutorial</button></div>
+    <div class="tu-title" id="tu-title"></div>
+    <div class="tu-keys" id="tu-keys"></div>
+    <div class="tu-text" id="tu-text"></div>
+  </div>
+  <div id="tu-done" class="hidden">
+    <div class="tu-title">You're ready!</div>
+    <p>Keep practising here, or jump into a real fight.</p>
+    <button id="tu-play" class="btn btn-go">Quick Play</button>
+    <button id="tu-menu" class="btn btn-ghost small">Menu</button>
+  </div>
+  <div id="revive" class="hidden">
+    <div class="rv-title">Knocked out!</div>
+    <button id="btn-revive" class="btn btn-ad">▶ Revive with full health<small>Watch a short ad. Your knockout won't count.</small></button>
+    <div class="rv-timer" id="rv-timer"></div>
+  </div>
+  <div id="scoreboard" class="hidden"></div>
+  <button id="btn-pause-touch" class="touch-only round-btn" aria-label="Pause">❚❚</button>
+</div>
+
+<!-- ============ touch controls ============ -->
+<div id="touch" class="hidden">
+  <div class="t-zone"></div>
+  <div class="t-stick"><div class="t-knob"></div></div>
+  <button class="t-btn t-jump" data-act="jump">JUMP</button>
+  <button class="t-btn t-spear" data-act="spear">SPEAR</button>
+  <button class="t-btn t-mace" data-act="mace">MACE</button>
+  <button class="t-btn t-parry" data-act="parry">PARRY</button>
+  <button class="t-btn t-view" data-act="view">👁</button>
+</div>
+
+<!-- ============ pause ============ -->
+<div id="pause" class="panel hidden">
+  <div class="panel-card">
+    <h2>Paused</h2>
+    <button id="btn-resume" class="btn btn-go">Resume</button>
+    <button class="btn btn-sec" data-panel="settings">Settings</button>
+    <div class="hint-keys inline">
+      <div><kbd>L-Click</kbd> spear dash (aim where you look) · <kbd>R-Click</kbd>/<kbd>Shift</kbd> mace slam in the air, swing on the ground</div>
+      <div><kbd>Space</kbd> jump, again for a wind jump, hold to glide · <kbd>F</kbd> parry · <kbd>V</kbd> camera · <kbd>Tab</kbd> scores</div>
+    </div>
+    <button id="btn-quit" class="btn btn-ghost">Leave match</button>
+  </div>
+</div>
+
+<!-- ============ results ============ -->
+<div id="results" class="panel hidden">
+  <div class="panel-card wide">
+    <h2 id="res-title">VICTORY</h2>
+    <div id="res-sub" class="desc"></div>
+    <div id="res-table"></div>
+    <div id="res-rewards"></div>
+    <div class="res-buttons">
+      <button id="res-revive" class="btn btn-ad hidden">▶ Revive and keep going<small>Watch a short ad: full health, same wave</small></button>
+      <button id="res-again" class="btn btn-go">Play again</button>
+      <button id="res-menu" class="btn btn-ghost">Menu</button>
+    </div>
+  </div>
+</div>
+
+<div id="click-to-play" class="hidden"><div>Click to keep playing</div></div>
+<div id="toast"></div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

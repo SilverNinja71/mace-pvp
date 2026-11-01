@@ -324,13 +324,13 @@ export class ViewModel {
         const skinMat = toon(s.skin), shirtMat = toon(s.shirt);
         const arm = (side) => {
             const pivot = new THREE.Group();
-            const fore = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.11, 0.5), skinMat);
-            fore.position.z = -0.22;
+            const fore = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.42), skinMat);
+            fore.position.z = -0.2;
             pivot.add(fore);
-            const sleeve = new THREE.Mesh(new THREE.BoxGeometry(0.125, 0.125, 0.18), shirtMat);
-            sleeve.position.z = 0.02;
+            const sleeve = new THREE.Mesh(new THREE.BoxGeometry(0.115, 0.115, 0.12), shirtMat);
+            sleeve.position.z = -0.03;
             pivot.add(sleeve);
-            pivot.position.set(side * 0.3, -0.3, -0.25);
+            pivot.position.set(side * 0.3, -0.32, -0.36);
             this.root.add(pivot);
             return pivot;
         };
@@ -339,9 +339,9 @@ export class ViewModel {
         this.spear = buildSpear(0.55);
         this.spear.position.set(0, 0.04, -0.42);
         this.armR.add(this.spear);
-        this.mace = buildMace(0.55);
-        this.mace.position.set(0, 0, -0.45);
-        this.mace.rotation.x = -0.9;
+        this.mace = buildMace(0.4);
+        this.mace.position.set(0, 0.03, -0.45);
+        this.mace.rotation.x = -0.75;
         this.armL.add(this.mace);
         this.bob = 0;
         this.swayX = 0; this.swayY = 0;
@@ -367,14 +367,14 @@ export class ViewModel {
         // spear (right): thrust forward during a dash
         const thrust = f.dashT > 0 ? 1 : 0;
         this.kickR += (thrust - this.kickR) * Math.min(1, dt * (thrust ? 30 : 9));
-        this.armR.position.set(0.3 - this.kickR * 0.18, -0.3 + this.kickR * 0.12, -0.25 - this.kickR * 0.32);
-        this.armR.rotation.set(this.kickR * 0.15, this.kickR * 0.12, 0);
+        this.armR.position.set(0.3 - this.kickR * 0.1, -0.32 + this.kickR * 0.06, -0.36 - this.kickR * 0.26);
+        this.armR.rotation.set(this.kickR * 0.1, this.kickR * 0.1, 0);
         // mace (left): raised overhead while slamming, chop on a swing
         let target = 0;
         if (f.slamming) target = 1;
         else if (f.swingT > 0) target = f.swingT > 0.18 ? 1 : -0.6;
         this.kickL += (target - this.kickL) * Math.min(1, dt * 16);
-        this.armL.position.set(-0.3 + Math.max(0, this.kickL) * 0.12, -0.3 + this.kickL * 0.2, -0.25 - Math.abs(this.kickL) * 0.08);
+        this.armL.position.set(-0.34 + Math.max(0, this.kickL) * 0.14, -0.36 + this.kickL * 0.22, -0.4 - Math.abs(this.kickL) * 0.08);
         this.armL.rotation.set(this.kickL * 0.9, 0, -Math.max(0, this.kickL) * 0.3);
         if (f.parryT > 0) {
             this.armR.rotation.z = 0.7; this.armL.rotation.z = -0.7;

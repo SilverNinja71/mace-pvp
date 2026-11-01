@@ -29,6 +29,7 @@ export class InputController {
         this.touch = { moveId: null, ox: 0, oy: 0, x: 0, y: 0, lookId: null, lx: 0, ly: 0, jumpHeld: false };
         this.touchRoot = touchRoot;
         this.showScores = false;
+        this.lockFailed = typeof canvas.requestPointerLock !== 'function'; // no pointer lock at all: look with plain mouse moves
         this.bind();
     }
 
@@ -72,7 +73,8 @@ export class InputController {
             this.locked = document.pointerLockElement === c;
             if (was && !this.locked && this.active && this.onUnlock) this.onUnlock();
         });
-        document.addEventListener('pointerlockerror', () => { this.lockFailed = true; });
+        // a refused lock (asked too soon after Esc) is retried on the next click
+        document.addEventListener('pointerlockerror', () => { this.lockPending = false; });
 
         // touch: first touch switches to touch controls
         window.addEventListener('touchstart', () => { this.usingTouch = true; }, { passive: true });
@@ -80,15 +82,15 @@ export class InputController {
     }
 
     requestLock() {
-        if (this.usingTouch || this.locked) return;
+        if (this.usingTouch || this.locked || this.lockFailed) return;
         try {
             const r = this.canvas.requestPointerLock({ unadjustedMovement: true });
             if (r && r.catch) r.catch(() => {
                 // some browsers refuse unadjustedMovement: try plain
-                try { const r2 = this.canvas.requestPointerLock(); if (r2 && r2.catch) r2.catch(() => { this.lockFailed = true; }); } catch (e) { this.lockFailed = true; }
+                try { const r2 = this.canvas.requestPointerLock(); if (r2 && r2.catch) r2.catch(() => {}); } catch (e) { /* retried on next click */ }
             });
         } catch (e) {
-            try { this.canvas.requestPointerLock(); } catch (e2) { this.lockFailed = true; }
+            try { this.canvas.requestPointerLock(); } catch (e2) { /* retried on next click */ }
         }
     }
 
@@ -212,8 +214,6 @@ export class InputController {
         const L = this.latch;
         I.jump = L.jump; I.spear = L.spear; I.mace = L.mace; I.slam = L.slam; I.parry = L.parry; I.size = L.size;
         L.jump = L.spear = L.mace = L.slam = L.parry = L.size = false;
-        // Space + Shift in the air also glides (Shift alone slams)
-        if (k.ShiftLeft || k.ShiftRight) I.jumpHeld = I.jumpHeld || false;
     }
 
     takeView() { const v = this.latch.view; this.latch.view = false; return v; }

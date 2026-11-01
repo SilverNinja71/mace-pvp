@@ -1,0 +1,531 @@
+// ==========================================
+// UI: menus, panels, the in-game HUD, results and the revive offer.
+// The HUD only touches the page when a value actually changes.
+// ==========================================
+
+import { CLASSES, SPEAR, PARRY, TEAM_COLORS, BOT_LEVELS } from './config.js';
+import { SKINS } from './character.js';
+import { slamDamage } from './combat.js';
+import { profile } from './profile.js';
+import { audio } from './audio.js';
+import { crazyGames } from './crazygames.js';
+import { Tutorial } from './tutorial.js';
+
+// Skin prices in gold, the same as the 2D game's shop
+const SKIN_COST = { steve: 0, alex: 0, noob: 200, man_face: 400, creeper: 500, enderman: 600, skeleton: 500, zombie: 400, diamond_knight: 800 };
+
+const $ = (id) => document.getElementById(id);
+const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+export class UI {
+    constructor() {
+        this.game = null;
+        this.cache = {};
+        this.speed = 0;
+        this.bannerT = 0;
+        this.duelLevel = 'normal';
+        this.brawlLevel = 'normal';
+        this.lastStart = { mode: 'quick', level: 'normal' };
+        this.panelStack = [];
+        this.tags = [];
+        this.hintsT = 0;
+    }
+
+    bind(game) {
+        this.game = game;
+        const g = game;
+        const click = (el, fn) => el && el.addEventListener('click', (e) => { audio.unlock(); audio.play('click'); fn(e); });
+
+        click($('btn-play'), () => this.start({ mode: 'quick', level: quickLevel() }));
+        click($('btn-training'), () => this.start({ mode: 'training' }));
+        document.querySelectorAll('[data-panel]').forEach((b) => click(b, () => this.openPanel(b.getAttribute('data-panel'))));
+        document.querySelectorAll('.panel-close').forEach((b) => click(b, () => this.closePanel()));
+        document.querySelectorAll('[data-start]').forEach((b) => click(b, () => {
+            const m = b.getAttribute('data-start');
+            this.closeAllPanels();
+            this.start({ mode: m, level: m === 'duel' ? this.duelLevel : m === 'brawl' ? this.brawlLevel : 'normal' });
+        }));
+        this.seg($('duel-level'), 'level', (v) => { this.duelLevel = v; });
+        this.seg($('brawl-level'), 'level', (v) => { this.brawlLevel = v; });
+
+        click($('btn-resume'), () => g.resume());
+        click($('btn-quit'), () => { $('pause').classList.add('hidden'); this.leaveMatch(); });
+        click($('btn-pause-touch'), () => g.pause());
+        click($('click-to-play'), () => { g.input.requestLock(); });
+        click($('res-again'), () => this.afterResults(() => this.start(this.lastStart)));
+        click($('res-menu'), () => this.afterResults(() => g.quitToMenu()));
+        click($('res-revive'), () => this.watchRevive());
+        click($('btn-revive'), () => this.watchRevive());
+        click($('tu-skip'), () => { if (g.tutorial) g.tutorial.skip(); });
+        click($('tu-play'), () => this.start({ mode: 'quick', level: quickLevel() }));
+        click($('tu-menu'), () => g.quitToMenu());
+
+        this.bindSettings();
+        this.bindFighter();
+        this.refreshProfile();
+    }
+
+    seg(root, attr, onPick) {
+        if (!root) return;
+        root.querySelectorAll('button').forEach((b) => b.addEventListener('click', (e) => {
+            e.preventDefault();
+            root.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+            audio.play('click');
+            onPick(b.getAttribute('data-' + attr));
+        }));
+    }
+
+    setSeg(root, attr, v) {
+        root.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x.getAttribute('data-' + attr) === v));
+    }
+
+    start(opts) {
+        this.lastStart = opts;
+        this.closeAllPanels();
+        $('results').classList.add('hidden');
+        $('pause').classList.add('hidden');
+        this.game.startMatch(opts);
+        if (opts.mode === 'training') this.game.tutorial = new Tutorial(this.game, this);
+    }
+
+    leaveMatch() {
+        const g = this.game;
+        if (g.mode === 'gauntlet' && g.pendingGauntlet) g.finishGauntlet();
+        g.quitToMenu();
+    }
+
+    // A midgame ad at the natural break after a match (CrazyGames decides if one shows)
+    afterResults(next) {
+        const g = this.game;
+        if (g.mode === 'gauntlet') {
+            const r = g.finishGauntlet();
+            if (r) this.toast(`+${r.gold} gold · +${r.xp} XP${r.best ? ' · new best!' : ''}`);
+        }
+        $('results').classList.add('hidden');
+        crazyGames.showAd('midgame').then(() => next());
+    }
+
+    watchRevive() {
+        crazyGames.showAd('rewarded').then((ok) => {
+            if (ok) this.game.revive();
+            else this.toast("The ad couldn't play, so no revive this time.");
+        });
+    }
+
+    // ---------------- panels ----------------
+    openPanel(name) {
+        const el = $('panel-' + name);
+        if (!el) return;
+        if (name === 'fighter') this.renderFighter();
+        if (name === 'settings') this.renderSettings();
+        if (name === 'modes') $('gauntlet-best').textContent = profile.data.arena3d.gauntletBest || 0;
+        el.classList.remove('hidden');
+        this.panelStack.push(el);
+    }
+    closePanel() {
+        const el = this.panelStack.pop();
+        if (el) el.classList.add('hidden');
+        this.refreshProfile();
+    }
+    closeAllPanels() {
+        while (this.panelStack.length) this.panelStack.pop().classList.add('hidden');
+    }
+
+    showMenu() {
+        $('hud').classList.add('hidden');
+        $('touch').classList.add('hidden');
+        $('results').classList.add('hidden');
+        $('pause').classList.add('hidden');
+        $('click-to-play').classList.add('hidden');
+        $('menu').classList.remove('hidden');
+        this.speedLines(0);
+        $('vignette').style.opacity = 0;
+        $('blind').style.opacity = 0;
+        this.refreshProfile();
+    }
+
+    refreshProfile() {
+        const p = profile.data;
+        $('pc-name').textContent = p.username || 'Steve';
+        $('pc-level').textContent = 'Lv ' + p.level;
+        $('pc-xp').style.width = (profile.levelProgress() * 100).toFixed(0) + '%';
+        $('pc-gold').textContent = p.gold;
+        $('pc-wins').textContent = p.stats.wins;
+        $('pc-rp').textContent = p.arenaRP || 0;
+        const c = CLASSES[p.classId];
+        $('pc-class').textContent = `${c.name} · ${(SKINS[p.skinId] || SKINS.steve).name}`;
+    }
+
+    bindFighter() {
+        $('name-save').addEventListener('click', () => {
+            const ok = profile.setName($('name-input').value);
+            $('name-msg').textContent = ok ? 'Saved!' : (window.GameAccounts && window.GameAccounts.current && window.GameAccounts.current()
+                ? 'Your name is your account name.' : '2-16 letters, numbers, spaces or _.');
+            this.refreshProfile();
+        });
+    }
+
+    renderFighter() {
+        const p = profile.data;
+        const cl = $('class-list');
+        cl.innerHTML = '';
+        for (const id in CLASSES) {
+            const c = CLASSES[id];
+            const b = document.createElement('button');
+            b.className = 'pick' + (p.classId === id ? ' on' : '');
+            b.innerHTML = `<i style="background:${c.color}"></i>${esc(c.name)}`;
+            b.addEventListener('click', () => { profile.setClass(id); audio.play('click'); this.renderFighter(); });
+            b.addEventListener('mouseenter', () => { $('class-desc').textContent = c.desc; });
+            cl.appendChild(b);
+        }
+        $('class-desc').textContent = CLASSES[p.classId].desc;
+        const sl = $('skin-list');
+        sl.innerHTML = '';
+        for (const id in SKINS) {
+            const s = SKINS[id];
+            const owned = p.unlockedSkins.includes(id);
+            const b = document.createElement('button');
+            b.className = 'pick' + (p.skinId === id ? ' on' : '') + (owned ? '' : ' locked');
+            b.innerHTML = `<i style="background:${s.shirt};border:2px solid ${s.skin}"></i>${esc(s.name)}${owned ? '' : ` <small>🪙${SKIN_COST[id]}</small>`}`;
+            b.addEventListener('click', () => {
+                if (!owned) {
+                    const cost = SKIN_COST[id] || 0;
+                    if (p.gold < cost) { this.toast(`You need ${cost} gold. Win matches to earn more!`); return; }
+                    p.gold -= cost;
+                    p.unlockedSkins.push(id);
+                    this.toast(`Unlocked ${s.name}!`);
+                }
+                profile.setSkin(id);
+                audio.play('click');
+                this.renderFighter();
+                this.refreshProfile();
+            });
+            sl.appendChild(b);
+        }
+        $('name-input').value = p.username || '';
+        $('name-msg').textContent = '';
+    }
+
+    bindSettings() {
+        const g = this.game;
+        $('set-sound').addEventListener('change', (e) => g.setSetting('sound', e.target.checked));
+        $('set-sens').addEventListener('input', (e) => { g.setSetting('sens', +e.target.value); $('set-sens-v').textContent = (+e.target.value).toFixed(2); });
+        $('set-fov').addEventListener('input', (e) => { g.setSetting('fov', +e.target.value); $('set-fov-v').textContent = e.target.value + '°'; });
+        $('set-invert').addEventListener('change', (e) => g.setSetting('invertY', e.target.checked));
+        $('set-reduced').addEventListener('change', (e) => g.setSetting('reducedMotion', e.target.checked));
+        this.seg($('set-view'), 'v', (v) => { g.setSetting('view', v); g.rig.mode = v; });
+        this.seg($('set-quality'), 'v', (v) => {
+            g.setSetting('quality', v);
+            $('quality-note').textContent = 'Graphics changes take effect the next time the game loads.';
+        });
+    }
+
+    renderSettings() {
+        const s = this.game.settings;
+        $('set-sound').checked = s.sound;
+        $('set-sens').value = s.sens; $('set-sens-v').textContent = (+s.sens).toFixed(2);
+        $('set-fov').value = s.fov; $('set-fov-v').textContent = s.fov + '°';
+        $('set-invert').checked = s.invertY;
+        $('set-reduced').checked = s.reducedMotion;
+        this.setSeg($('set-view'), 'v', this.game.rig.mode);
+        this.setSeg($('set-quality'), 'v', s.quality);
+        $('quality-note').textContent = s.quality === 'auto' ? `Auto adjusts the resolution to keep the game smooth (now ${this.game.qualityName}).` : '';
+    }
+
+    // ---------------- match lifecycle ----------------
+    matchStarted(g) {
+        $('menu').classList.add('hidden');
+        $('hud').classList.remove('hidden');
+        $('results').classList.add('hidden');
+        $('revive').classList.add('hidden');
+        $('tutorial').classList.add('hidden');
+        $('tu-done').classList.add('hidden');
+        $('killfeed').innerHTML = '';
+        this.cache = {};
+        // name tags for everyone else
+        const tags = $('tags');
+        tags.innerHTML = '';
+        this.tags = g.fighters.map((f) => {
+            if (f === g.local) return null;
+            const el = document.createElement('div');
+            el.className = 'tag';
+            el.innerHTML = `<div class="tn" style="color:${TEAM_COLORS[f.id % 4]}">${esc(f.name)}${f.botLevel && f.botLevel !== 'dummy' ? ` <small>${BOT_LEVELS[f.botLevel].name}</small>` : ''}</div><div class="tb"><i></i></div>`;
+            tags.appendChild(el);
+            return { el, bar: el.querySelector('i'), name: el.querySelector('.tn'), hp: -1, vis: true, f };
+        });
+        // first matches: show the controls for a while
+        this.hintsT = (!profile.tutorialDone && g.mode !== 'training') ? 28 : 0;
+        const h = $('ctl-hints');
+        if (this.hintsT) {
+            h.innerHTML = g.input.usingTouch
+                ? 'Left thumb: move · Right side: look<br>JUMP twice in the air · SPEAR dashes where you look<br>MACE in the air slams down: higher = harder'
+                : '<kbd>WASD</kbd> move · <kbd>Mouse</kbd> look<br><kbd>Space</kbd> jump, again in the air<br><kbd>L-Click</kbd> spear dash where you look<br><kbd>R-Click</kbd>/<kbd>Shift</kbd> in the air: mace slam<br><kbd>F</kbd> parry · <kbd>V</kbd> camera';
+            h.classList.remove('hidden', 'fade');
+        } else h.classList.add('hidden');
+        this.speedLines(0);
+    }
+
+    showPause(on) {
+        $('pause').classList.toggle('hidden', !on);
+        if (!on) { this.closeAllPanels(); }
+    }
+
+    offerRevive(on) {
+        $('revive').classList.toggle('hidden', !on);
+        if (on) this.game.input.exitLock();
+    }
+
+    showResults(d) {
+        const g = this.game;
+        $('hud').classList.add('hidden');
+        $('touch').classList.add('hidden');
+        $('click-to-play').classList.add('hidden');
+        this.speedLines(0);
+        const t = $('res-title');
+        const rv = $('res-revive');
+        if (d.gauntlet) {
+            t.textContent = 'RUN OVER';
+            t.className = 'lose';
+            $('res-sub').textContent = `You cleared ${d.waves} wave${d.waves === 1 ? '' : 's'}. Best: ${Math.max(d.best, d.waves)}.`;
+            $('res-table').innerHTML = this.statTable([d.local]);
+            $('res-rewards').innerHTML = `<span>🪙 +${d.waves * 25} gold</span><span>✦ +${d.waves * 30 + 10} XP</span>`;
+            rv.classList.toggle('hidden', !d.canRevive);
+        } else {
+            t.textContent = d.win ? 'VICTORY!' : 'DEFEAT';
+            t.className = d.win ? 'win' : 'lose';
+            $('res-sub').textContent = d.mode === 'training' ? '' : `${g.modeDef.name}${d.level && !g.remote ? ' · ' + (BOT_LEVELS[d.level] ? BOT_LEVELS[d.level].name : '') : ''}`;
+            $('res-table').innerHTML = this.statTable(d.ranked);
+            const r = d.reward;
+            $('res-rewards').innerHTML = r ? `<span>🪙 +${r.gold} gold</span><span>✦ +${r.xp} XP</span>${r.rp ? `<span>⚔ ${r.rp > 0 ? '+' : ''}${r.rp} RP</span>` : ''}${r.levelUps ? `<span>⬆ Level up! +${r.levelUps * 200} gold</span>` : ''}` : '';
+            rv.classList.add('hidden');
+        }
+        $('results').classList.remove('hidden');
+        this.refreshProfile();
+    }
+
+    hideResults() { $('results').classList.add('hidden'); $('hud').classList.remove('hidden'); }
+
+    statTable(list) {
+        const g = this.game;
+        let h = '<table class="scores"><tr><th>Fighter</th><th>KOs</th><th>Falls</th><th>Damage</th><th>Slams</th><th>Spear hits</th><th>Best slam</th></tr>';
+        for (const f of list) {
+            h += `<tr class="${f === g.local ? 'me' : ''}"><td><span class="swatch" style="background:${TEAM_COLORS[f.id % 4]}"></span>${esc(f.name)}</td><td>${f.kos}</td><td>${f.deaths}</td><td>${Math.round(f.stats.damageDealt)}</td><td>${f.stats.slamsLanded}</td><td>${f.stats.dashesLanded}</td><td>${Math.round(f.stats.maxSlamDamage)}</td></tr>`;
+        }
+        return h + '</table>';
+    }
+
+    // ---------------- moments ----------------
+    banner(title, sub, color, time = 1.5, small = false) {
+        const b = $('banner');
+        b.querySelector('.b-title').textContent = title;
+        b.querySelector('.b-title').style.color = color;
+        b.querySelector('.b-sub').textContent = sub;
+        b.querySelector('.b-sub').style.color = small ? color : '#fff';
+        b.classList.toggle('small', small);
+        b.classList.remove('show');
+        void b.offsetWidth;
+        b.classList.add('show');
+        this.bannerT = time;
+    }
+
+    countdown(text) {
+        const c = $('countdown');
+        c.textContent = text;
+        c.classList.remove('show');
+        void c.offsetWidth;
+        c.classList.add('show');
+    }
+
+    killfeed(killer, victim, cause) {
+        const kf = $('killfeed');
+        const el = document.createElement('div');
+        const g = this.game;
+        el.className = 'kf' + (killer === g.local || victim === g.local ? ' mine' : '');
+        const name = (f) => `<b style="color:${TEAM_COLORS[f.id % 4]}">${esc(f.name)}</b>`;
+        el.innerHTML = killer ? `${name(killer)}<span class="kc">${cause}</span>${name(victim)}` : `${name(victim)}<span class="kc">fell into the void</span>`;
+        kf.prepend(el);
+        while (kf.children.length > 4) kf.lastChild.remove();
+        setTimeout(() => el.remove(), 6000);
+    }
+
+    hitmarker(crit) {
+        const h = $('hitmarker');
+        h.classList.remove('show');
+        h.classList.toggle('crit', !!crit);
+        void h.offsetWidth;
+        h.classList.add('show');
+    }
+
+    hurt() {
+        const h = $('hurt');
+        h.classList.remove('show');
+        void h.offsetWidth;
+        h.classList.add('show');
+    }
+
+    speedLines(v) {
+        if (this.game && this.game.settings.reducedMotion) v *= 0.4;
+        this.speed = Math.max(this.speed, v);
+        if (v === 0) { this.speed = 0; $('speedlines').style.opacity = 0; }
+    }
+
+    toast(text) {
+        const t = $('toast');
+        t.textContent = text;
+        t.classList.add('show');
+        clearTimeout(this.toastTimer);
+        this.toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+    }
+
+    tutorialStep(i, n, title, keys, text) {
+        const t = $('tutorial');
+        t.classList.remove('hidden', 'pop');
+        void t.offsetWidth;
+        t.classList.add('pop');
+        $('tu-count').textContent = `Step ${i + 1} of ${n}`;
+        $('tu-title').textContent = title;
+        $('tu-keys').textContent = keys;
+        $('tu-text').textContent = text;
+        if (i > 0) audio.play('score');
+    }
+
+    tutorialDone() {
+        $('tutorial').classList.add('hidden');
+        $('tu-done').classList.remove('hidden');
+        this.game.input.exitLock();
+        audio.play('win');
+    }
+
+    // ---------------- per-frame HUD ----------------
+    set(key, el, prop, value) {
+        if (this.cache[key] === value) return;
+        this.cache[key] = value;
+        if (prop === 'text') el.textContent = value;
+        else if (prop === 'html') el.innerHTML = value;
+        else if (prop === 'width') el.style.width = value;
+        else if (prop === 'height') el.style.height = value;
+        else if (prop === 'opacity') el.style.opacity = value;
+        else if (prop.startsWith('class:')) el.classList.toggle(prop.slice(6), value);
+    }
+
+    hud(g, dt) {
+        const me = g.local;
+        if (!me || g.state === 'over') return;
+        const touch = g.input.usingTouch;
+        document.body.classList.toggle('touch', touch);
+        this.set('touch', $('touch'), 'class:hidden', !(touch && (g.state === 'play' || g.state === 'intro')));
+        const needLock = !touch && !g.input.locked && !g.input.lockFailed && (g.state === 'play' || g.state === 'intro')
+            && $('revive').classList.contains('hidden') && $('tu-done').classList.contains('hidden');
+        this.set('ctp', $('click-to-play'), 'class:hidden', !needLock);
+
+        // health
+        const hp = Math.max(0, Math.round(me.hp));
+        const pct = (Math.max(0, me.hp) / me.maxHp * 100).toFixed(1) + '%';
+        this.set('hpw', $('hp-fill'), 'width', pct);
+        this.set('hpg', $('hp-ghost'), 'width', pct);
+        this.set('hpt', $('hp-text'), 'text', String(hp));
+        this.set('hpl', $('hp-fill'), 'class:low', me.hp < me.maxHp * 0.3);
+        this.set('hpn', $('hp-name'), 'text', me.name);
+        this.set('hpc', $('hp-class'), 'text', CLASSES[me.classId].name + (me.big ? ' (BIG)' : '') + (me.invisible ? ' (hidden)' : ''));
+        let st = '';
+        if (me.slowT > 0) st += '<span style="color:#5aa0ff">SLOW</span>';
+        if (me.poisonT > 0) st += '<span style="color:#5ce65c">POISON</span>';
+        if (me.fireT > 0) st += '<span style="color:#ff7a2f">FIRE</span>';
+        if (me.blindT > 0) st += '<span>BLIND</span>';
+        if (me.stunT > 0) st += '<span style="color:#ffd54a">STUNNED</span>';
+        if (me.spawnShield > 0) st += '<span style="color:#6ff0ff">SHIELD</span>';
+        this.set('st', $('status-row'), 'html', st);
+        this.set('vig', $('vignette'), 'opacity', me.alive && me.hp < 35 ? ((1 - me.hp / 35) * 0.9).toFixed(2) : '0');
+        this.set('blind', $('blind'), 'opacity', me.blindT > 0 ? '0.92' : '0');
+
+        // abilities
+        const spearCdMax = me.classId === 'energy' ? CLASSES.energy.cooldown : SPEAR.cooldown;
+        const spearReady = me.spearCd <= 0 && (me.onGround || me.airDashes > 0);
+        this.set('abs', $('ab-spear').querySelector('.ab-cd'), 'height', (me.spearCd / spearCdMax * 100).toFixed(0) + '%');
+        this.set('absr', $('ab-spear'), 'class:ready', spearReady);
+        this.set('abp', $('ab-spear').querySelector('.ab-pips'), 'html', me.onGround ? '' : pips(me.airDashes, me.maxAirDashes));
+        const ground = g.physics.groundAt(me.pos.x, me.pos.z, me.radius * 0.6, me.pos.y + 0.05);
+        const airborne = !me.onGround && me.alive;
+        const canSlam = airborne && me.pos.y - ground > 1 && !me.slamming;
+        this.set('abm', $('ab-mace').querySelector('.ab-cd'), 'height', me.onGround ? (me.swingCd / 0.65 * 100).toFixed(0) + '%' : '0%');
+        this.set('abmr', $('ab-mace'), 'class:ready', canSlam);
+        this.set('abpa', $('ab-parry').querySelector('.ab-cd'), 'height', (me.parryCd / PARRY.cooldown * 100).toFixed(0) + '%');
+        this.set('abj', $('ab-jump').querySelector('.ab-pips'), 'html', me.onGround ? pips(2, 2) : pips(me.jumpsLeft, me.big ? 0 : 1));
+        this.set('xh', $('crosshair'), 'class:ready', spearReady);
+
+        // slam meter: what a slam would deal if you landed on the floor below now
+        const fall = (ground === -Infinity) ? 0 : me.apexY - ground;
+        const showSlam = airborne && fall > 3 && ground !== -Infinity && me.dashT <= 0;
+        this.set('slm', $('slam-meter'), 'class:show', showSlam);
+        if (showSlam) this.set('sld', $('slam-dmg'), 'text', String(Math.round(slamDamage(fall))));
+
+        // score
+        let sc = '';
+        if (g.mode === 'gauntlet') {
+            const left = g.fighters.filter((f, i) => i > 0 && f.alive).length;
+            sc = `<div class="sc me" style="--c:#ffd54a"><span class="sc-n">WAVE</span><b>${g.wave}</b></div><div class="sc" style="--c:#ff5a4a"><span class="sc-n">Enemies</span><b>${left}</b></div>`;
+        } else if (g.mode === 'training') {
+            sc = `<div class="sc me" style="--c:#6ff0ff"><span class="sc-n">TRAINING</span></div>`;
+        } else {
+            for (const f of g.fighters) sc += `<div class="sc${f === me ? ' me' : ''}" style="--c:${TEAM_COLORS[f.id % 4]}"><span class="sc-n">${esc(f.name)}</span><b>${f.kos}</b></div>`;
+            sc += `<div class="sc" style="--c:#fff"><span class="sc-n">to ${g.modeDef.kos}</span></div>`;
+        }
+        this.set('sc', $('scorebar'), 'html', sc);
+        if (g.modeDef.time) {
+            const left = Math.max(0, g.modeDef.time - g.matchT);
+            const txt = g.suddenDeath ? 'SUDDEN DEATH' : `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
+            this.set('tm', $('timer'), 'text', txt);
+            this.set('tmu', $('timer'), 'class:urgent', g.suddenDeath || left < 20);
+        } else this.set('tm', $('timer'), 'text', '');
+
+        // revive countdown
+        if (!$('revive').classList.contains('hidden')) this.set('rvt', $('rv-timer'), 'text', `Respawning in ${Math.max(0, Math.ceil(me.respawnT))}…`);
+
+        // scoreboard (hold Tab)
+        this.set('sb', $('scoreboard'), 'class:hidden', !g.input.showScores);
+        if (g.input.showScores) this.set('sbh', $('scoreboard'), 'html', this.statTable(g.fighters.slice().sort((a, b) => b.kos - a.kos)));
+
+        // name tags over other fighters
+        const cam = g.camera, W = g.width, H = g.height;
+        for (const t of this.tags) {
+            if (!t) continue;
+            const f = t.f;
+            const visible = f.alive && !(f.invisible && Math.hypot(f.pos.x - me.pos.x, f.pos.z - me.pos.z) > 4);
+            let show = false;
+            if (visible) {
+                const v = this.tmpV || (this.tmpV = cam.position.clone());
+                v.set(f.pos.x, f.pos.y + f.height + 0.55, f.pos.z).project(cam);
+                if (v.z < 1 && Math.abs(v.x) < 1.1 && Math.abs(v.y) < 1.1) {
+                    show = true;
+                    const x = (v.x * 0.5 + 0.5) * W, y = (-v.y * 0.5 + 0.5) * H;
+                    t.el.style.transform = `translate(${x.toFixed(0)}px, ${y.toFixed(0)}px) translate(-50%, -100%)`;
+                    const hpPct = Math.max(0, f.hp) / f.maxHp;
+                    if (Math.abs(hpPct - t.hp) > 0.005) { t.hp = hpPct; t.bar.style.width = (hpPct * 100).toFixed(0) + '%'; }
+                }
+            }
+            if (show !== t.vis) { t.vis = show; t.el.style.display = show ? 'block' : 'none'; }
+        }
+
+        // timed bits
+        if (this.bannerT > 0) { this.bannerT -= dt; if (this.bannerT <= 0) $('banner').classList.remove('show'); }
+        if (this.hintsT > 0) { this.hintsT -= dt; if (this.hintsT <= 0) $('ctl-hints').classList.add('fade'); }
+        if (me.slamming || me.dashT > 0) this.speed = Math.max(this.speed, me.slamming ? 0.55 : 1);
+        if (this.speed > 0) {
+            this.speed = Math.max(0, this.speed - dt * 2.5);
+            $('speedlines').style.opacity = (this.speed * 0.8).toFixed(2);
+            $('speedlines').style.transform = `rotate(${(Math.random() * 6).toFixed(1)}deg) scale(${(1 + (1 - this.speed) * 0.15).toFixed(3)})`;
+        }
+    }
+}
+
+// Quick Play grows with you: an easy bot for your first wins, then tougher
+function quickLevel() {
+    const w = profile.data.stats.wins || 0;
+    return w < 2 ? 'easy' : w < 10 ? 'normal' : 'pro';
+}
+
+function pips(n, max) {
+    let s = '';
+    for (let i = 0; i < max; i++) s += `<i class="${i < n ? '' : 'off'}"></i>`;
+    return s;
+}
