@@ -141,18 +141,21 @@ export class OnlineRoom {
         let i = 1;
         for (const g of this.guests.values()) { g.fighterId = i++; roster.push({ name: g.name, classId: g.classId, skinId: g.skinId }); }
         const kos = roster.length === 2 ? MATCH.duelKOs : MATCH.brawlKOs;
-        for (const [, g] of this.guests) g.conn.send({ t: 'start', roster, you: g.fighterId, kos });
-        this.begin(roster, 0, kos);
+        const layout = Math.random() < 0.5 ? 'colosseum' : 'ruins';
+        const theme = ['sunset', 'sunset', 'night', 'storm'][Math.floor(Math.random() * 4)];
+        for (const [, g] of this.guests) g.conn.send({ t: 'start', roster, you: g.fighterId, kos, layout, theme });
+        this.begin(roster, 0, kos, layout, theme);
         return true;
     }
 
-    begin(roster, you, kos) {
+    begin(roster, you, kos, layout, theme) {
         this.inMatch = true;
         this.clock = 0;
         this.buffers = roster.map(() => []);
         this.lastState = roster.map(() => 0);
         this.ui.closeAllPanels();
-        this.game.startMatch({ mode: 'online', roster, localIndex: you, kos, remote: this });
+        this.game.startMatch({ mode: 'online', roster, localIndex: you, kos, remote: this,
+            layout: layout === 'ruins' ? 'ruins' : 'colosseum', theme: ['sunset', 'night', 'storm'].includes(theme) ? theme : 'sunset' });
     }
 
     // ---------------- per frame ----------------
@@ -296,7 +299,7 @@ export class OnlineRoom {
         const g = this.game;
         if (m.t === 'lobby') { this.lobby = m.p || []; if (this.onLobby) this.onLobby(this.lobby, false); return; }
         if (m.t === 'full') { this.status(m.why || 'That room is full.'); this.leave(true); return; }
-        if (m.t === 'start') { this.begin(m.roster, m.you | 0, m.kos | 0); return; }
+        if (m.t === 'start') { this.begin(m.roster, m.you | 0, m.kos | 0, m.layout, m.theme); return; }
         if (!this.inMatch) return;
         const me = g.local;
         if (m.t === 'snap') {

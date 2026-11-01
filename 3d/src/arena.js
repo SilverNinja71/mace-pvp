@@ -23,6 +23,12 @@ const MONO_BOTTOM = 8.6, MONO_TOP = 11.6;
 export const GEYSER_R = 1.9;
 export const GEYSER_VEL = 29.5;
 
+// Island angles (radians), distances and heights for each layout
+export const LAYOUTS = {
+    colosseum: { name: 'Sky Colosseum', centerR: 24, angles: [0, Math.PI / 2, Math.PI, Math.PI * 1.5], dist: [40, 40, 40, 40], heights: [2, 6, 2, 9] },
+    ruins:     { name: 'Sky Ruins',     centerR: 21, angles: [Math.PI / 4, Math.PI * 0.75, Math.PI * 1.25, Math.PI * 1.75], dist: [37, 41, 37, 41], heights: [3, 8, 3, 1] }
+};
+
 const PAL = {
     stone: 0xd9d2c3, stoneDark: 0xa99f8e, tileA: 0xcfc7b4, tileB: 0xbdb39d, gold: 0xf2c14e,
     rock: 0x8a7a6a, rockDark: 0x6b5d52, grass: 0x7fcf5a, grassDark: 0x5fae45, dirt: 0x9c6b45,
@@ -30,12 +36,16 @@ const PAL = {
 };
 
 export class Arena {
-    constructor(scene, quality) {
+    constructor(scene, quality, layout = 'colosseum') {
         this.scene = scene;
+        this.layout = layout;
+        this.name = LAYOUTS[layout].name;
+        this.centerR = LAYOUTS[layout].centerR;
+        this.daisH = layout === 'ruins' ? 2.0 : 0;
         this.physics = new PhysicsWorld();
         this.group = new THREE.Group();
         this.pads = [];        // { x, y, z, r, vx, vy, vz, to, glow }
-        this.geyser = { x: 0, z: 0, r: GEYSER_R, y: 0 };
+        this.geyser = { x: 0, z: 0, r: GEYSER_R, y: layout === 'ruins' ? 2.0 : 0 };
         this.spawns = [];      // { x, y, z, yaw } one per island, facing the centre
         this.islands = [];     // { x, z, y, r }
         this.time = 0;
@@ -48,6 +58,92 @@ export class Arena {
         const solid = new GeoBatch();
         const glow = new GeoBatch();
 
+        if (this.layout === 'ruins') this.buildRuins(solid, glow);
+        else this.buildColosseum(solid, glow);
+
+        // ---------- islands ----------
+        const L = LAYOUTS[this.layout];
+        for (let i = 0; i < 4; i++) {
+            const a = L.angles[i];
+            const DIST = L.dist[i];
+            const cx = Math.cos(a) * DIST, cz = Math.sin(a) * DIST;
+            const y = L.heights[i];
+            this.islands.push({ x: cx, z: cz, y, r: ISLAND_R });
+            ph.addCylinder(cx, cz, ISLAND_R, y - 4, y, 'island');
+            solid.addAt(new THREE.CylinderGeometry(ISLAND_R, ISLAND_R * 0.97, 0.7, 14, 1), cx, y - 0.35, cz, PAL.grass, 0.08, i);
+            solid.addAt(new THREE.CylinderGeometry(ISLAND_R * 0.97, ISLAND_R * 0.9, 1.2, 14, 1), cx, y - 1.3, cz, PAL.dirt, 0.1, i);
+            solid.addAt(rockCone(ISLAND_R * 0.9, 9 + i, 11, i + 21), cx, y - 1.9, cz, PAL.rock, 0.14, i);
+            // upper tier, set toward the outside
+            const ux = Math.cos(a) * (DIST + 3.2), uz = Math.sin(a) * (DIST + 3.2);
+            ph.addCylinder(ux, uz, 3.4, y, y + 3, 'tier');
+            solid.addAt(new THREE.CylinderGeometry(3.4, 3.5, 3, 10, 1), ux, y + 1.5, uz, PAL.rock, 0.12, i * 2);
+            solid.addAt(new THREE.CylinderGeometry(3.42, 3.42, 0.3, 10, 1), ux, y + 2.9, uz, PAL.grassDark, 0.08, i * 2);
+            // stepping block up to the tier
+            const sx = Math.cos(a + 0.42) * (DIST + 0.8), sz = Math.sin(a + 0.42) * (DIST + 0.8);
+            ph.addBox(sx - 0.8, y, sz - 0.8, sx + 0.8, y + 1.5, sz + 0.8, 'step');
+            solid.addAt(new THREE.BoxGeometry(1.6, 1.5, 1.6), sx, y + 0.75, sz, PAL.stoneDark, 0.1);
+            // a tree on the tier and crystals on the island
+            this.addTree(solid, ux + Math.cos(a + 1.6) * 1.2, y + 3, uz + Math.sin(a + 1.6) * 1.2, i);
+            for (let k = 0; k < 3; k++) {
+                const ka = a + 2.1 + k * 0.5;
+                const kx = cx + Math.cos(ka) * 6.3, kz = cz + Math.sin(ka) * 6.3;
+                glow.addAt(new THREE.OctahedronGeometry(0.45 + k * 0.12, 0), kx, y + 0.5 + k * 0.1, kz, k === 1 ? 0x7af0ff : 0x9fd8ff, 0, ka, 0.7, 1.8, 0.7);
+            }
+            // spawn point faces the centre
+            const spx = Math.cos(a) * (DIST - 2), spz = Math.sin(a) * (DIST - 2);
+            this.spawns.push({ x: spx, y, z: spz, yaw: Math.atan2(spx, spz) }); // forward (-sin, -cos) points at the centre
+        }
+
+        // ---------- jump pads ----------
+        for (let i = 0; i < 4; i++) {
+            const a = L.angles[i];
+            const isl = this.islands[i];
+            // centre -> island
+            const px = Math.cos(a) * (this.centerR - 2.6), pz = Math.sin(a) * (this.centerR - 2.6);
+            this.addPad(solid, glow, px, 0, pz, isl.x - Math.cos(a) * 2.5, isl.y, isl.z - Math.sin(a) * 2.5, i + 1);
+            // island -> centre
+            const qx = isl.x - Math.cos(a) * (ISLAND_R - 1.6), qz = isl.z - Math.sin(a) * (ISLAND_R - 1.6);
+            this.addPad(solid, glow, qx, isl.y, qz, Math.cos(a) * 10, 0, Math.sin(a) * 10, 0);
+        }
+
+        // ---------- background: distant islands ----------
+        for (let i = 0; i < 9; i++) {
+            const a = (i / 9) * Math.PI * 2 + 0.3;
+            const d = 120 + (i % 3) * 35;
+            const x = Math.cos(a) * d, z = Math.sin(a) * d, y = -10 + (i % 4) * 9;
+            const r = 9 + (i % 3) * 5;
+            solid.addAt(new THREE.CylinderGeometry(r, r * 0.95, 1.4, 10, 1), x, y, z, PAL.grass, 0.1, i);
+            solid.addAt(rockCone(r * 0.95, r * 1.4, 9, i + 40), x, y - 0.7, z, PAL.rock, 0.14, i);
+            if (i % 2 === 0) this.addTree(solid, x + 2, y + 0.7, z - 1, i, 2.2);
+        }
+        // floating rubble near the arena
+        for (let i = 0; i < 26; i++) {
+            const a = i * 2.4;
+            const d = 28 + (i * 7.3) % 40;
+            const y = -14 + ((i * 5.1) % 30);
+            if (d < 33 && y > -3) continue;
+            solid.addAt(new THREE.DodecahedronGeometry(0.6 + (i % 4) * 0.45, 0), Math.cos(a) * d, y, Math.sin(a) * d, i % 2 ? PAL.rock : PAL.rockDark, 0.15, a, 1, 0.7, 1);
+        }
+
+        const solidMesh = new THREE.Mesh(solid.build(), vertexToon());
+        solidMesh.receiveShadow = true;
+        solidMesh.castShadow = quality !== 'low';
+        solidMesh.matrixAutoUpdate = false;
+        this.group.add(solidMesh);
+
+        const glowMesh = new THREE.Mesh(glow.build(), new THREE.MeshBasicMaterial({ vertexColors: true }));
+        glowMesh.matrixAutoUpdate = false;
+        this.group.add(glowMesh);
+
+        this.buildGeyserFX();
+        this.buildSky();
+        this.buildClouds();
+        this.buildDust(quality === 'low' ? 120 : 320);
+    }
+
+    // Layout 1: the round colosseum with a ring of pillars and four monoliths
+    buildColosseum(solid, glow) {
+        const ph = this.physics;
         // ---------- centre colosseum ----------
         ph.addCylinder(0, 0, CENTER_R, -6, 0, 'center');
         solid.addAt(new THREE.CylinderGeometry(CENTER_R, CENTER_R, 1.2, 48, 1), 0, -0.6, 0, PAL.stone, 0.04);
@@ -128,82 +224,94 @@ export class Arena {
             solid.addAt(g, 0, 0.31, 0, PAL.stoneDark, 0, (i / 6) * Math.PI);
         }
 
-        // ---------- islands ----------
-        for (let i = 0; i < 4; i++) {
-            const a = i * Math.PI / 2;
-            const cx = Math.cos(a) * ISLAND_DIST, cz = Math.sin(a) * ISLAND_DIST;
-            const y = ISLAND_H[i];
-            this.islands.push({ x: cx, z: cz, y, r: ISLAND_R });
-            ph.addCylinder(cx, cz, ISLAND_R, y - 4, y, 'island');
-            solid.addAt(new THREE.CylinderGeometry(ISLAND_R, ISLAND_R * 0.97, 0.7, 14, 1), cx, y - 0.35, cz, PAL.grass, 0.08, i);
-            solid.addAt(new THREE.CylinderGeometry(ISLAND_R * 0.97, ISLAND_R * 0.9, 1.2, 14, 1), cx, y - 1.3, cz, PAL.dirt, 0.1, i);
-            solid.addAt(rockCone(ISLAND_R * 0.9, 9 + i, 11, i + 21), cx, y - 1.9, cz, PAL.rock, 0.14, i);
-            // upper tier, set toward the outside
-            const ux = Math.cos(a) * (ISLAND_DIST + 3.2), uz = Math.sin(a) * (ISLAND_DIST + 3.2);
-            ph.addCylinder(ux, uz, 3.4, y, y + 3, 'tier');
-            solid.addAt(new THREE.CylinderGeometry(3.4, 3.5, 3, 10, 1), ux, y + 1.5, uz, PAL.rock, 0.12, i * 2);
-            solid.addAt(new THREE.CylinderGeometry(3.42, 3.42, 0.3, 10, 1), ux, y + 2.9, uz, PAL.grassDark, 0.08, i * 2);
-            // stepping block up to the tier
-            const sx = Math.cos(a + 0.42) * (ISLAND_DIST + 0.8), sz = Math.sin(a + 0.42) * (ISLAND_DIST + 0.8);
-            ph.addBox(sx - 0.8, y, sz - 0.8, sx + 0.8, y + 1.5, sz + 0.8, 'step');
-            solid.addAt(new THREE.BoxGeometry(1.6, 1.5, 1.6), sx, y + 0.75, sz, PAL.stoneDark, 0.1);
-            // a tree on the tier and crystals on the island
-            this.addTree(solid, ux + Math.cos(a + 1.6) * 1.2, y + 3, uz + Math.sin(a + 1.6) * 1.2, i);
-            for (let k = 0; k < 3; k++) {
-                const ka = a + 2.1 + k * 0.5;
-                const kx = cx + Math.cos(ka) * 6.3, kz = cz + Math.sin(ka) * 6.3;
-                glow.addAt(new THREE.OctahedronGeometry(0.45 + k * 0.12, 0), kx, y + 0.5 + k * 0.1, kz, k === 1 ? 0x7af0ff : 0x9fd8ff, 0, ka, 0.7, 1.8, 0.7);
-            }
-            // spawn point faces the centre
-            const spx = Math.cos(a) * (ISLAND_DIST - 2), spz = Math.sin(a) * (ISLAND_DIST - 2);
-            this.spawns.push({ x: spx, y, z: spz, yaw: Math.atan2(spx, spz) }); // forward (-sin, -cos) points at the centre
-        }
+    }
 
-        // ---------- jump pads ----------
-        for (let i = 0; i < 4; i++) {
-            const a = i * Math.PI / 2;
-            const isl = this.islands[i];
-            // centre -> island
-            const px = Math.cos(a) * (CENTER_R - 2.6), pz = Math.sin(a) * (CENTER_R - 2.6);
-            this.addPad(solid, glow, px, 0, pz, isl.x - Math.cos(a) * 2.5, isl.y, isl.z - Math.sin(a) * 2.5, i + 1);
-            // island -> centre
-            const qx = isl.x - Math.cos(a) * (ISLAND_R - 1.6), qz = isl.z - Math.sin(a) * (ISLAND_R - 1.6);
-            this.addPad(solid, glow, qx, isl.y, qz, Math.cos(a) * 9, 0, Math.sin(a) * 9, 0);
-        }
-
-        // ---------- background: distant islands ----------
-        for (let i = 0; i < 9; i++) {
-            const a = (i / 9) * Math.PI * 2 + 0.3;
-            const d = 120 + (i % 3) * 35;
-            const x = Math.cos(a) * d, z = Math.sin(a) * d, y = -10 + (i % 4) * 9;
-            const r = 9 + (i % 3) * 5;
-            solid.addAt(new THREE.CylinderGeometry(r, r * 0.95, 1.4, 10, 1), x, y, z, PAL.grass, 0.1, i);
-            solid.addAt(rockCone(r * 0.95, r * 1.4, 9, i + 40), x, y - 0.7, z, PAL.rock, 0.14, i);
-            if (i % 2 === 0) this.addTree(solid, x + 2, y + 0.7, z - 1, i, 2.2);
-        }
-        // floating rubble near the arena
+    // Layout 2: Sky Ruins - a raised dais with stairs and the geyser on top, stone arches,
+    // broken stumps, and three high monoliths
+    buildRuins(solid, glow) {
+        const ph = this.physics;
+        const R = this.centerR;
+        ph.addCylinder(0, 0, R, -6, 0, 'center');
+        solid.addAt(new THREE.CylinderGeometry(R, R, 1.2, 40, 1), 0, -0.6, 0, PAL.tileB, 0.05);
+        solid.addAt(rockCone(R * 0.98, 15, 13, 5), 0, -1.2, 0, PAL.rock, 0.12);
+        solid.addAt(rockCone(R * 0.5, 24, 9, 9), 0, -4, 0, PAL.rockDark, 0.12);
+        // cracked flagstones
         for (let i = 0; i < 26; i++) {
-            const a = i * 2.4;
-            const d = 28 + (i * 7.3) % 40;
-            const y = -14 + ((i * 5.1) % 30);
-            if (d < 33 && y > -3) continue;
-            solid.addAt(new THREE.DodecahedronGeometry(0.6 + (i % 4) * 0.45, 0), Math.cos(a) * d, y, Math.sin(a) * d, i % 2 ? PAL.rock : PAL.rockDark, 0.15, a, 1, 0.7, 1);
+            const a = i * 2.39, d = 8 + (i * 5.3) % 12;
+            const g = new THREE.BoxGeometry(1.6 + (i % 3) * 0.5, 0.03, 1.2 + (i % 2) * 0.6);
+            solid.addAt(g, Math.cos(a) * d, 0.015, Math.sin(a) * d, i % 2 ? PAL.tileA : PAL.stoneDark, 0.05, a);
         }
-
-        const solidMesh = new THREE.Mesh(solid.build(), vertexToon());
-        solidMesh.receiveShadow = true;
-        solidMesh.castShadow = quality !== 'low';
-        solidMesh.matrixAutoUpdate = false;
-        this.group.add(solidMesh);
-
-        const glowMesh = new THREE.Mesh(glow.build(), new THREE.MeshBasicMaterial({ vertexColors: true }));
-        glowMesh.matrixAutoUpdate = false;
-        this.group.add(glowMesh);
-
-        this.buildGeyserFX();
-        this.buildSky();
-        this.buildClouds();
-        this.buildDust(quality === 'low' ? 120 : 320);
+        const ring = (r0, r1, y, color, seg = 40) => {
+            const g = new THREE.RingGeometry(r0, r1, seg, 1);
+            g.rotateX(-Math.PI / 2);
+            solid.addAt(g, 0, y, 0, color, 0.03);
+        };
+        ring(R - 0.8, R, 0.016, PAL.stoneDark);
+        // the raised dais, with stairs on four sides
+        const D = 6.5, H = this.daisH;
+        ph.addCylinder(0, 0, D, 0, H, 'dais');
+        solid.addAt(new THREE.CylinderGeometry(D, D + 0.3, H, 24, 1), 0, H / 2, 0, PAL.stone, 0.06);
+        ring(GEYSER_R + 0.6, D - 0.4, H + 0.012, PAL.tileA, 24);
+        ring(D - 0.4, D, H + 0.014, PAL.gold, 24);
+        for (let i = 0; i < 4; i++) {
+            const ax = Math.round(Math.cos(i * Math.PI / 2)), az = Math.round(Math.sin(i * Math.PI / 2));
+            for (let k = 0; k < 3; k++) {
+                const top = H * (k + 1) / 4;
+                const d0 = D + 0.1 + (2 - k) * 0.95;      // outer edge of this step
+                const cxs = ax * (d0 - 0.475), czs = az * (d0 - 0.475);
+                const hw = 1.6;
+                const minX = ax ? cxs - 0.5 : -hw, maxX = ax ? cxs + 0.5 : hw;
+                const minZ = az ? czs - 0.5 : -hw, maxZ = az ? czs + 0.5 : hw;
+                ph.addBox(minX, 0, minZ, maxX, top, maxZ, 'step');
+                solid.addAt(new THREE.BoxGeometry(maxX - minX, top, maxZ - minZ), (minX + maxX) / 2, top / 2, (minZ + maxZ) / 2, k % 2 ? PAL.stone : PAL.stoneDark, 0.05);
+            }
+        }
+        // stone arches over the four main paths (cover, and a high perch on the lintel)
+        for (let i = 0; i < 4; i++) {
+            const ax = Math.round(Math.cos(i * Math.PI / 2)), az = Math.round(Math.sin(i * Math.PI / 2));
+            const cx = ax * 14, cz = az * 14;
+            const tx = az, tz = ax; // along the arch
+            for (const s2 of [-1, 1]) {
+                const px = cx + tx * 2.4 * s2, pz = cz + tz * 2.4 * s2;
+                ph.addBox(px - 0.6, 0, pz - 0.6, px + 0.6, 6, pz + 0.6, 'arch');
+                solid.addAt(new THREE.BoxGeometry(1.2, 6, 1.2), px, 3, pz, PAL.stone, 0.07);
+                solid.addAt(new THREE.BoxGeometry(1.6, 0.4, 1.6), px, 0.2, pz, PAL.stoneDark, 0.05);
+            }
+            const lx = tx ? 3.6 : 0.75, lz = tz ? 3.6 : 0.75;
+            ph.addBox(cx - lx, 6, cz - lz, cx + lx, 7, cz + lz, 'lintel');
+            solid.addAt(new THREE.BoxGeometry(lx * 2, 1, lz * 2), cx, 6.5, cz, PAL.stoneDark, 0.06);
+            glow.addAt(new THREE.BoxGeometry(lx * 2 + 0.04, 0.1, lz * 2 + 0.04), cx, 6.3, cz, 0x6fe7ff);
+        }
+        // broken stumps on the diagonals, between the arches
+        for (let i = 0; i < 4; i++) {
+            const a = Math.PI / 4 + i * Math.PI / 2 + 0.35;
+            const x = Math.cos(a) * 13.5, z = Math.sin(a) * 13.5;
+            const h = 2.2 + (i % 2) * 1.6;
+            ph.addCylinder(x, z, 1.2, 0, h, 'pillar');
+            solid.addAt(new THREE.CylinderGeometry(1.2, 1.3, h, 8, 1), x, h / 2, z, PAL.stone, 0.08, a);
+            solid.addAt(new THREE.ConeGeometry(1.0, 0.8, 5), x, h + 0.1, z, PAL.stone, 0.1, a * 2);
+        }
+        // three high monoliths
+        for (let i = 0; i < 3; i++) {
+            const a = i * Math.PI * 2 / 3 + Math.PI / 6;
+            const x = Math.cos(a) * 9.5, z = Math.sin(a) * 9.5;
+            const yb = 10, yt = 13.2, hw = 1.6;
+            ph.addBox(x - hw, yb, z - hw, x + hw, yt, z + hw, 'monolith');
+            solid.addAt(new THREE.BoxGeometry(hw * 2, yt - yb, hw * 2), x, (yb + yt) / 2, z, PAL.obsidian, 0.08);
+            solid.addAt(rockCone(hw * 1.2, 2.8, 6, i + 31), x, yb, z, PAL.obsidian, 0.15);
+            glow.addAt(new THREE.BoxGeometry(hw * 2 + 0.06, 0.1, hw * 2 + 0.06), x, yt - 0.15, z, 0xd2b8ff);
+            for (let k = 0; k < 4; k++) {
+                const sa = k * Math.PI / 2;
+                const fx = x + Math.sin(sa) * (hw + 0.01), fz = z + Math.cos(sa) * (hw + 0.01), cy = (yb + yt) / 2;
+                const tx = Math.cos(sa) * 0.3, tz = -Math.sin(sa) * 0.3;
+                glow.addAt(new THREE.BoxGeometry(0.2, 1.7, 0.03), fx, cy, fz, 0xb48cff, 0, sa);
+                glow.addAt(new THREE.BoxGeometry(0.16, 0.9, 0.03), fx + tx, cy + 0.4, fz + tz, 0xb48cff, 0, sa, 1, 1, 1, 0, -0.6);
+                glow.addAt(new THREE.BoxGeometry(0.16, 0.9, 0.03), fx - tx, cy + 0.4, fz - tz, 0xb48cff, 0, sa, 1, 1, 1, 0, 0.6);
+            }
+        }
+        // the geyser on top of the dais
+        solid.addAt(new THREE.CylinderGeometry(GEYSER_R + 0.35, GEYSER_R + 0.5, 0.25, 20), 0, H + 0.12, 0, PAL.stoneDark, 0.04);
+        glow.addAt(new THREE.CylinderGeometry(GEYSER_R, GEYSER_R, 0.06, 20), 0, H + 0.26, 0, 0x8af3ff);
     }
 
     addTree(batch, x, y, z, seed, s = 1) {
@@ -261,6 +369,7 @@ export class Arena {
         this.geyserTex = tex;
         const m = new THREE.MeshBasicMaterial({ map: tex, color: 0xaef6ff, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
         this.geyserMesh = new THREE.Mesh(g, m);
+        this.geyserMesh.position.y = this.geyser.y;
         this.group.add(this.geyserMesh);
     }
 
@@ -397,6 +506,15 @@ export class Arena {
         this.hemi = hemi;
     }
 
+    // Remove everything this arena added to the scene
+    dispose() {
+        for (const o of [this.group, this.sky, this.clouds, this.dust]) {
+            if (!o) continue;
+            this.scene.remove(o);
+            o.traverse((n) => { if (n.geometry) n.geometry.dispose(); });
+        }
+    }
+
     setPointScale(heightPx) {
         if (this.dustMat) this.dustMat.uniforms.scale.value = heightPx;
     }
@@ -426,7 +544,7 @@ export class Arena {
 
     // Which platform is under (x, z)? 0 = colosseum, 1-4 = islands, -1 = none
     zoneOf(x, z) {
-        if (x * x + z * z < (CENTER_R + 1) * (CENTER_R + 1)) return 0;
+        if (x * x + z * z < (this.centerR + 1) * (this.centerR + 1)) return 0;
         for (let i = 0; i < 4; i++) {
             const isl = this.islands[i];
             const dx = x - isl.x, dz = z - isl.z;

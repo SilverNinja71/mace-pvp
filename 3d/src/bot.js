@@ -7,7 +7,6 @@
 // ==========================================
 
 import { BOT_LEVELS, SPEAR, MACE, PHYS } from './config.js';
-import { CENTER_R } from './arena.js';
 
 const TAU = Math.PI * 2;
 function wrap(a) { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TAU; return a; }
@@ -103,6 +102,16 @@ export class BotBrain {
             this.goToward(0, 0, 0.6);
         }
 
+        // A ledge just ahead (stairs, a stump, the dais): hop up it, using the second jump if needed
+        if ((this.moveX || this.moveZ) && this.plan !== 'pad') {
+            const ax = f.pos.x + this.moveX * 1.3, az = f.pos.z + this.moveZ * 1.3;
+            const ahead = g.physics.groundAt(ax, az, 0.25, f.pos.y + 4.2);
+            if (ahead > f.pos.y + 0.6 && ahead < f.pos.y + 4.2) {
+                if (f.onGround) this.press.jump = true;
+                else if (f.jumpsLeft > 0 && f.vel.y < 2) this.press.jump = true;
+            }
+        }
+
         // Riding a jump pad: let the arc carry us
         if (f.padFlight) { this.moveX = 0; this.moveZ = 0; }
 
@@ -180,7 +189,7 @@ export class BotBrain {
         const f = this.f, g = this.game;
         // nearest landing spot: the colosseum or the closest island
         let tx = 0, tz = 0, ty = 0, best = Infinity;
-        const cands = this.cands || (this.cands = [{ x: 0, z: 0, y: 0, r: CENTER_R }, ...g.arena.islands]);
+        const cands = this.cands || (this.cands = [{ x: 0, z: 0, y: 0, r: g.arena.centerR }, ...g.arena.islands]);
         for (const c of cands) {
             const dx = c.x - f.pos.x, dz = c.z - f.pos.z;
             const d = Math.hypot(dx, dz) - c.r + Math.max(0, c.y - f.pos.y) * 1.5;

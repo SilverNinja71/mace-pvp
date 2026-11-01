@@ -6,7 +6,7 @@
 
 import * as THREE from 'three';
 import { SIM_DT, MATCH, CLASSES, CLASS_IDS, BOT_LEVELS, BOT_NAMES, TEAM_COLORS, HIT, PHYS } from './config.js';
-import { Arena } from './arena.js';
+import { Arena, LAYOUTS } from './arena.js';
 import { Fighter, makeIntent } from './fighter.js';
 import { Combat } from './combat.js';
 import { BotBrain } from './bot.js';
@@ -119,6 +119,17 @@ export class Game {
         requestAnimationFrame(this.loop);
     }
 
+    // Build the arena for a layout (if it isn't the one already built)
+    useLayout(layout) {
+        if (this.arena && this.arena.layout === layout) return;
+        if (this.arena) this.arena.dispose();
+        this.arena = new Arena(this.scene, this.qualityName, layout);
+        this.arena.onThunder = () => audio.play('thunder');
+        this.arena.setPointScale(this.height * this.dpr || 600);
+        this.physics = this.arena.physics;
+        this.rig.physics = this.physics;
+    }
+
     applySettings() {
         const s = this.settings;
         this.input.sensitivity = s.sens;
@@ -205,6 +216,11 @@ export class Game {
     // opts: { mode, level }
     startMatch(opts) {
         this.clearMatch();
+        // map and time of day: training and your first matches in the colosseum at sunset, then any
+        const fresh = opts.mode === 'training' || (profile.data.stats.matches || 0) < 3;
+        const layout = opts.layout || (fresh ? 'colosseum' : pickOne(Object.keys(LAYOUTS)));
+        this.matchTheme = opts.theme || (fresh ? 'sunset' : pickOne(['sunset', 'sunset', 'night', 'storm']));
+        this.useLayout(layout);
         this.mode = opts.mode;
         this.level = opts.level || 'normal';
         this.modeDef = MODES[opts.mode];
@@ -261,10 +277,8 @@ export class Game {
         this.ui.matchStarted(this);
         crazyGames.setGameplay(true);
         audio.setIntensity(opts.mode === 'training' ? 0 : 1);
-        // time of day: training and first matches at sunset, then any
-        const themes = ['sunset', 'sunset', 'night', 'storm'];
-        const theme = opts.theme || (opts.mode === 'training' || opts.mode === 'online' || (profile.data.stats.matches || 0) < 3 ? 'sunset' : themes[Math.floor(Math.random() * themes.length)]);
-        this.arena.setTheme(theme, this.scene, this.hemi, this.sun);
+        this.arena.setTheme(this.matchTheme, this.scene, this.hemi, this.sun);
+        this.ui.banner(this.arena.name, this.matchTheme === 'night' ? 'Starry night' : this.matchTheme === 'storm' ? 'Thunderstorm' : 'Sunset', '#bfe8ff', 2.4);
         this.timeScale = 1;
     }
 
@@ -874,6 +888,7 @@ export class Game {
     }
 }
 
+function pickOne(a) { return a[Math.floor(Math.random() * a.length)]; }
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function dist2(a, b) { const dx = a.x - b.x, dz = a.z - b.z; return dx * dx + dz * dz; }
 function lerpAngle(a, b, t) {
