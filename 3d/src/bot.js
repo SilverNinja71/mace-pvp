@@ -112,6 +112,17 @@ export class BotBrain {
             }
         }
 
+        // In the air and drifting out over the void: steer back toward our own platform
+        if (!f.onGround && !f.padFlight && this.plan !== 'recover' && f.dashT <= 0) {
+            const px = f.pos.x + f.vel.x * 0.6, pz = f.pos.z + f.vel.z * 0.6;
+            if (g.physics.groundAt(px, pz, 0.3, f.pos.y + 1) === -Infinity && !(this.target && this.target.onGround && g.arena.zoneOf(px, pz) === g.arena.zoneOf(this.target.pos.x, this.target.pos.z))) {
+                const zone = g.arena.zoneOf(f.pos.x, f.pos.z);
+                const c = zone > 0 ? g.arena.islands[zone - 1] : { x: 0, z: 0 };
+                const dx = c.x - f.pos.x, dz = c.z - f.pos.z, l = Math.hypot(dx, dz) || 1;
+                this.moveX = dx / l; this.moveZ = dz / l;
+            }
+        }
+
         // Riding a jump pad: let the arc carry us
         if (f.padFlight) { this.moveX = 0; this.moveZ = 0; }
 
