@@ -485,6 +485,26 @@ export class Game {
         if (this.tutorial && a === this.local && TUTORIAL_MOVES.has(name)) this.tutorial.event(name, a, b);
     }
 
+    // Thumbs and sticks aim less precisely than a mouse: a spear dash started within about
+    // 12 degrees of an enemy is nudged straight at them
+    aimAssist(me, I) {
+        let best = null, bestErr = 0.22;
+        const ex = me.pos.x, ey = me.pos.y + 1.6, ez = me.pos.z;
+        for (const o of this.fighters) {
+            if (o === me || !o.alive || o.team === me.team || (o.invisible && !me.big)) continue;
+            const dx = o.pos.x - ex, dy = o.pos.y + 1.1 - ey, dz = o.pos.z - ez;
+            const h = Math.hypot(dx, dz);
+            if (h > 12 || h < 0.5) continue;
+            const yaw = Math.atan2(-dx, -dz), pitch = Math.atan2(dy, h);
+            let dyaw = yaw - I.yaw;
+            while (dyaw > Math.PI) dyaw -= Math.PI * 2;
+            while (dyaw < -Math.PI) dyaw += Math.PI * 2;
+            const err = Math.hypot(dyaw, (pitch - I.pitch) * 0.7);
+            if (err < bestErr && this.physics.lineClear(ex, ey, ez, o.pos.x, o.pos.y + 1.1, o.pos.z)) { bestErr = err; best = { yaw: I.yaw + dyaw, pitch }; }
+        }
+        if (best) { I.yaw = best.yaw; I.pitch = best.pitch; }
+    }
+
     shakeNear(p, amt, time) {
         const me = this.local;
         if (!me) return;
@@ -767,6 +787,7 @@ export class Game {
                 if (this.state === 'over' || this.overlayPause) { I.fwd = I.right = 0; I.jump = I.spear = I.mace = I.slam = I.parry = I.size = false; I.jumpHeld = false; if (this.overlayPause) this.input.fill(this.scratchI || (this.scratchI = makeIntent())); }
                 else this.input.fill(I);
                 I.yaw = this.look.yaw; I.pitch = this.look.pitch;
+                if (I.spear && (this.input.usingTouch || this.input.usingPad)) this.aimAssist(f, I);
             } else if (R) {
                 // online: friends move themselves; the host extends their moves, guests draw the host's snapshots
                 if (R.isHost) R.advance(f, dt); else R.interpolate(f);

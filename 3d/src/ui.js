@@ -517,6 +517,14 @@ export class UI {
             && $('revive').classList.contains('hidden') && $('tu-done').classList.contains('hidden');
         this.set('ctp', $('click-to-play'), 'class:hidden', !needLock);
 
+        // key labels follow the controls being used
+        const scheme = touch ? 'touch' : g.input.usingPad ? 'pad' : 'keys';
+        if (this.cache.scheme !== scheme) {
+            this.cache.scheme = scheme;
+            const L = { keys: ['LMB', 'RMB', 'F', 'SPC'], pad: ['RT', 'LT', 'LB', 'A'], touch: ['', '', '', ''] }[scheme];
+            ['ab-spear', 'ab-mace', 'ab-parry', 'ab-jump'].forEach((id, i) => { $(id).querySelector('.ab-key').textContent = L[i]; });
+        }
+
         // health
         const hp = Math.max(0, Math.round(me.hp));
         const pct = (Math.max(0, me.hp) / me.maxHp * 100).toFixed(1) + '%';
