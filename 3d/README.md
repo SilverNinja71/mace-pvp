@@ -30,6 +30,12 @@ Once this branch is merged, GitHub Pages serves it at `https://silverninja71.git
 - **Training**: a 7-step tutorial (skippable), then free practice on a dummy.
 - **Online**: rooms for up to 4 friends with a room code or a `?room=CODE` link (GitHub Pages copy only).
 
+## Maps
+- **Sky Colosseum**: a round stone colosseum with a ring of tall and broken pillars, four floating monoliths, a wind geyser in the middle, and four islands on jump pads.
+- **Sky Ruins**: a raised dais with stairs and the geyser on top, stone arches with perches on top, three high monoliths, and islands on the diagonals.
+
+Each map comes at sunset, at night under the stars, or in a thunderstorm. New players start in the Colosseum at sunset.
+
 ## How it's built
 Plain ES modules in `src/`, with Three.js r160 bundled in `lib/three`. There's no build step for the web
 copy. `tools/build-crazygames.py` makes `dist/spear-mace-crazygames.zip` for the CrazyGames upload.
@@ -38,7 +44,7 @@ copy. `tools/build-crazygames.py` makes `dist/spear-mace-crazygames.zip` for the
 |---|---|
 | `config.js` | Every tuning number: gravity -28 m/s², coyote time 0.12 s, spear, mace, parry, match rules, the 8 classes, bot levels |
 | `physics.js` | Fast collision against cylinders and boxes, step-up, raycasts |
-| `arena.js` | The Floating Sky Pillar Arena: the colosseum, pillars, monoliths, centre geyser, islands, jump pads, sky, clouds, dust, sunset/night/storm themes |
+| `arena.js` | Both maps (colosseum and ruins), islands, jump pads, geyser, sky, clouds, dust, sunset/night/storm themes |
 | `fighter.js` | Movement and abilities for players, bots and online friends alike |
 | `combat.js` | Spear pierce and crits, slam damage from fall height with bounce, shockwave, parry, clash, status effects |
 | `bot.js` | Bot AI: jump pads, aimed dashes, geyser climbs, slam dodging, parries, getting back from the void |
