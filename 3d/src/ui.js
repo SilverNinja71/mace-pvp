@@ -425,7 +425,7 @@ export class UI {
             t.textContent = d.win ? 'VICTORY!' : 'DEFEAT';
             t.className = d.win ? 'win' : 'lose';
             $('res-sub').textContent = d.mode === 'training' ? '' : `${g.modeDef.name}${d.level && !g.remote ? ' · ' + (BOT_LEVELS[d.level] ? BOT_LEVELS[d.level].name : '') : ''}`;
-            $('res-table').innerHTML = this.statTable(d.ranked);
+            $('res-table').innerHTML = this.statTable(d.ranked) + this.highlight(d.local);
             const r = d.reward;
             this.lastReward = r;
             $('res-double').classList.toggle('hidden', !(r && r.gold > 0 && crazyGames.adsAvailable));
@@ -444,13 +444,26 @@ export class UI {
 
     hideResults() { $('results').classList.add('hidden'); $('hud').classList.remove('hidden'); }
 
+    // The player's best moment of the match
+    highlight(me) {
+        const s = me.stats;
+        let text = '';
+        if (s.maxSlamDamage >= 60) text = `💥 Biggest slam: ${Math.round(s.maxSlamDamage)} damage`;
+        else if (s.kos >= 2) text = `⚔ ${s.kos} knockouts`;
+        else if (s.crits >= 2) text = `🎯 ${s.crits} critical spear hits`;
+        else if (s.parries >= 2) text = `🛡 ${s.parries} parries`;
+        else if (s.damageDealt >= 100) text = `🔥 ${Math.round(s.damageDealt)} damage dealt`;
+        return text ? `<div class="highlight">${text}</div>` : '';
+    }
+
     statTable(list) {
         const g = this.game;
         const hill = g.mode === 'hill';
         let h = `<table class="scores"><tr><th>Fighter</th>${hill ? '<th>Hill</th>' : ''}<th>KOs</th><th>Falls</th><th>Damage</th><th>Slams</th><th>Spear hits</th><th>Best slam</th></tr>`;
-        for (const f of list) {
-            h += `<tr class="${f === g.local ? 'me' : ''}"><td><span class="swatch" style="background:${TEAM_COLORS[f.id % 4]}"></span>${esc(f.name)}</td>${hill ? `<td>${Math.floor(f.hill || 0)}</td>` : ''}<td>${f.kos}</td><td>${f.deaths}</td><td>${Math.round(f.stats.damageDealt)}</td><td>${f.stats.slamsLanded}</td><td>${f.stats.dashesLanded}</td><td>${Math.round(f.stats.maxSlamDamage)}</td></tr>`;
-        }
+        list.forEach((f, rank) => {
+            const medal = list.length > 1 ? ['🥇', '🥈', '🥉'][rank] || '' : '';
+            h += `<tr class="${f === g.local ? 'me' : ''}${rank === 0 && list.length > 1 ? ' first' : ''}"><td>${medal ? `<span class="medal">${medal}</span>` : ''}<span class="swatch" style="background:${TEAM_COLORS[f.id % 4]}"></span>${esc(f.name)}</td>${hill ? `<td>${Math.floor(f.hill || 0)}</td>` : ''}<td>${f.kos}</td><td>${f.deaths}</td><td>${Math.round(f.stats.damageDealt)}</td><td>${f.stats.slamsLanded}</td><td>${f.stats.dashesLanded}</td><td>${Math.round(f.stats.maxSlamDamage)}</td></tr>`;
+        });
         return h + '</table>';
     }
 
