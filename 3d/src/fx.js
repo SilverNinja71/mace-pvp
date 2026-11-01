@@ -42,7 +42,7 @@ export class FX {
         const ringGeo = new THREE.PlaneGeometry(2, 2);
         ringGeo.rotateX(-Math.PI / 2);
         for (let i = 0; i < MAX_RINGS; i++) {
-            const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ map: ringTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+            const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ map: ringTexture(), transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false }));
             m.visible = false;
             m.renderOrder = 5;
             scene.add(m);
