@@ -107,7 +107,11 @@ export class UI {
 
     leaveMatch() {
         const g = this.game;
-        if (g.mode === 'gauntlet' && g.pendingGauntlet) g.finishGauntlet();
+        if (g.mode === 'gauntlet') {
+            // leaving mid-run still pays for the waves already cleared
+            if (!g.pendingGauntlet && g.wave > 1) g.pendingGauntlet = { waves: g.wave - 1 };
+            if (g.pendingGauntlet) g.finishGauntlet();
+        }
         g.quitToMenu();
     }
 

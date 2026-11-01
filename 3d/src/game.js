@@ -549,6 +549,7 @@ export class Game {
         this.ui.offerRevive(false);
         if (this.mode === 'gauntlet') {
             this.state = 'play';
+            this.pendingGauntlet = null; // the run goes on: rewards are counted when it really ends
             this.ui.hideResults();
             this.input.active = true;
             this.input.requestLock();
