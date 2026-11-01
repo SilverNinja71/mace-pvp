@@ -17,6 +17,7 @@ import { audio } from './audio.js';
 import { profile } from './profile.js';
 import { crazyGames } from './crazygames.js';
 import { missions } from './missions.js';
+import { achievements } from './achievements.js';
 
 export const MODES = {
     quick:    { name: 'Quick Play', bots: 1, kos: MATCH.duelKOs, time: MATCH.timeLimit },
@@ -772,10 +773,11 @@ export class Game {
             reward = profile.recordMatch(win, this.remote ? 'online' : this.level, this.local.stats);
             done = missions.record(this.local.stats, { win });
         }
+        const ach = this.mode === 'training' ? [] : achievements.check({ stats: this.local.stats, win, mode: this.mode, level: this.level, online: !!this.remote, classId: this.local.classId });
         audio.play(win ? 'win' : 'lose');
         if (win) crazyGames.happytime();
         if (this.remote && this.remote.isHost) this.remote.relayEnd(ranked);
-        this.finishSlowly({ win, ranked, local: this.local, reward, mode: this.mode, level: this.level, missions: done });
+        this.finishSlowly({ win, ranked, local: this.local, reward, mode: this.mode, level: this.level, missions: done, ach });
     }
 
     // Guest: the host says the match is over
@@ -791,8 +793,9 @@ export class Game {
         const win = ranked[0] === this.local;
         const reward = profile.recordMatch(win, 'online', this.local.stats);
         const done = missions.record(this.local.stats, { win });
+        const ach = achievements.check({ stats: this.local.stats, win, mode: this.mode, online: true, classId: this.local.classId });
         audio.play(win ? 'win' : 'lose');
-        this.finishSlowly({ win, ranked, local: this.local, reward, mode: this.mode, missions: done });
+        this.finishSlowly({ win, ranked, local: this.local, reward, mode: this.mode, missions: done, ach });
     }
 
     // The winning knockout plays out in slow motion before the results appear
@@ -820,6 +823,7 @@ export class Game {
         if (!this.pendingGauntlet) return null;
         const r = profile.recordGauntlet(this.pendingGauntlet.waves, this.local.stats);
         r.missions = missions.record(this.local.stats, { wave: this.wave });
+        r.ach = achievements.check({ stats: this.local.stats, win: false, mode: 'gauntlet', wave: this.wave, classId: this.local.classId });
         this.pendingGauntlet = null;
         return r;
     }

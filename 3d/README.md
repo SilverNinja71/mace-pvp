@@ -35,7 +35,7 @@ Once this branch is merged, GitHub Pages serves it at `https://silverninja71.git
 
 ## Progression
 Gold and XP come from every match (the same save and rules as the 2D game). Spend gold on skins and weapon
-glows (Frost, Ember, Verdant, Void). Classes unlock as you level up. Three daily missions pay extra gold, and Arena RP
+glows (Frost, Ember, Verdant, Void). Classes unlock as you level up. 15 achievements (shown on the results screen and in the Fighter panel) pay gold once each. Three daily missions pay extra gold, and Arena RP
 moves you up from Bronze to Obsidian (these tiers also award the shared trophies).
 
 ## Maps

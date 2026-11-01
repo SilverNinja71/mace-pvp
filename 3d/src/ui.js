@@ -11,6 +11,7 @@ import { audio } from './audio.js';
 import { crazyGames } from './crazygames.js';
 import { Tutorial } from './tutorial.js';
 import { missions } from './missions.js';
+import { ACHIEVEMENTS, achievements } from './achievements.js';
 
 // Skin prices in gold, the same as the 2D game's shop
 const SKIN_COST = { steve: 0, alex: 0, noob: 200, man_face: 400, creeper: 500, enderman: 600, skeleton: 500, zombie: 400, diamond_knight: 800 };
@@ -135,7 +136,7 @@ export class UI {
         const g = this.game;
         if (g.mode === 'gauntlet') {
             const r = g.finishGauntlet();
-            if (r) this.toast(`+${r.gold} gold · +${r.xp} XP${r.best ? ' · new best!' : ''}${r.missions && r.missions.length ? ` · mission done: +${r.missions[0].gold} gold` : ''}`);
+            if (r) this.toast(`+${r.gold} gold · +${r.xp} XP${r.best ? ' · new best!' : ''}${r.missions && r.missions.length ? ` · mission done: +${r.missions[0].gold} gold` : ''}${r.ach && r.ach.length ? ` · 🏅 ${r.ach.map(a => a.name).join(', ')}` : ''}`);
         }
         $('results').classList.add('hidden');
         crazyGames.showAd('midgame').then(() => next());
@@ -324,6 +325,10 @@ export class UI {
             });
             gl.appendChild(b);
         }
+        const al = $('ach-list');
+        const earned = ACHIEVEMENTS.filter(a => achievements.has(a.id)).length;
+        $('ach-count').textContent = `${earned} / ${ACHIEVEMENTS.length}`;
+        al.innerHTML = ACHIEVEMENTS.map(a => `<div class="ach-row${achievements.has(a.id) ? ' got' : ''}"><b>${achievements.has(a.id) ? '🏅' : '🔒'} ${esc(a.name)}</b><span>${esc(a.desc)} · 🪙${a.gold}</span></div>`).join('');
         $('name-input').value = p.username || '';
         $('name-msg').textContent = '';
     }
@@ -444,6 +449,8 @@ export class UI {
             $('res-train').classList.toggle('hidden', profile.tutorialDone || g.mode === 'training' || !!g.remote);
             rv.classList.add('hidden');
             for (const m of d.missions || []) $('res-rewards').innerHTML += `<span>✓ Mission: ${esc(m.text)} +${m.gold} gold</span>`;
+            for (const a of d.ach || []) $('res-rewards').innerHTML += `<span class="ach">🏅 ${esc(a.name)}: ${esc(a.desc)} +${a.gold} gold</span>`;
+            if ((d.ach || []).length) audio.play('score');
         }
         $('results').classList.remove('hidden');
         this.refreshProfile();
