@@ -120,6 +120,31 @@ export class Game {
         requestAnimationFrame(this.loop);
     }
 
+    // The menu's fighter: your skin, idling and showing off a move now and then
+    refreshShowcase() {
+        if (this.showcase) { this.scene.remove(this.showcase.model.root); this.showcase.model.dispose(); this.showcase = null; }
+        if (this.state !== 'menu') return;
+        const model = new CharacterModel(profile.skinId, TEAM_COLORS[0]);
+        model.root.position.set(0, 0, 9);
+        this.scene.add(model.root);
+        const fake = { vel: { x: 0, y: 0, z: 0 }, onGround: true, dashT: 0, spearCd: 0, slamming: false, swingT: 0, parryT: 0, glide: false, pitch: 0, bigScale: 1, stunT: 0, alive: true };
+        this.showcase = { model, fake, t: 0 };
+    }
+
+    updateShowcase(dt) {
+        const s = this.showcase;
+        if (!s) return;
+        s.t += dt;
+        const k = s.t % 6, f = s.fake;
+        f.dashT = k > 2 && k < 2.35 ? 0.1 : 0;          // spear thrust
+        f.slamming = k > 4 && k < 4.7;                  // mace raised overhead
+        f.pitch = f.slamming ? 0.4 : 0;
+        // face the camera, turning a little toward each pose
+        const a = this.menuT;
+        s.model.root.rotation.y = Math.atan2(-Math.cos(a), -Math.sin(a)) + (f.dashT ? -0.6 : 0); // forward (-sin, -cos) toward the camera
+        s.model.animate(f, dt, this.time);
+    }
+
     // Build the arena for a layout (if it isn't the one already built)
     useLayout(layout) {
         if (this.arena && this.arena.layout === layout) return;
@@ -219,6 +244,7 @@ export class Game {
     // opts: { mode, level }
     startMatch(opts) {
         this.clearMatch();
+        if (this.showcase) { this.scene.remove(this.showcase.model.root); this.showcase.model.dispose(); this.showcase = null; }
         // map and time of day: training and your first matches in the colosseum at sunset, then any
         const fresh = opts.mode === 'training' || (profile.data.stats.matches || 0) < 3;
         const layout = opts.layout || (fresh ? 'colosseum' : pickOne(Object.keys(LAYOUTS)));
@@ -367,6 +393,7 @@ export class Game {
         this.pendingResults = null;
         if (this.remote) { const r = this.remote; this.remote = null; r.leave(true); }
         this.clearMatch();
+        this.refreshShowcase();
         audio.setIntensity(0);
         this.timeScale = 1;
         this.arena.setTheme('sunset', this.scene, this.hemi, this.sun);
@@ -959,12 +986,17 @@ export class Game {
             audio.setListener(x, y + 1.6, z, this.look.yaw);
             this.viewModel.animate(me, dt, this.lookDX || 0, this.lookDY || 0, this.settings.reducedMotion);
         } else {
-            // menu: slow orbit around the arena
-            this.menuT += dt * (this.settings.reducedMotion ? 0.02 : 0.05);
+            // menu: your fighter shows off in the arena while the camera circles
+            this.menuT += dt * (this.settings.reducedMotion ? 0.03 : 0.12);
+            this.updateShowcase(dt);
             const a = this.menuT;
-            this.camera.position.set(Math.cos(a) * 46, 15 + Math.sin(a * 0.7) * 3, Math.sin(a) * 46);
-            this.camera.lookAt(0, 4, 0);
-            this.rig.applyFov(80);
+            const sx = 0, sz = 9;
+            const cx = sx + Math.cos(a) * 7, cz = sz + Math.sin(a) * 7;
+            this.camera.position.set(cx, 2.3 + Math.sin(a * 0.7) * 0.4, cz);
+            // aim a little to the fighter's left so they stand right of the menu
+            const lx = -Math.sin(a), lz = Math.cos(a); // the camera's left
+            this.camera.lookAt(sx + lx * 0.55, 1.2, sz + lz * 0.55);
+            this.rig.applyFov(70);
         }
         this.fx.update(dt, this.width, this.height);
 
