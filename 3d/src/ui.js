@@ -266,6 +266,7 @@ export class UI {
     bindSettings() {
         const g = this.game;
         $('set-sound').addEventListener('change', (e) => g.setSetting('sound', e.target.checked));
+        $('set-music').addEventListener('change', (e) => g.setSetting('music', e.target.checked));
         $('set-sens').addEventListener('input', (e) => { g.setSetting('sens', +e.target.value); $('set-sens-v').textContent = (+e.target.value).toFixed(2); });
         $('set-fov').addEventListener('input', (e) => { g.setSetting('fov', +e.target.value); $('set-fov-v').textContent = e.target.value + '°'; });
         $('set-invert').addEventListener('change', (e) => g.setSetting('invertY', e.target.checked));
@@ -280,6 +281,7 @@ export class UI {
     renderSettings() {
         const s = this.game.settings;
         $('set-sound').checked = s.sound;
+        $('set-music').checked = s.music !== false;
         $('set-sens').value = s.sens; $('set-sens-v').textContent = (+s.sens).toFixed(2);
         $('set-fov').value = s.fov; $('set-fov-v').textContent = s.fov + '°';
         $('set-invert').checked = s.invertY;
@@ -467,7 +469,11 @@ export class UI {
 
     hud(g, dt) {
         const me = g.local;
-        if (!me || g.state === 'over') return;
+        if (!me) return;
+        if (g.state === 'over') {
+            if (this.bannerT > 0) { this.bannerT -= dt; if (this.bannerT <= 0) $('banner').classList.remove('show'); }
+            return;
+        }
         const touch = g.input.usingTouch;
         document.body.classList.toggle('touch', touch);
         this.set('touch', $('touch'), 'class:hidden', !(touch && (g.state === 'play' || g.state === 'intro')));

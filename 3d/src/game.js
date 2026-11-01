@@ -41,7 +41,7 @@ export class Game {
         this.canvas = canvas;
         this.ui = ui;
         this.input = input;
-        this.settings = Object.assign({ quality: 'auto', fov: 90, sens: 1, invertY: false, reducedMotion: false, sound: true, view: 'first' }, profile.settings);
+        this.settings = Object.assign({ quality: 'auto', fov: 90, sens: 1, invertY: false, reducedMotion: false, sound: true, music: true, view: 'first' }, profile.settings);
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent));
         this.isMobile = isMobile;
         this.qualityName = this.settings.quality === 'auto' ? (isMobile ? 'medium' : 'high') : this.settings.quality;
@@ -124,6 +124,8 @@ export class Game {
         this.rig.reduced = s.reducedMotion;
         this.fx.reduced = s.reducedMotion;
         audio.setUserOn(s.sound);
+        audio.musicOn = s.music;
+        audio.setMusic(s.music);
     }
 
     setSetting(k, v) {
@@ -255,6 +257,8 @@ export class Game {
         this.input.requestLock();
         this.ui.matchStarted(this);
         crazyGames.setGameplay(true);
+        audio.setIntensity(opts.mode === 'training' ? 0 : 1);
+        this.timeScale = 1;
     }
 
     // Gauntlet: each wave brings fresh bots, harder as you go
@@ -331,6 +335,8 @@ export class Game {
         this.overlayPause = false;
         if (this.remote) { const r = this.remote; this.remote = null; r.leave(true); }
         this.clearMatch();
+        audio.setIntensity(0);
+        this.timeScale = 1;
         this.ui.showMenu();
     }
 
@@ -594,7 +600,7 @@ export class Game {
         audio.play(win ? 'win' : 'lose');
         if (win) crazyGames.happytime();
         if (this.remote && this.remote.isHost) this.remote.relayEnd(ranked);
-        this.ui.showResults({ win, ranked, local: this.local, reward, mode: this.mode, level: this.level });
+        this.finishSlowly({ win, ranked, local: this.local, reward, mode: this.mode, level: this.level });
     }
 
     // Guest: the host says the match is over
@@ -610,7 +616,16 @@ export class Game {
         const win = ranked[0] === this.local;
         const reward = profile.recordMatch(win, 'online', this.local.stats);
         audio.play(win ? 'win' : 'lose');
-        this.ui.showResults({ win, ranked, local: this.local, reward, mode: 'online' });
+        this.finishSlowly({ win, ranked, local: this.local, reward, mode: 'online' });
+    }
+
+    // The winning knockout plays out in slow motion before the results appear
+    finishSlowly(results) {
+        this.pendingResults = results;
+        this.endT = this.settings.reducedMotion ? 0.8 : 1.6;
+        this.timeScale = this.settings.reducedMotion ? 1 : 0.25;
+        this.ui.offerRevive(false);
+        this.ui.banner(results.win ? 'VICTORY!' : 'DEFEAT', results.win ? 'You win the match' : `${results.ranked[0].name} wins`, results.win ? '#ffd54a' : '#ff6b5a', 2);
     }
 
     gauntletOver() {
@@ -675,10 +690,14 @@ export class Game {
         }
 
         if (this.state === 'play' || this.state === 'intro' || this.state === 'over') {
+            if (this.endT > 0) {
+                this.endT -= dt;
+                if (this.endT <= 0) { this.timeScale = 1; this.ui.showResults(this.pendingResults); }
+            }
             if (this.hitstopT > 0) {
                 this.hitstopT -= dt;
             } else {
-                this.acc += dt;
+                this.acc += dt * (this.timeScale || 1);
                 let steps = 0;
                 while (this.acc >= SIM_DT && steps < 14) {
                     this.simStep();
@@ -689,7 +708,7 @@ export class Game {
             }
         }
         if (this.remote) this.remote.update(dt);
-        this.render(dt);
+        this.render(dt * (this.timeScale || 1));
     }
 
     simStep() {

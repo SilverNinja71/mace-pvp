@@ -37,6 +37,7 @@ class Audio3D {
         }
         if (this.ctx.state === 'suspended') this.ctx.resume();
         this.applyVolume();
+        if (this.musicOn !== false) this.startMusic();
     }
 
     applyVolume() {
@@ -171,5 +172,85 @@ class Audio3D {
         }
     }
 }
+
+// ---------------- music ----------------
+// A small looping track made from notes: soft chords in the menu, plus
+// bass and drums during matches. Scheduled a little ahead of time.
+const BPM = 112;
+const CHORDS = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]]; // Am F C G
+const BASS = [45, 41, 36, 43];
+const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
+
+Audio3D.prototype.setMusic = function (on) {
+    this.musicOn = on;
+    if (this.musicGain) this.musicGain.gain.setTargetAtTime(on ? 0.32 : 0, this.ctx.currentTime, 0.3);
+    if (on) this.startMusic();
+};
+
+Audio3D.prototype.setIntensity = function (k) { this.intensity = k; };
+
+Audio3D.prototype.startMusic = function () {
+    if (!this.ctx || this.musicTimer || this.musicOn === false) return;
+    this.musicGain = this.ctx.createGain();
+    this.musicGain.gain.value = 0.32;
+    this.musicGain.connect(this.master);
+    this.beat = 0;
+    this.nextBeat = this.ctx.currentTime + 0.1;
+    if (this.intensity === undefined) this.intensity = 0;
+    const tick = () => {
+        if (!this.ctx || this.ctx.state !== 'running') return;
+        const spb = 60 / BPM / 2; // eighth notes
+        while (this.nextBeat < this.ctx.currentTime + 0.6) {
+            this.scheduleStep(this.beat, this.nextBeat, spb);
+            this.nextBeat += spb;
+            this.beat++;
+        }
+    };
+    this.musicTimer = setInterval(tick, 150);
+    tick();
+};
+
+Audio3D.prototype.scheduleStep = function (step, t, spb) {
+    const c = this.ctx, out = this.musicGain;
+    const bar = Math.floor(step / 8) % 4;
+    const inBar = step % 8;
+    const hot = this.intensity > 0;
+    const note = (type, freq, start, dur, vol, cutoff) => {
+        const o = c.createOscillator(), g = c.createGain();
+        o.type = type; o.frequency.value = freq;
+        let node = o;
+        if (cutoff) { const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cutoff; o.connect(f); node = f; }
+        g.gain.setValueAtTime(0.0001, start);
+        g.gain.exponentialRampToValueAtTime(vol, start + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+        node.connect(g); g.connect(out);
+        o.start(start); o.stop(start + dur + 0.05);
+    };
+    // chord pad at the start of each bar
+    if (inBar === 0) for (const n of CHORDS[bar]) { note('sawtooth', midi(n), t, spb * 8, 0.035, 1100); note('sawtooth', midi(n) * 1.005, t, spb * 8, 0.03, 900); }
+    // twinkly arpeggio
+    if (inBar % 2 === 1) note('triangle', midi(CHORDS[bar][(inBar >> 1) % 3] + 12), t, spb * 0.9, 0.04);
+    if (!hot) return;
+    // bass and drums in matches
+    if (inBar % 2 === 0) note('square', midi(BASS[bar]), t, spb * 0.9, 0.06, 500);
+    if (inBar % 4 === 0) { // kick
+        const o = c.createOscillator(), g = c.createGain();
+        o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.15);
+        g.gain.setValueAtTime(0.25, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+        o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.25);
+    }
+    if (inBar === 4) this.musicNoise(t, 0.12, 1800, 0.08); // snare
+    this.musicNoise(t, 0.03, 7000, 0.025);                  // hi-hat
+};
+
+Audio3D.prototype.musicNoise = function (t, dur, freq, vol) {
+    const c = this.ctx;
+    const s = c.createBufferSource(); s.buffer = this.noiseBuf;
+    const f = c.createBiquadFilter(); f.type = freq > 4000 ? 'highpass' : 'bandpass'; f.frequency.value = freq;
+    const g = c.createGain();
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(f); f.connect(g); g.connect(this.musicGain);
+    s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
+};
 
 export const audio = new Audio3D();
