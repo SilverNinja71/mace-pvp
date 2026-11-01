@@ -55,22 +55,32 @@ function wm(key, make) {
     return WEAPON_MATS[key];
 }
 
+// Weapon glow styles (bought with gold): spear tip and mace rune colours
+export const GLOWS = {
+    sun:     { name: 'Sun Gold', tip: 0xffd54a, halo: 0xffe28a, rune: 0x5ff3ff, cost: 0 },
+    frost:   { name: 'Frost',    tip: 0x9ff4ff, halo: 0xc8fbff, rune: 0x9fd8ff, cost: 300 },
+    ember:   { name: 'Ember',    tip: 0xff7a2f, halo: 0xffb070, rune: 0xff9a3a, cost: 450 },
+    verdant: { name: 'Verdant',  tip: 0x6dff8e, halo: 0xb4ffc4, rune: 0x6dffb0, cost: 450 },
+    void:    { name: 'Void',     tip: 0xc77dff, halo: 0xe2c2ff, rune: 0xb48cff, cost: 700 }
+};
+
 // Weapons are merged into a couple of meshes each (lit parts + glowing parts) to keep draw calls low
 const weaponLit = () => wm('wlit', () => new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonRamp() }));
 const weaponGlow = () => wm('wglow', () => new THREE.MeshBasicMaterial({ vertexColors: true }));
 
-export function buildSpear(scale = 1) {
+export function buildSpear(scale = 1, glowId = 'sun') {
+    const G = GLOWS[glowId] || GLOWS.sun;
     const g = new THREE.Group();
     const lit = new GeoBatch(), glow = new GeoBatch();
     const R = Math.PI / 2;
     lit.addAt(new THREE.CylinderGeometry(0.032, 0.036, 1.9, 6), 0, 0, -0.35, 0xdfe6ee, 0, 0, 1, 1, 1, R);
     for (const z of [0.1, -0.05, 0.25]) lit.addAt(new THREE.CylinderGeometry(0.046, 0.046, 0.07, 6), 0, 0, z, 0x3a6fb0, 0, 0, 1, 1, 1, R);
-    glow.addAt(new THREE.CylinderGeometry(0.06, 0.05, 0.1, 6), 0, 0, -1.28, 0xffd54a, 0, 0, 1, 1, 1, R);
-    glow.addAt(new THREE.OctahedronGeometry(0.11, 0), 0, 0, -1.6, 0xffd54a, 0, 0, 0.8, 0.8, 3.2);
+    glow.addAt(new THREE.CylinderGeometry(0.06, 0.05, 0.1, 6), 0, 0, -1.28, G.tip, 0, 0, 1, 1, 1, R);
+    glow.addAt(new THREE.OctahedronGeometry(0.11, 0), 0, 0, -1.6, G.tip, 0, 0, 0.8, 0.8, 3.2);
     g.add(new THREE.Mesh(lit.build(), weaponLit()));
     g.add(new THREE.Mesh(glow.build(), weaponGlow()));
     // the soft glow around the tip (its own material: it brightens during dashes)
-    const halo = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0), new THREE.MeshBasicMaterial({ color: 0xffe28a, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const halo = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0), new THREE.MeshBasicMaterial({ color: G.halo, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
     halo.scale.set(1, 1, 3);
     halo.position.z = -1.6;
     halo.material.userData.noFlash = true;
@@ -80,7 +90,8 @@ export function buildSpear(scale = 1) {
     return g;
 }
 
-export function buildMace(scale = 1) {
+export function buildMace(scale = 1, glowId = 'sun') {
+    const G = GLOWS[glowId] || GLOWS.sun;
     const g = new THREE.Group();
     const lit = new GeoBatch(), glow = new GeoBatch();
     lit.addAt(new THREE.CylinderGeometry(0.04, 0.045, 0.75, 6), 0, 0.28, 0, 0x6b4428);
@@ -95,8 +106,8 @@ export function buildMace(scale = 1) {
     // glowing runes on each face
     for (let i = 0; i < 4; i++) {
         const a = i * Math.PI / 2;
-        glow.addAt(new THREE.BoxGeometry(0.16, 0.035, 0.005), Math.sin(a) * 0.152, 0.79, Math.cos(a) * 0.152, 0x5ff3ff, 0, a);
-        glow.addAt(new THREE.BoxGeometry(0.035, 0.12, 0.005), Math.sin(a) * 0.152, 0.74, Math.cos(a) * 0.152, 0x5ff3ff, 0, a);
+        glow.addAt(new THREE.BoxGeometry(0.16, 0.035, 0.005), Math.sin(a) * 0.152, 0.79, Math.cos(a) * 0.152, G.rune, 0, a);
+        glow.addAt(new THREE.BoxGeometry(0.035, 0.12, 0.005), Math.sin(a) * 0.152, 0.74, Math.cos(a) * 0.152, G.rune, 0, a);
     }
     g.add(new THREE.Mesh(lit.build(), weaponLit()));
     g.add(new THREE.Mesh(glow.build(), weaponGlow()));
@@ -122,7 +133,7 @@ function part(w, h, d, mat, outline = true) {
 }
 
 export class CharacterModel {
-    constructor(skinId, teamColor) {
+    constructor(skinId, teamColor, glowId = 'sun') {
         const s = SKINS[skinId] || SKINS.steve;
         this.root = new THREE.Group();
         this.body = new THREE.Group();      // scaled for Buddha, squashed on landings
@@ -189,11 +200,11 @@ export class CharacterModel {
         this.legL = limb(-0.14, 0, 0.21, 0.86, pantsMat, this.hips);
 
         // weapons: spear in the right hand, mace in the left
-        this.spear = buildSpear(0.9);
+        this.spear = buildSpear(0.9, glowId);
         this.spear.position.set(0, -0.58, 0.05);
         this.spear.rotation.x = Math.PI / 2 - 0.3; // tip up at rest, rotated in animate()
         this.armR.add(this.spear);
-        this.mace = buildMace(1);
+        this.mace = buildMace(1, glowId);
         this.mace.position.set(0, -0.6, 0.02);
         this.mace.rotation.x = -1.2;
         this.armL.add(this.mace);
@@ -312,7 +323,7 @@ function disposeTree(root) {
 
 // ---------- first-person viewmodel ----------
 export class ViewModel {
-    constructor(skinId) {
+    constructor(skinId, glowId = 'sun') {
         const s = SKINS[skinId] || SKINS.steve;
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(62, 1, 0.01, 10);
@@ -338,10 +349,10 @@ export class ViewModel {
         };
         this.armR = arm(1);
         this.armL = arm(-1);
-        this.spear = buildSpear(0.55);
+        this.spear = buildSpear(0.55, glowId);
         this.spear.position.set(0, 0.04, -0.42);
         this.armR.add(this.spear);
-        this.mace = buildMace(0.4);
+        this.mace = buildMace(0.4, glowId);
         this.mace.position.set(0, 0.03, -0.45);
         this.mace.rotation.x = -0.75;
         this.armL.add(this.mace);

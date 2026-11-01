@@ -63,6 +63,17 @@ class Profile {
     get gold() { return this.data.gold; }
     get level() { return this.data.level; }
     get settings() { return this.data.arena3d.settings; }
+    get glowId() { return this.data.arena3d.glow || 'sun'; }
+    get glows() { return this.data.arena3d.glows || ['sun']; }
+    setGlow(id) { if (this.glows.includes(id)) { this.data.arena3d.glow = id; this.save(); } }
+    buyGlow(id, cost) {
+        if (this.glows.includes(id) || this.data.gold < cost) return false;
+        this.data.gold -= cost;
+        this.data.arena3d.glows = [...this.glows, id];
+        this.data.arena3d.glow = id;
+        this.save();
+        return true;
+    }
     get tutorialDone() { return !!this.data.arena3d.tutorialDone; }
 
     classUnlocked(id) { return (this.data.level || 1) >= (CLASS_LEVEL[id] || 1); }

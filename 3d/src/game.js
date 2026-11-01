@@ -12,7 +12,7 @@ import { Combat } from './combat.js';
 import { BotBrain } from './bot.js';
 import { FX } from './fx.js';
 import { CameraRig } from './camera.js';
-import { CharacterModel, ViewModel, SKINS } from './character.js';
+import { CharacterModel, ViewModel, SKINS, GLOWS } from './character.js';
 import { audio } from './audio.js';
 import { profile } from './profile.js';
 import { crazyGames } from './crazygames.js';
@@ -86,7 +86,7 @@ export class Game {
         this.fx = new FX(this.scene, this.camera, document.getElementById('fx-layer'));
         this.rig = new CameraRig(this.camera, this.physics);
         this.rig.mode = this.settings.view === 'third' ? 'third' : 'first';
-        this.viewModel = new ViewModel(profile.skinId);
+        this.viewModel = new ViewModel(profile.skinId, profile.glowId);
         this.applySettings();
 
         this.fighters = [];
@@ -125,7 +125,7 @@ export class Game {
     refreshShowcase() {
         if (this.showcase) { this.scene.remove(this.showcase.model.root); this.showcase.model.dispose(); this.showcase = null; }
         if (this.state !== 'menu') return;
-        const model = new CharacterModel(profile.skinId, TEAM_COLORS[0]);
+        const model = new CharacterModel(profile.skinId, TEAM_COLORS[0], profile.glowId);
         model.root.position.set(0, 0, 9);
         this.scene.add(model.root);
         const fake = { vel: { x: 0, y: 0, z: 0 }, onGround: true, dashT: 0, spearCd: 0, slamming: false, swingT: 0, parryT: 0, glide: false, pitch: 0, bigScale: 1, stunT: 0, alive: true };
@@ -191,7 +191,8 @@ export class Game {
     makeFighter(i, opts) {
         const f = new Fighter({ id: i, team: i, ...opts });
         this.fighters.push(f);
-        const model = new CharacterModel(f.skinId, TEAM_COLORS[i % TEAM_COLORS.length]);
+        f.glowId = opts.glowId || 'sun';
+        const model = new CharacterModel(f.skinId, TEAM_COLORS[i % TEAM_COLORS.length], f.glowId);
         this.scene.add(model.root);
         this.models.push(model);
         this.intents.push(makeIntent());
@@ -215,7 +216,7 @@ export class Game {
             f.skinId = skin;
             this.scene.remove(this.models[i].root);
             this.models[i].dispose();
-            this.models[i] = new CharacterModel(skin, TEAM_COLORS[i % TEAM_COLORS.length]);
+            this.models[i] = new CharacterModel(skin, TEAM_COLORS[i % TEAM_COLORS.length], f.glowId);
             this.scene.add(this.models[i].root);
         }
         this.brains[i] = new BotBrain(f, level, this);
@@ -238,7 +239,8 @@ export class Game {
             name: BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)],
             isBot: true, botLevel: level, dmgMult: L.damage, speedMult: L.speed,
             classId: CLASS_IDS[Math.floor(Math.random() * CLASS_IDS.length)],
-            skinId: skins[Math.floor(Math.random() * skins.length)]
+            skinId: skins[Math.floor(Math.random() * skins.length)],
+            glowId: pickOne(Object.keys(GLOWS))
         };
     }
 
@@ -271,10 +273,10 @@ export class Game {
         let me;
         if (opts.mode === 'online') {
             opts.roster.forEach((r, i) => {
-                const f = this.makeFighter(i, { name: r.name, classId: r.classId, skinId: r.skinId, isLocal: i === opts.localIndex });
+                const f = this.makeFighter(i, { name: r.name, classId: r.classId, skinId: r.skinId, glowId: GLOWS[r.glowId] ? r.glowId : 'sun', isLocal: i === opts.localIndex });
                 if (i === opts.localIndex) me = f;
             });
-        } else me = this.makeFighter(0, { name: profile.name, isLocal: true, classId: profile.classId, skinId: profile.skinId });
+        } else me = this.makeFighter(0, { name: profile.name, isLocal: true, classId: profile.classId, skinId: profile.skinId, glowId: profile.glowId });
         this.local = me;
         if (opts.mode === 'training') {
             const d = this.makeFighter(1, { name: 'Training Dummy', isBot: true, botLevel: 'dummy', classId: 'normal', skinId: 'skeleton', dmgMult: 0.5 });
@@ -301,7 +303,7 @@ export class Game {
 
         this.look.yaw = me.yaw; this.look.pitch = me.pitch;
         if (this.viewModel) this.viewModel.dispose();
-        this.viewModel = new ViewModel(profile.skinId);
+        this.viewModel = new ViewModel(profile.skinId, profile.glowId);
         this.viewModel.setAspect(this.width / this.height);
         this.state = 'intro';
         this.introT = opts.mode === 'training' ? 0.01 : 3;

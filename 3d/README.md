@@ -33,6 +33,11 @@ Once this branch is merged, GitHub Pages serves it at `https://silverninja71.git
 - **Training**: a 7-step tutorial (skippable), then free practice on a dummy.
 - **Online**: rooms for up to 4 friends with a room code or a `?room=CODE` link (GitHub Pages copy only).
 
+## Progression
+Gold and XP come from every match (the same save and rules as the 2D game). Spend gold on skins and weapon
+glows (Frost, Ember, Verdant, Void). Classes unlock as you level up. Three daily missions pay extra gold, and Arena RP
+moves you up from Bronze to Obsidian (these tiers also award the shared trophies).
+
 ## Maps
 - **Sky Colosseum**: a round stone colosseum with a ring of tall and broken pillars, four floating monoliths, a wind geyser in the middle, and four islands on jump pads.
 - **Sky Ruins**: a raised dais with stairs and the geyser on top, stone arches with perches on top, three high monoliths, and islands on the diagonals.

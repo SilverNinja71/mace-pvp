@@ -39,7 +39,7 @@ export class OnlineRoom {
         this.onClosed = null;         // (reason) => void
     }
 
-    me() { return { name: profile.name, classId: profile.classId, skinId: profile.skinId }; }
+    me() { return { name: profile.name, classId: profile.classId, skinId: profile.skinId, glowId: profile.glowId }; }
 
     // ---------------- rooms ----------------
     host(onReady) {
@@ -139,7 +139,7 @@ export class OnlineRoom {
         if (!this.isHost || this.guests.size === 0) return false;
         const roster = [{ ...this.me() }];
         let i = 1;
-        for (const g of this.guests.values()) { g.fighterId = i++; roster.push({ name: g.name, classId: g.classId, skinId: g.skinId }); }
+        for (const g of this.guests.values()) { g.fighterId = i++; roster.push({ name: g.name, classId: g.classId, skinId: g.skinId, glowId: g.glowId }); }
         const kos = roster.length === 2 ? MATCH.duelKOs : MATCH.brawlKOs;
         const layout = Math.random() < 0.5 ? 'colosseum' : 'ruins';
         const theme = ['sunset', 'sunset', 'night', 'storm'][Math.floor(Math.random() * 4)];
@@ -232,7 +232,7 @@ export class OnlineRoom {
         if (!gu || !m || typeof m !== 'object') return;
         const g = this.game;
         if (m.t === 'hello') {
-            gu.name = cleanName(m.name); gu.classId = String(m.classId || 'normal'); gu.skinId = String(m.skinId || 'steve');
+            gu.name = cleanName(m.name); gu.classId = String(m.classId || 'normal'); gu.skinId = String(m.skinId || 'steve'); gu.glowId = String(m.glowId || 'sun');
             this.pushLobby();
             return;
         }

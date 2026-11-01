@@ -4,7 +4,7 @@
 // ==========================================
 
 import { CLASSES, CLASS_LEVEL, SPEAR, PARRY, TEAM_COLORS, BOT_LEVELS } from './config.js';
-import { SKINS } from './character.js';
+import { SKINS, GLOWS } from './character.js';
 import { slamDamage } from './combat.js';
 import { profile } from './profile.js';
 import { audio } from './audio.js';
@@ -295,6 +295,26 @@ export class UI {
                 this.refreshProfile();
             });
             sl.appendChild(b);
+        }
+        const gl = $('glow-list');
+        gl.innerHTML = '';
+        for (const id in GLOWS) {
+            const G = GLOWS[id];
+            const owned = profile.glows.includes(id);
+            const b = document.createElement('button');
+            b.className = 'pick' + (profile.glowId === id ? ' on' : '') + (owned ? '' : ' locked');
+            b.innerHTML = `<i style="background:#${G.tip.toString(16).padStart(6, '0')};box-shadow:0 0 6px #${G.halo.toString(16).padStart(6, '0')}"></i>${esc(G.name)}${owned ? '' : ` <small>🪙${G.cost}</small>`}`;
+            b.addEventListener('click', () => {
+                if (!owned) {
+                    if (!profile.buyGlow(id, G.cost)) { this.toast(`You need ${G.cost} gold. Win matches to earn more!`); return; }
+                    this.toast(`Unlocked the ${G.name} glow!`);
+                } else profile.setGlow(id);
+                audio.play('click');
+                this.renderFighter();
+                this.refreshProfile();
+                this.game.refreshShowcase();
+            });
+            gl.appendChild(b);
         }
         $('name-input').value = p.username || '';
         $('name-msg').textContent = '';
