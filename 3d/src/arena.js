@@ -511,8 +511,13 @@ export class Arena {
         for (const o of [this.group, this.sky, this.clouds, this.dust]) {
             if (!o) continue;
             this.scene.remove(o);
-            o.traverse((n) => { if (n.geometry) n.geometry.dispose(); });
+            o.traverse((n) => {
+                if (n.geometry) n.geometry.dispose();
+                // materials made for this arena (shared cached textures like the glow sprite stay)
+                if (n.material && n !== this.sky && !n.isSprite && n.material !== vertexToon()) n.material.dispose();
+            });
         }
+        if (this.geyserTex) this.geyserTex.dispose();
     }
 
     setPointScale(heightPx) {
