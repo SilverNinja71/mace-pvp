@@ -509,7 +509,11 @@ export class UI {
         this.set('hpt', $('hp-text'), 'text', String(hp));
         this.set('hpl', $('hp-fill'), 'class:low', me.hp < me.maxHp * 0.3);
         this.set('hpn', $('hp-name'), 'text', me.name);
-        this.set('hpc', $('hp-class'), 'text', CLASSES[me.classId].name + (me.big ? ' (BIG)' : '') + (me.invisible ? ' (hidden)' : ''));
+        let cls = CLASSES[me.classId].name;
+        if (me.classId === 'shadow') cls += me.invisible ? ` · hidden ${Math.ceil(me.invisT)}s` : ` · vanish in ${Math.ceil(CLASSES.shadow.visibleTime - me.visibleT)}s`;
+        else if (me.classId === 'void') cls += ` · blink in ${Math.max(0, Math.ceil(me.voidT))}s`;
+        else if (me.classId === 'buddha') cls += me.big ? ' · BIG (B)' : ' · B to grow';
+        this.set('hpc', $('hp-class'), 'text', cls);
         let st = '';
         if (me.slowT > 0) st += '<span style="color:#5aa0ff">SLOW</span>';
         if (me.poisonT > 0) st += '<span style="color:#5ce65c">POISON</span>';
