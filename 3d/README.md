@@ -40,6 +40,7 @@ moves you up from Bronze to Obsidian (these tiers also award the shared trophies
 
 ## Maps
 - **Sky Colosseum**: a round stone colosseum with a ring of tall and broken pillars, four floating monoliths, a wind geyser in the middle, and four islands on jump pads.
+- **Sky Spires**: a smaller disc with four stone spires of rising height (up to 13 m), joined by floating stepping stones. The tallest spire is the place for huge slams.
 - **Sky Ruins**: a raised dais with stairs and the geyser on top, stone arches with perches on top, three high monoliths, and islands on the diagonals.
 
 Each map comes at sunset, at night under the stars, or in a thunderstorm. New players start in the Colosseum at sunset.

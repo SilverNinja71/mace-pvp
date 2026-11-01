@@ -150,7 +150,7 @@ export class OnlineRoom {
         let i = 1;
         for (const g of this.guests.values()) { g.fighterId = i++; roster.push({ name: g.name, classId: g.classId, skinId: g.skinId, glowId: g.glowId }); }
         const kos = roster.length === 2 ? MATCH.duelKOs : MATCH.brawlKOs;
-        const layout = Math.random() < 0.5 ? 'colosseum' : 'ruins';
+        const layout = ['colosseum', 'ruins', 'spires'][Math.floor(Math.random() * 3)];
         const theme = ['sunset', 'sunset', 'night', 'storm'][Math.floor(Math.random() * 4)];
         for (const [, g] of this.guests) g.conn.send({ t: 'start', roster, you: g.fighterId, kos, layout, theme, mode: this.matchMode });
         this.begin(roster, 0, kos, layout, theme, this.matchMode);
@@ -165,7 +165,7 @@ export class OnlineRoom {
         this.lastState = roster.map(() => 0);
         this.ui.closeAllPanels();
         this.game.startMatch({ mode: mode === 'hill' ? 'hill' : 'online', roster, localIndex: you, kos, remote: this,
-            layout: layout === 'ruins' ? 'ruins' : 'colosseum', theme: ['sunset', 'night', 'storm'].includes(theme) ? theme : 'sunset' });
+            layout: ['ruins', 'spires'].includes(layout) ? layout : 'colosseum', theme: ['sunset', 'night', 'storm'].includes(theme) ? theme : 'sunset' });
     }
 
     // ---------------- per frame ----------------

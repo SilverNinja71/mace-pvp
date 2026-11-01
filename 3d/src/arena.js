@@ -26,6 +26,7 @@ export const GEYSER_VEL = 29.5;
 // Island angles (radians), distances and heights for each layout
 export const LAYOUTS = {
     colosseum: { name: 'Sky Colosseum', centerR: 24, angles: [0, Math.PI / 2, Math.PI, Math.PI * 1.5], dist: [40, 40, 40, 40], heights: [2, 6, 2, 9] },
+    spires:    { name: 'Sky Spires',    centerR: 18, angles: [0, Math.PI / 2, Math.PI, Math.PI * 1.5], dist: [34, 36, 34, 36], heights: [4, 1, 6, 2] },
     ruins:     { name: 'Sky Ruins',     centerR: 21, angles: [Math.PI / 4, Math.PI * 0.75, Math.PI * 1.25, Math.PI * 1.75], dist: [37, 41, 37, 41], heights: [3, 8, 3, 1] }
 };
 
@@ -59,6 +60,7 @@ export class Arena {
         const glow = new GeoBatch();
 
         if (this.layout === 'ruins') this.buildRuins(solid, glow);
+        else if (this.layout === 'spires') this.buildSpires(solid, glow);
         else this.buildColosseum(solid, glow);
 
         // ---------- islands ----------
@@ -312,6 +314,53 @@ export class Arena {
         // the geyser on top of the dais
         solid.addAt(new THREE.CylinderGeometry(GEYSER_R + 0.35, GEYSER_R + 0.5, 0.25, 20), 0, H + 0.12, 0, PAL.stoneDark, 0.04);
         glow.addAt(new THREE.CylinderGeometry(GEYSER_R, GEYSER_R, 0.06, 20), 0, H + 0.26, 0, 0x8af3ff);
+    }
+
+    // Layout 3: Sky Spires - a small disc with four stone spires of rising height,
+    // joined by floating stepping stones that spiral up to the tallest
+    buildSpires(solid, glow) {
+        const ph = this.physics;
+        const R = this.centerR;
+        ph.addCylinder(0, 0, R, -6, 0, 'center');
+        solid.addAt(new THREE.CylinderGeometry(R, R, 1.2, 36, 1), 0, -0.6, 0, PAL.tileA, 0.05);
+        solid.addAt(rockCone(R * 0.98, 14, 12, 13), 0, -1.2, 0, PAL.rock, 0.12);
+        const ring = (r0, r1, y, color, seg = 36) => {
+            const g = new THREE.RingGeometry(r0, r1, seg, 1);
+            g.rotateX(-Math.PI / 2);
+            solid.addAt(g, 0, y, 0, color, 0.03);
+        };
+        ring(GEYSER_R + 0.2, 7, 0.012, PAL.tileB);
+        ring(7, 7.5, 0.014, PAL.gold);
+        ring(R - 0.7, R, 0.016, PAL.stoneDark);
+        const heights = [4, 7, 10, 13];
+        const tops = [];
+        for (let i = 0; i < 4; i++) {
+            const a = Math.PI / 4 + i * Math.PI / 2;
+            const x = Math.cos(a) * 10.5, z = Math.sin(a) * 10.5, h = heights[i];
+            ph.addCylinder(x, z, 2.4, 0, h, 'spire');
+            solid.addAt(new THREE.CylinderGeometry(2.3, 2.8, h, 7, 1), x, h / 2, z, PAL.stone, 0.08, a);
+            solid.addAt(new THREE.CylinderGeometry(3.1, 2.6, 0.6, 9, 1), x, h - 0.3, z, PAL.stoneDark, 0.06, a);
+            ph.addCylinder(x, z, 3.1, h - 0.6, h, 'spire-top');
+            glow.addAt(new THREE.CylinderGeometry(3.14, 3.14, 0.08, 18), x, h - 0.35, z, i === 3 ? 0xd2b8ff : 0x6fe7ff);
+            if (i === 3) glow.addAt(new THREE.OctahedronGeometry(0.5, 0), x, h + 2.2, z, 0xd2b8ff, 0, 0, 1, 1.8, 1);
+            tops.push({ x, z, h, a });
+        }
+        // stepping stones: from the floor up to the first spire, then between each spire and the next
+        const stone = (x, y, z, s = 1.6) => {
+            ph.addBox(x - s / 2, y - 0.5, z - s / 2, x + s / 2, y, z + s / 2, 'stone');
+            solid.addAt(new THREE.BoxGeometry(s, 0.5, s), x, y - 0.25, z, PAL.stoneDark, 0.08);
+            solid.addAt(rockCone(s * 0.55, 1.2, 5, Math.round(x * 7 + z)), x, y - 0.5, z, PAL.rock, 0.12);
+        };
+        const t0 = tops[0];
+        stone(Math.cos(t0.a + 0.5) * 7.2, 2, Math.sin(t0.a + 0.5) * 7.2);
+        for (let i = 0; i < 3; i++) {
+            const a = tops[i].a + Math.PI / 4, b = tops[i + 1];
+            const y = (tops[i].h + b.h) / 2;
+            stone(Math.cos(a) * 11.5, y, Math.sin(a) * 11.5, 1.8);
+        }
+        // the geyser
+        solid.addAt(new THREE.CylinderGeometry(GEYSER_R + 0.35, GEYSER_R + 0.5, 0.25, 20), 0, 0.12, 0, PAL.stoneDark, 0.04);
+        glow.addAt(new THREE.CylinderGeometry(GEYSER_R, GEYSER_R, 0.06, 20), 0, 0.26, 0, 0x8af3ff);
     }
 
     addTree(batch, x, y, z, seed, s = 1) {
