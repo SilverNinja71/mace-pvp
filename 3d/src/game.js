@@ -318,7 +318,11 @@ export class Game {
         crazyGames.setGameplay(true);
         audio.setIntensity(opts.mode === 'training' ? 0 : 1);
         this.arena.setTheme(this.matchTheme, this.scene, this.hemi, this.sun);
-        this.ui.banner(this.arena.name, this.matchTheme === 'night' ? 'Starry night' : this.matchTheme === 'storm' ? 'Thunderstorm' : 'Sunset', '#bfe8ff', 2.4);
+        // the map's name, and how to win this mode
+        const goal = { quick: `First to ${this.modeDef.kos} knockouts`, duel: `First to ${this.modeDef.kos} knockouts`, brawl: `First to ${this.modeDef.kos} knockouts`,
+            online: `First to ${this.modeDef.kos} knockouts`, hill: `Hold the glowing zone · first to ${this.modeDef.hill}`, stand: '2 lives each · last one standing',
+            gauntlet: 'One life · survive the waves', training: 'Practice your moves' }[this.mode] || '';
+        this.ui.banner(this.arena.name, goal, '#bfe8ff', 2.8);
         this.timeScale = 1;
     }
 
