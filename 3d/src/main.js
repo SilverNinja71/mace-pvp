@@ -7,6 +7,7 @@ import { UI } from './ui.js';
 import { Game } from './game.js';
 import { audio } from './audio.js';
 import { crazyGames } from './crazygames.js';
+import { OnlineRoom, onlineAvailable } from './online.js';
 
 const canvas = document.getElementById('game');
 const input = new InputController(canvas, document.getElementById('touch'));
@@ -35,8 +36,16 @@ const unlockAudio = () => audio.unlock();
 window.addEventListener('pointerdown', unlockAudio);
 window.addEventListener('keydown', unlockAudio);
 
-// online rooms are added by online.js when it's present
-document.querySelectorAll('.online-only').forEach((el) => el.classList.add('hidden'));
+// online rooms (not in the CrazyGames build)
+if (onlineAvailable()) {
+    const room = new OnlineRoom(game, ui);
+    ui.bindOnline(room);
+    let code = null;
+    try { code = new URLSearchParams(location.search).get('room'); } catch (e) { /* no URL */ }
+    if (code && /^[A-Z0-9]{4,8}$/i.test(code)) setTimeout(() => ui.joinFromLink(code.toUpperCase()), 50);
+} else {
+    document.querySelectorAll('.online-only').forEach((el) => el.classList.add('hidden'));
+}
 
 crazyGames.init();
 document.getElementById('loading').classList.add('hidden');

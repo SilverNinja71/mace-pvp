@@ -28,6 +28,7 @@ def must_sub(pattern, repl, text):
 
 html = open(os.path.join(GAME, 'index.html'), encoding='utf-8').read()
 html = must_sub(r'<!-- shared accounts[^\n]*\n<script>if \(!window\.SMA_ON_CRAZYGAMES[^\n]*\n', '', html)
+html = must_sub(r'<!-- PeerJS[^\n]*\n<script>if \(!window\.SMA_ON_CRAZYGAMES[^\n]*\n', '', html)
 html = must_sub(r'(<script>\n  // On CrazyGames)', '<script>window.SMA_ON_CRAZYGAMES = true; window.SMA_OFFLINE = true;</script>\n\\1', html)
 if '"./lib/three/' not in html:
     sys.exit('build-crazygames: the import map must point at ./lib/three/ (a bare lib/ is ignored)')
@@ -35,7 +36,7 @@ if '"./lib/three/' not in html:
 shutil.rmtree(OUT, ignore_errors=True)
 os.makedirs(OUT)
 for d in ('src', 'lib', 'fonts'):
-    shutil.copytree(os.path.join(GAME, d), os.path.join(OUT, d))
+    shutil.copytree(os.path.join(GAME, d), os.path.join(OUT, d), ignore=shutil.ignore_patterns('peerjs'))
 for f in ('style.css', 'favicon.svg'):
     shutil.copy(os.path.join(GAME, f), os.path.join(OUT, f))
 open(os.path.join(OUT, 'index.html'), 'w', encoding='utf-8').write(html)

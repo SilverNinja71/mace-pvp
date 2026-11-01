@@ -52,7 +52,10 @@ export class UI {
         click($('btn-quit'), () => { $('pause').classList.add('hidden'); this.leaveMatch(); });
         click($('btn-pause-touch'), () => g.pause());
         click($('click-to-play'), () => { g.input.requestLock(); });
-        click($('res-again'), () => this.afterResults(() => this.start(this.lastStart)));
+        click($('res-again'), () => this.afterResults(() => {
+            if (this.game.mode === 'online') { const r = this.room; g.quitToMenu(); if (r) this.openPanel('online'); return; }
+            this.start(this.lastStart);
+        }));
         click($('res-menu'), () => this.afterResults(() => g.quitToMenu()));
         click($('res-revive'), () => this.watchRevive());
         click($('btn-revive'), () => this.watchRevive());
@@ -110,6 +113,60 @@ export class UI {
             if (ok) this.game.revive();
             else this.toast("The ad couldn't play, so no revive this time.");
         });
+    }
+
+    // ---------------- online rooms ----------------
+    bindOnline(room) {
+        this.room = room;
+        const g = this.game;
+        const status = (t) => { $('online-status').textContent = t || ''; };
+        room.onStatus = status;
+        room.onLobby = (list, isHost) => {
+            $('room-info').classList.remove('hidden');
+            $('room-code').textContent = room.code;
+            $('room-link').value = room.inviteLink();
+            $('room-players').innerHTML = list.map((n, i) => `${i === 0 ? '👑 ' : ''}${esc(n)}`).join(' · ') + (list.length < 2 ? ' — waiting for a friend…' : '');
+            $('btn-room-start').classList.toggle('hidden', !isHost);
+            $('btn-room-start').disabled = list.length < 2;
+            if (!isHost) status('Connected! Waiting for the host to start the match.');
+        };
+        room.onClosed = (reason, wasPlaying) => {
+            if (wasPlaying && g.state !== 'menu' && g.state !== 'over') { g.quitToMenu(); }
+            $('room-info').classList.add('hidden');
+            if (reason) { this.toast(reason); status(reason); }
+        };
+        $('btn-host').addEventListener('click', () => {
+            audio.unlock(); audio.play('click');
+            status('Making a room…');
+            room.host((code) => {
+                status('Room ready! Send your friend the link or the code.');
+                crazyGames.showInvite(code);
+            });
+        });
+        const join = () => {
+            const code = $('room-input').value.trim().toUpperCase();
+            if (code.length < 4) { status('Type the room code your friend sent you.'); return; }
+            status('Joining ' + code + '…');
+            room.join(code, () => status('Connected! Waiting for the host to start the match.'));
+        };
+        $('btn-join').addEventListener('click', () => { audio.unlock(); audio.play('click'); join(); });
+        $('room-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') join(); });
+        $('btn-copy').addEventListener('click', () => {
+            const t = $('room-link');
+            t.select();
+            const done = () => this.toast('Invite link copied!');
+            if (navigator.clipboard) navigator.clipboard.writeText(t.value).then(done, () => { document.execCommand('copy'); done(); });
+            else { document.execCommand('copy'); done(); }
+        });
+        $('btn-room-start').addEventListener('click', () => { audio.play('click'); if (!room.startMatch()) status('Wait for a friend to join first.'); });
+        $('online-back').addEventListener('click', () => { if (!room.inMatch) { room.leave(true); $('room-info').classList.add('hidden'); status(''); } });
+    }
+
+    joinFromLink(code) {
+        this.openPanel('online');
+        $('room-input').value = code;
+        $('online-status').textContent = 'Joining ' + code + '…';
+        this.room.join(code, () => { $('online-status').textContent = 'Connected! Waiting for the host to start the match.'; });
     }
 
     // ---------------- panels ----------------

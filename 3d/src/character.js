@@ -50,7 +50,10 @@ function faceTexture(id) {
 
 // ---------- weapons ----------
 const WEAPON_MATS = {};
-function wm(key, make) { return WEAPON_MATS[key] || (WEAPON_MATS[key] = make()); }
+function wm(key, make) {
+    if (!WEAPON_MATS[key]) { WEAPON_MATS[key] = make(); WEAPON_MATS[key].userData.shared = true; }
+    return WEAPON_MATS[key];
+}
 
 export function buildSpear(scale = 1) {
     const g = new THREE.Group();
@@ -226,10 +229,15 @@ export class CharacterModel {
         this.blob.position.y = 0.03;
         this.root.add(this.blob);
 
+        this.mats.push(faceMat);
         this.walkPhase = 0;
         this.squash = 1;
         this.opacity = 1;
+        this.flashT = 0;
     }
+
+    // White flash when hit
+    flash() { this.flashT = 0.14; }
 
     setOpacity(o) {
         if (Math.abs(o - this.opacity) < 0.01) return;
@@ -297,6 +305,16 @@ export class CharacterModel {
         this.body.rotation.z = f.stunT > 0 ? Math.sin(time * 30) * 0.08 : 0;
         // spear tip glows during dashes
         this.spear.userData.glow.material.opacity = f.dashT > 0 ? 0.9 : 0.35;
+        if (this.flashT > 0 || this.flashOn) {
+            this.flashT = Math.max(0, this.flashT - dt);
+            const k = this.flashT / 0.14 * 0.85;
+            this.root.traverse((n) => {
+                if (!n.isMesh) return;
+                const ms = Array.isArray(n.material) ? n.material : [n.material];
+                for (const m of ms) if (m.emissive && !m.userData.shared) m.emissive.setRGB(k, k, k);
+            });
+            this.flashOn = this.flashT > 0;
+        }
     }
 
     land(impact) {

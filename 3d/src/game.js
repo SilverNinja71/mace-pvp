@@ -33,6 +33,7 @@ const QUALITY = {
 };
 
 const _v = new THREE.Vector3();
+const GUEST_SENDS = new Set(['jump', 'windJump', 'dash', 'slamStart', 'swing', 'parryUp', 'land', 'pad', 'geyser', 'grow', 'vanish', 'reveal', 'blinkOut', 'blinkIn']);
 const TUTORIAL_MOVES = new Set(['jump', 'windJump', 'dash', 'slamStart', 'swing', 'parryUp', 'land']);
 
 export class Game {
@@ -202,6 +203,8 @@ export class Game {
         this.mode = opts.mode;
         this.level = opts.level || 'normal';
         this.modeDef = MODES[opts.mode];
+        this.remote = opts.remote || null;
+        if (opts.mode === 'online') this.modeDef = { ...MODES.online, kos: opts.kos || MATCH.duelKOs, time: opts.roster.length > 2 ? MATCH.timeLimit + 60 : MATCH.timeLimit };
         this.time = 0;
         this.acc = 0;
         this.matchT = 0;
@@ -211,7 +214,13 @@ export class Game {
         this.killfeed = [];
         this.wave = 0;
 
-        const me = this.makeFighter(0, { name: profile.name, isLocal: true, classId: profile.classId, skinId: profile.skinId });
+        let me;
+        if (opts.mode === 'online') {
+            opts.roster.forEach((r, i) => {
+                const f = this.makeFighter(i, { name: r.name, classId: r.classId, skinId: r.skinId, isLocal: i === opts.localIndex });
+                if (i === opts.localIndex) me = f;
+            });
+        } else me = this.makeFighter(0, { name: profile.name, isLocal: true, classId: profile.classId, skinId: profile.skinId });
         this.local = me;
         if (opts.mode === 'training') {
             const d = this.makeFighter(1, { name: 'Training Dummy', isBot: true, botLevel: 'dummy', classId: 'normal', skinId: 'skeleton', dmgMult: 0.5 });
@@ -221,10 +230,8 @@ export class Game {
         } else if (opts.mode !== 'online') {
             for (let i = 1; i <= this.modeDef.bots; i++) this.makeFighter(i, this.randomBotOpts(this.level));
         }
-        if (opts.remotes) for (const r of opts.remotes) this.makeFighter(this.fighters.length, r);
-
-        // spawns: duels face each other across the arena
-        const order = this.fighters.length <= 2 ? [2, 0] : shuffle([0, 1, 2, 3]);
+        // spawns: duels face each other across the arena (online, everyone must agree, so no shuffling)
+        const order = this.fighters.length <= 2 ? [2, 0] : (opts.mode === 'online' ? [0, 2, 1, 3] : shuffle([0, 1, 2, 3]));
         this.fighters.forEach((f, i) => {
             f.reset(this.arena.spawns[order[i % order.length]]);
             f.kos = 0; f.deaths = 0;
@@ -281,6 +288,14 @@ export class Game {
 
     pause() {
         if (this.state !== 'play' && this.state !== 'intro') return;
+        if (this.remote) {
+            // online matches keep going: just show the menu and free the mouse
+            this.overlayPause = true;
+            this.input.active = false;
+            this.input.exitLock();
+            this.ui.showPause(true);
+            return;
+        }
         this.prePause = this.state;
         this.state = 'paused';
         this.input.active = false;
@@ -290,6 +305,14 @@ export class Game {
     }
 
     resume() {
+        if (this.overlayPause) {
+            this.overlayPause = false;
+            this.input.active = true;
+            this.input.clear();
+            this.input.requestLock();
+            this.ui.showPause(false);
+            return;
+        }
         if (this.state !== 'paused') return;
         this.state = this.prePause || 'play';
         this.input.active = true;
@@ -305,7 +328,8 @@ export class Game {
         this.input.active = false;
         this.input.exitLock();
         crazyGames.setGameplay(false);
-        if (this.remote) { this.remote.leave(); this.remote = null; }
+        this.overlayPause = false;
+        if (this.remote) { const r = this.remote; this.remote = null; r.leave(true); }
         this.clearMatch();
         this.ui.showMenu();
     }
@@ -315,7 +339,10 @@ export class Game {
     emit(name, a, b, c, d, e, f2) {
         const fx = this.fx;
         const localInvolved = a === this.local || b === this.local;
-        if (this.remote && this.remote.isHost) this.remote.relayEvent(name, a, b, c, d, e, f2);
+        if (this.remote) {
+            if (this.remote.isHost) this.remote.relayEvent(name, a, b, c, d, e, f2);
+            else if (a === this.local && GUEST_SENDS.has(name)) this.remote.sendEvent(name, a, b);
+        }
         switch (name) {
             case 'jump':
                 fx.emit(a.pos.x, a.pos.y + 0.1, a.pos.z, 5, '#e8e2d0', 2.5, 0.09, 0.4, -6, 0.2);
@@ -362,6 +389,7 @@ export class Game {
                 if (e) fx.text(b.pos.x, b.pos.y + b.height + 1.1, b.pos.z, d === 'spearCrit' ? 'CRITICAL!' : 'CRUSHED!', col, true);
                 if (f2) { fx.bolt(b.pos.x, b.pos.y, b.pos.z); audio.play('bolt', b.pos); fx.text(b.pos.x, b.pos.y + b.height + 1.8, b.pos.z, 'LIGHTNING!', '#fff36e', true); }
                 audio.play(e ? 'crit' : 'hit', localInvolved ? null : b.pos, Math.min(1, c / 60));
+                if (this.models[b.id]) this.models[b.id].flash();
                 if (a === this.local) { this.ui.hitmarker(e); if (e || c >= 40) this.fx.shake(e ? 9 : 6, 0.25); }
                 if (b === this.local) { this.ui.hurt(c); this.fx.shake(Math.min(16, 5 + c * 0.15), 0.3); audio.play('hurt'); }
                 if (this.tutorial) this.tutorial.event('hit', a, b, c, d);
@@ -442,31 +470,13 @@ export class Game {
     knockOut(f, cause) {
         if (!f.alive) return;
         if (this.remote && !this.remote.isHost) return; // the host decides KOs
-        f.alive = false;
-        f.hp = 0;
-        f.cancelActions();
         f.deaths++;
         f.stats.deaths++;
         let killer = (f.lastHitBy && f.lastHitBy !== f && this.time - f.lastHitTime < HIT.koCreditTime) ? f.lastHitBy : null;
         if (!killer && this.fighters.length === 2 && this.mode !== 'training') killer = this.fighters[f.id === 0 ? 1 : 0];
         if (killer) { killer.kos++; killer.stats.kos++; }
-        const model = this.models[f.id];
-        if (cause !== 'void') {
-            const col = SKINS[f.skinId] ? SKINS[f.skinId].shirt : '#888';
-            this.fx.emit(f.pos.x, f.pos.y + 1, f.pos.z, 34, col, 9, 0.2, 0.9, -18, 0.6);
-            this.fx.emit(f.pos.x, f.pos.y + 1, f.pos.z, 14, '#ffffff', 7, 0.12, 0.6, -10, 0.6);
-            this.fx.ring(f.pos.x, f.pos.y + 1, f.pos.z, 0.3, 3, 0.5, '#ffffff', true, this.look.yaw);
-            if (model) model.root.visible = false;
-            audio.play('ko', f === this.local ? null : f.pos);
-        } else {
-            audio.play('voidFall', f === this.local ? null : f.pos);
-        }
-        this.shakeNear(f.pos, 8, 0.3);
         const causeText = cause === 'void' ? 'VOID' : (cause === 'slam' || cause === 'shock') ? 'SLAM' : cause === 'swing' ? 'MACE' : cause === 'dot' ? 'BURN' : 'SPEAR';
-        this.ui.killfeed(killer, f, causeText);
-        if (killer === this.local) this.ui.banner(cause === 'void' ? 'VOID KNOCKOUT!' : 'KNOCKOUT!', `${f.name}`, '#ffd54a', 1.4);
-        else if (f === this.local) this.ui.banner(cause === 'void' ? 'INTO THE VOID' : 'KNOCKED OUT', killer ? `by ${killer.name}` : '', '#ff6b5a', 1.6);
-        if (this.tutorial) this.tutorial.event('ko', killer, f);
+        this.koEffects(f, killer, causeText);
         if (this.remote && this.remote.isHost) this.remote.relayKO(f, killer, causeText);
 
         f.respawnT = MATCH.respawnTime;
@@ -488,6 +498,30 @@ export class Game {
             this.ui.offerRevive(true);
         }
         this.checkWin();
+    }
+
+    // What everyone sees when a fighter is knocked out (guests run this from the host's message)
+    koEffects(f, killer, causeText) {
+        f.alive = false;
+        f.hp = 0;
+        f.cancelActions();
+        f.respawnT = MATCH.respawnTime;
+        const model = this.models[f.id];
+        if (causeText !== 'VOID') {
+            const col = SKINS[f.skinId] ? SKINS[f.skinId].shirt : '#888';
+            this.fx.emit(f.pos.x, f.pos.y + 1, f.pos.z, 34, col, 9, 0.2, 0.9, -18, 0.6);
+            this.fx.emit(f.pos.x, f.pos.y + 1, f.pos.z, 14, '#ffffff', 7, 0.12, 0.6, -10, 0.6);
+            this.fx.ring(f.pos.x, f.pos.y + 1, f.pos.z, 0.3, 3, 0.5, '#ffffff', true, this.look.yaw);
+            if (model) model.root.visible = false;
+            audio.play('ko', f === this.local ? null : f.pos);
+        } else {
+            audio.play('voidFall', f === this.local ? null : f.pos);
+        }
+        this.shakeNear(f.pos, 8, 0.3);
+        this.ui.killfeed(killer, f, causeText);
+        if (killer === this.local) this.ui.banner(causeText === 'VOID' ? 'VOID KNOCKOUT!' : 'KNOCKOUT!', `${f.name}`, '#ffd54a', 1.4);
+        else if (f === this.local) this.ui.banner(causeText === 'VOID' ? 'INTO THE VOID' : 'KNOCKED OUT', killer ? `by ${killer.name}` : '', '#ff6b5a', 1.6);
+        if (this.tutorial) this.tutorial.event('ko', killer, f);
     }
 
     // Rewarded ad finished: undo the knockout and come back with full health
@@ -520,6 +554,7 @@ export class Game {
             if (d > bestD) { bestD = d; best = s; }
         }
         f.reset(best);
+        if (this.remote && this.remote.isHost) this.remote.relaySpawn(f);
         const m = this.models[f.id];
         if (m) m.root.visible = true;
         if (f === this.local) { this.look.yaw = f.yaw; this.look.pitch = f.pitch; }
@@ -560,6 +595,22 @@ export class Game {
         if (win) crazyGames.happytime();
         if (this.remote && this.remote.isHost) this.remote.relayEnd(ranked);
         this.ui.showResults({ win, ranked, local: this.local, reward, mode: this.mode, level: this.level });
+    }
+
+    // Guest: the host says the match is over
+    endMatchRemote(order) {
+        if (this.state === 'over') return;
+        this.state = 'over';
+        this.overlayPause = false;
+        this.ui.showPause(false);
+        this.input.active = false;
+        this.input.exitLock();
+        crazyGames.setGameplay(false);
+        const ranked = order.map(i => this.fighters[i]).filter(Boolean);
+        const win = ranked[0] === this.local;
+        const reward = profile.recordMatch(win, 'online', this.local.stats);
+        audio.play(win ? 'win' : 'lose');
+        this.ui.showResults({ win, ranked, local: this.local, reward, mode: 'online' });
     }
 
     gauntletOver() {
@@ -646,22 +697,24 @@ export class Game {
         this.time += dt;
         const playing = this.state === 'play';
         const fs = this.fighters;
+        const R = this.remote;
         for (let i = 0; i < fs.length; i++) {
             const f = fs[i], I = this.intents[i];
             if (f === this.local) {
-                if (this.state === 'over') { I.fwd = I.right = 0; I.jump = I.spear = I.mace = I.slam = I.parry = I.size = false; I.jumpHeld = false; }
+                if (this.state === 'over' || this.overlayPause) { I.fwd = I.right = 0; I.jump = I.spear = I.mace = I.slam = I.parry = I.size = false; I.jumpHeld = false; if (this.overlayPause) this.input.fill(this.scratchI || (this.scratchI = makeIntent())); }
                 else this.input.fill(I);
                 I.yaw = this.look.yaw; I.pitch = this.look.pitch;
+            } else if (R) {
+                // online: friends move themselves; the host extends their moves, guests draw the host's snapshots
+                if (R.isHost) R.advance(f, dt); else R.interpolate(f);
+                continue;
             } else if (this.brains[i]) {
                 this.brains[i].fill(I, dt);
-            } else if (this.remote) {
-                this.remote.fillIntent(f, I);
             }
             if (!playing && this.state !== 'over') {
                 // countdown: look around, but no moving yet
                 I.fwd = I.right = 0; I.jump = I.spear = I.mace = I.slam = I.parry = false; I.jumpHeld = false;
             }
-            if (this.remote && !this.remote.isHost && f !== this.local) continue; // guests: others come from snapshots
             f.step(I, dt, this);
         }
         if (!this.remote || this.remote.isHost) this.combat.step();
@@ -671,9 +724,9 @@ export class Game {
         for (const f of fs) {
             if (f.alive || f.respawnT === Infinity) continue;
             f.respawnT -= dt;
-            if (f.respawnT <= 0) {
+            if (f.respawnT <= 0 && !(this.remote && !this.remote.isHost)) {
                 if (f === this.local && this.reviveOffered) { this.reviveOffered = false; this.ui.offerRevive(false); }
-                if (!this.remote || this.remote.isHost) this.respawn(f);
+                this.respawn(f);
             }
         }
         // training dummy heals back up
@@ -693,7 +746,7 @@ export class Game {
         }
         // match clock
         const def = this.modeDef;
-        if (def.time) {
+        if (def.time && !(this.remote && !this.remote.isHost)) {
             this.matchT += dt;
             if (!this.suddenDeath && this.matchT >= def.time) {
                 if (this.tied()) {

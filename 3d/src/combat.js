@@ -120,6 +120,15 @@ export class Combat {
 
     // A slam hitting the floor: shockwave damage around the landing spot
     slamLand(a) {
+        const net = this.game.remote;
+        if (net && !net.isHost) {
+            // online guest: show the impact now, the host works out who it hit
+            const fall = a.apexY - a.pos.y, strength = Math.min(1, fall / 18);
+            this.game.emit('shockwave', a, strength, a.pos.y, MACE.shockRadius * (0.7 + strength * 0.5) * a.bigScale);
+            net.sendSlam(a);
+            a.apexY = a.pos.y;
+            return;
+        }
         const fall = a.apexY - a.pos.y;
         const strength = Math.min(1, fall / 18);
         const R = MACE.shockRadius * (0.7 + strength * 0.5) * a.bigScale;
@@ -162,6 +171,8 @@ export class Combat {
 
     // Like the mace in the original: a landed slam bounces you back up and resets your fall
     bounce(a) {
+        const R = this.game.remote;
+        if (R && R.isGuestFighter(a)) { a.slamming = false; a.vel.y = MACE.bounceVel; R.sendBody(a, 'bounce'); return; }
         a.slamming = false;
         a.onGround = false;
         a.vel.y = MACE.bounceVel;
@@ -203,6 +214,8 @@ export class Combat {
         d.vel.y = up * (0.85 + 0.25 * pressure);
         d.onGround = false;
         d.apexY = d.pos.y;
+        const R = g.remote;
+        if (R && R.isGuestFighter(d)) R.sendBody(d, 'hit');
 
         let bolt = false;
         if ((kind === 'slam' || kind === 'shock') && a.classId === 'lightning') {
@@ -253,6 +266,8 @@ export class Combat {
         a.vel.x = dx / l * PARRY.bounce; a.vel.z = dz / l * PARRY.bounce; a.vel.y = 6;
         a.onGround = false;
         a.apexY = a.pos.y;
+        const R = this.game.remote;
+        if (R && R.isGuestFighter(a)) R.sendBody(a, 'parry');
         d.parryT = 0;
         d.parryCd = 0;
         d.spearCd = 0;
@@ -275,6 +290,8 @@ export class Combat {
             f.spearCd = 0;
             f.airDashes = f.maxAirDashes;
         }
+        const R = this.game.remote;
+        if (R) { if (R.isGuestFighter(a)) R.sendBody(a, 'clash'); if (R.isGuestFighter(d)) R.sendBody(d, 'clash'); }
         midpoint(a, d, tmp);
         this.game.emit('clash', a, d, tmp.x, tmp.y, tmp.z);
         this.game.hitstop(0.07);

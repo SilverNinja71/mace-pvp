@@ -313,6 +313,9 @@ export class BotBrain {
             return;
         }
 
+        // Buddha bots grow big now and then (and shrink back)
+        if (f.classId === 'buddha' && f.onGround && Math.random() < dt * (f.big ? 0.08 : 0.15)) this.press.size = true;
+
         const chestY = s.y + 1.1;
         // spear dash in range, leading the target
         const dashRange = 8.5;
