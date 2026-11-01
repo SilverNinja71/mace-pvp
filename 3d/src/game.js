@@ -571,7 +571,14 @@ export class Game {
             this.fx.emit(f.pos.x, f.pos.y + 1, f.pos.z, 34, col, 9, 0.2, 0.9, -18, 0.6);
             this.fx.emit(f.pos.x, f.pos.y + 1, f.pos.z, 14, '#ffffff', 7, 0.12, 0.6, -10, 0.6);
             this.fx.ring(f.pos.x, f.pos.y + 1, f.pos.z, 0.3, 3, 0.5, '#ffffff', true, this.look.yaw);
-            if (model) model.root.visible = false;
+            // the fighter tumbles away spinning, then bursts
+            if (model && f !== this.local) {
+                const hit = f.lastHitBy;
+                let kx = f.vel.x, kz = f.vel.z;
+                if (hit && Math.hypot(kx, kz) < 2) { kx = f.pos.x - hit.pos.x; kz = f.pos.z - hit.pos.z; }
+                const l = Math.hypot(kx, kz) || 1;
+                f.koAnim = { t: 0, vx: kx / l * 9, vy: 7, vz: kz / l * 9, spin: (Math.random() < 0.5 ? -1 : 1) * 9 };
+            } else if (model) model.root.visible = false;
             audio.play('ko', f === this.local ? null : f.pos);
         } else {
             audio.play('voidFall', f === this.local ? null : f.pos);
@@ -857,6 +864,24 @@ export class Game {
             m.root.rotation.y = f === me ? this.look.yaw : lerpAngle(f.prevYaw, f.yaw, alpha);
             const firstPersonSelf = f === me && this.rig.mode === 'first';
             m.root.visible = f.alive && !firstPersonSelf;
+            if (!f.alive && f.koAnim) {
+                // knockout tumble
+                const k = f.koAnim;
+                k.t += dt;
+                m.root.position.set(f.pos.x + k.vx * k.t, f.pos.y + k.vy * k.t - 10 * k.t * k.t, f.pos.z + k.vz * k.t);
+                m.root.rotation.set(k.t * k.spin, m.root.rotation.y + dt * 4, k.t * k.spin * 0.6);
+                m.body.scale.setScalar(Math.max(0.05, 1 - k.t * 1.4));
+                m.root.visible = true;
+                if (k.t > 0.55) {
+                    const p = m.root.position;
+                    this.fx.emit(p.x, p.y + 0.8, p.z, 18, SKINS[f.skinId] ? SKINS[f.skinId].shirt : '#888', 7, 0.16, 0.7, -14, 0.5);
+                    this.fx.emit(p.x, p.y + 0.8, p.z, 10, '#ffffff', 5, 0.1, 0.5, -8, 0.5);
+                    m.root.visible = false;
+                    f.koAnim = null;
+                }
+                continue;
+            }
+            if (f.alive && m.root.rotation.x) { m.root.rotation.x = 0; m.root.rotation.z = 0; }
             if (f.alive && !firstPersonSelf) {
                 let op = 1;
                 if (f.invisible) op = f === me ? 0.35 : 0.08 + Math.random() * 0.04;

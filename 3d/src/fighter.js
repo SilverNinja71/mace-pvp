@@ -64,6 +64,7 @@ export class Fighter {
         this.padFlight = false; this.glide = false;
         this.padCd = 0;
         this.landImpact = 0;
+        this.koAnim = null;
         // class timers
         this.invisT = 0; this.visibleT = 0;
         this.voidT = this.classId === 'void' ? 6 + Math.random() * 6 : 0;
