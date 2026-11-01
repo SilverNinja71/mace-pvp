@@ -222,7 +222,9 @@ export class UI {
         $('pc-xp').style.width = (profile.levelProgress() * 100).toFixed(0) + '%';
         $('pc-gold').textContent = p.gold;
         $('pc-wins').textContent = p.stats.wins;
-        $('pc-rp').textContent = p.arenaRP || 0;
+        const rp = p.arenaRP || 0;
+        const tier = rp >= 2000 ? 'Obsidian' : rp >= 1500 ? 'Diamond' : rp >= 1000 ? 'Gold' : rp >= 500 ? 'Silver' : 'Bronze';
+        $('pc-rp').textContent = `${rp} (${tier})`;
         const c = CLASSES[p.classId];
         $('pc-class').textContent = `${c.name} · ${(SKINS[p.skinId] || SKINS.steve).name}`;
         $('missions-card').innerHTML = '<h5>DAILY MISSIONS</h5>' + missions.list().map(m =>

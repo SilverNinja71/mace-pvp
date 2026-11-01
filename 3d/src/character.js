@@ -5,7 +5,7 @@
 // ==========================================
 
 import * as THREE from 'three';
-import { toon, canvasTexture } from './gfx.js';
+import { toon, canvasTexture, toonRamp, GeoBatch } from './gfx.js';
 
 const SPEAR_RECOVER = 0.6; // spear cooldown left while the arm is still pulling back
 
@@ -55,77 +55,51 @@ function wm(key, make) {
     return WEAPON_MATS[key];
 }
 
+// Weapons are merged into a couple of meshes each (lit parts + glowing parts) to keep draw calls low
+const weaponLit = () => wm('wlit', () => new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonRamp() }));
+const weaponGlow = () => wm('wglow', () => new THREE.MeshBasicMaterial({ vertexColors: true }));
+
 export function buildSpear(scale = 1) {
     const g = new THREE.Group();
-    const silver = wm('silver', () => toon(0xdfe6ee));
-    const gold = wm('gold', () => new THREE.MeshBasicMaterial({ color: 0xffd54a }));
-    const wrap = wm('wrap', () => toon(0x3a6fb0));
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.036, 1.9, 6), silver);
-    shaft.rotation.x = Math.PI / 2;
-    shaft.position.z = -0.35;
-    g.add(shaft);
-    for (const z of [0.1, -0.05, 0.25]) {
-        const r = new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.046, 0.07, 6), wrap);
-        r.rotation.x = Math.PI / 2;
-        r.position.z = z;
-        g.add(r);
-    }
-    const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.1, 6), gold);
-    collar.rotation.x = Math.PI / 2;
-    collar.position.z = -1.28;
-    g.add(collar);
-    const tip = new THREE.Mesh(new THREE.OctahedronGeometry(0.11, 0), gold);
-    tip.scale.set(0.8, 0.8, 3.2);
-    tip.position.z = -1.6;
-    g.add(tip);
-    // the glow at the tip
-    const glow = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0), new THREE.MeshBasicMaterial({ color: 0xffe28a, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
-    glow.scale.set(1, 1, 3);
-    glow.position.z = -1.6;
-    g.add(glow);
-    g.userData.glow = glow;
+    const lit = new GeoBatch(), glow = new GeoBatch();
+    const R = Math.PI / 2;
+    lit.addAt(new THREE.CylinderGeometry(0.032, 0.036, 1.9, 6), 0, 0, -0.35, 0xdfe6ee, 0, 0, 1, 1, 1, R);
+    for (const z of [0.1, -0.05, 0.25]) lit.addAt(new THREE.CylinderGeometry(0.046, 0.046, 0.07, 6), 0, 0, z, 0x3a6fb0, 0, 0, 1, 1, 1, R);
+    glow.addAt(new THREE.CylinderGeometry(0.06, 0.05, 0.1, 6), 0, 0, -1.28, 0xffd54a, 0, 0, 1, 1, 1, R);
+    glow.addAt(new THREE.OctahedronGeometry(0.11, 0), 0, 0, -1.6, 0xffd54a, 0, 0, 0.8, 0.8, 3.2);
+    g.add(new THREE.Mesh(lit.build(), weaponLit()));
+    g.add(new THREE.Mesh(glow.build(), weaponGlow()));
+    // the soft glow around the tip (its own material: it brightens during dashes)
+    const halo = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0), new THREE.MeshBasicMaterial({ color: 0xffe28a, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
+    halo.scale.set(1, 1, 3);
+    halo.position.z = -1.6;
+    halo.material.userData.shared = true;
+    g.add(halo);
+    g.userData.glow = halo;
     g.scale.setScalar(scale);
     return g;
 }
 
 export function buildMace(scale = 1) {
     const g = new THREE.Group();
-    const wood = wm('wood', () => toon(0x6b4428));
-    const iron = wm('iron', () => toon(0x8c96a3));
-    const ironDark = wm('irond', () => toon(0x5c6470));
-    const rune = wm('rune', () => new THREE.MeshBasicMaterial({ color: 0x5ff3ff }));
-    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.75, 6), wood);
-    handle.position.y = 0.28;
-    g.add(handle);
-    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.2, 6), ironDark);
-    grip.position.y = -0.02;
-    g.add(grip);
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), iron);
-    head.position.y = 0.76;
-    g.add(head);
+    const lit = new GeoBatch(), glow = new GeoBatch();
+    lit.addAt(new THREE.CylinderGeometry(0.04, 0.045, 0.75, 6), 0, 0.28, 0, 0x6b4428);
+    lit.addAt(new THREE.CylinderGeometry(0.05, 0.05, 0.2, 6), 0, -0.02, 0, 0x5c6470);
+    lit.addAt(new THREE.BoxGeometry(0.3, 0.3, 0.3), 0, 0.76, 0, 0x8c96a3);
     // spikes on four sides and the top
-    const spike = new THREE.ConeGeometry(0.06, 0.16, 4);
     const dirs = [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]];
     for (const d of dirs) {
-        const s = new THREE.Mesh(spike, ironDark);
-        s.position.set(d[0] * 0.21, 0.76 + d[1] * 0.21, d[2] * 0.21);
-        if (d[0]) s.rotation.z = -d[0] * Math.PI / 2;
-        if (d[2]) s.rotation.x = d[2] * Math.PI / 2;
-        g.add(s);
+        lit.addAt(new THREE.ConeGeometry(0.06, 0.16, 4), d[0] * 0.21, 0.76 + d[1] * 0.21, d[2] * 0.21, 0x5c6470, 0, 0, 1, 1, 1,
+            d[2] ? d[2] * Math.PI / 2 : 0, d[0] ? -d[0] * Math.PI / 2 : 0);
     }
     // glowing runes on each face
     for (let i = 0; i < 4; i++) {
-        const r = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.035, 0.005), rune);
         const a = i * Math.PI / 2;
-        r.position.set(Math.sin(a) * 0.152, 0.79, Math.cos(a) * 0.152);
-        r.rotation.y = a;
-        g.add(r);
-        const r2 = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.12, 0.005), rune);
-        r2.position.set(Math.sin(a) * 0.152, 0.74, Math.cos(a) * 0.152);
-        r2.rotation.y = a;
-        g.add(r2);
+        glow.addAt(new THREE.BoxGeometry(0.16, 0.035, 0.005), Math.sin(a) * 0.152, 0.79, Math.cos(a) * 0.152, 0x5ff3ff, 0, a);
+        glow.addAt(new THREE.BoxGeometry(0.035, 0.12, 0.005), Math.sin(a) * 0.152, 0.74, Math.cos(a) * 0.152, 0x5ff3ff, 0, a);
     }
-    g.userData.head = head;
+    g.add(new THREE.Mesh(lit.build(), weaponLit()));
+    g.add(new THREE.Mesh(glow.build(), weaponGlow()));
     g.scale.setScalar(scale);
     return g;
 }
