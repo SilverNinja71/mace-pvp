@@ -459,6 +459,11 @@ export class Game {
                 audio.play(e ? 'crit' : 'hit', localInvolved ? null : b.pos, Math.min(1, c / 60));
                 if (this.models[b.id]) this.models[b.id].flash();
                 if (a === this.local) { this.ui.hitmarker(e); if (e || c >= 40) this.fx.shake(e ? 9 : 6, 0.25); }
+                if (b === this.local && a) {
+                    // which way the hit came from, relative to where we're looking
+                    const ang = Math.atan2(-(a.pos.x - b.pos.x), -(a.pos.z - b.pos.z)) - this.look.yaw;
+                    this.ui.damageFrom(-ang);
+                }
                 if (b === this.local) { this.ui.hurt(c); this.fx.shake(Math.min(16, 5 + c * 0.15), 0.3); audio.play('hurt'); this.input.rumble(Math.min(1, 0.3 + c / 80), 220); }
                 else if (a === this.local) this.input.rumble(e ? 0.6 : 0.25, e ? 160 : 90);
                 if (this.tutorial) this.tutorial.event('hit', a, b, c, d);
@@ -625,7 +630,14 @@ export class Game {
         }
         this.shakeNear(f.pos, 8, 0.3);
         this.ui.killfeed(killer, f, causeText);
-        if (killer === this.local) this.ui.banner(causeText === 'VOID' ? 'VOID KNOCKOUT!' : 'KNOCKOUT!', `${f.name}`, '#ffd54a', 1.4);
+        if (killer === this.local) {
+            // knockout streaks: several KOs close together
+            this.streak = (this.time - (this.lastKoTime || -99) < 9) ? (this.streak || 1) + 1 : 1;
+            this.lastKoTime = this.time;
+            const call = ['', '', 'DOUBLE KO!', 'TRIPLE KO!', 'UNSTOPPABLE!'][Math.min(4, this.streak)];
+            this.ui.banner(call || (causeText === 'VOID' ? 'VOID KNOCKOUT!' : 'KNOCKOUT!'), `${f.name}${call && causeText === 'VOID' ? ' · into the void' : ''}`, call ? '#ff9f1c' : '#ffd54a', 1.4);
+            if (call) audio.play('win');
+        }
         else if (f === this.local) this.ui.banner(causeText === 'VOID' ? 'INTO THE VOID' : 'KNOCKED OUT', killer ? `by ${killer.name}` : '', '#ff6b5a', 1.6);
         if (this.tutorial) this.tutorial.event('ko', killer, f);
     }

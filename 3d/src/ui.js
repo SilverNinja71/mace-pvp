@@ -468,6 +468,15 @@ export class UI {
         h.classList.add('show');
     }
 
+    // Points a red arc at where the hit came from (angle in radians, 0 = straight ahead)
+    damageFrom(angle) {
+        const d = $('dmgdir');
+        d.style.transform = `rotate(${angle.toFixed(3)}rad)`;
+        d.classList.add('show');
+        clearTimeout(this.dirTimer);
+        this.dirTimer = setTimeout(() => d.classList.remove('show'), 60);
+    }
+
     hurt() {
         const h = $('hurt');
         h.classList.remove('show');

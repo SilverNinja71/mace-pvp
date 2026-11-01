@@ -139,6 +139,10 @@ kbd { display: inline-block; padding: 0.05em 0.45em; margin: 0 0.15em; border-ra
 #hitmarker.show { animation: hm 0.28s ease-out; }
 #hitmarker.crit { background: linear-gradient(var(--gold), var(--gold)) center/3px 100% no-repeat, linear-gradient(var(--gold), var(--gold)) center/100% 3px no-repeat; }
 @keyframes hm { 0% { opacity: 1; transform: translate(-50%, -50%) rotate(45deg) scale(1.4); } 100% { opacity: 0; transform: translate(-50%, -50%) rotate(45deg) scale(1); } }
+#dmgdir { position: absolute; left: 50%; top: 50%; width: 0; height: 0; opacity: 0; transition: opacity 0.5s; }
+#dmgdir i { position: absolute; left: -45px; top: -140px; width: 90px; height: 22px; border-radius: 50% 50% 0 0;
+  border-top: 6px solid rgba(255, 70, 50, 0.9); filter: drop-shadow(0 0 6px rgba(255,60,40,0.8)); }
+#dmgdir.show { opacity: 1; transition: none; }
 #slam-meter { position: absolute; left: 50%; top: calc(50% + 28px); transform: translateX(-50%); text-align: center; opacity: 0; transition: opacity 0.12s;
   font-family: var(--title); text-shadow: 0 2px 0 rgba(0,0,0,0.6); line-height: 1; }
 #slam-meter b { display: block; font-size: 1.7em; color: var(--gold); }
