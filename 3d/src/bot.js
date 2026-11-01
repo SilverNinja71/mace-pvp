@@ -96,7 +96,7 @@ export class BotBrain {
             this.recover(dt);
             jumpHeld = this.jumpHold > 0;
         } else if (!this.dodge(dt) && t) {
-            this.engage(t, dt, ground);
+            if (!(g.mode === 'hill' && this.hill(t))) this.engage(t, dt, ground);
         } else if (!t) {
             // nobody to fight: drift toward the middle
             this.goToward(0, 0, 0.6);
@@ -161,6 +161,12 @@ export class BotBrain {
         I.fwd = this.moveX * -sy + this.moveZ * -cy;
         I.right = this.moveX * cy + this.moveZ * -sy;
         if (this.jumpHold > 0) { this.jumpHold -= dt; jumpHeld = true; }
+        // easier bots wait longer between attacks
+        this.attackT = (this.attackT || 0) - dt;
+        if ((P.spear || P.mace) && this.plan !== 'recover') {
+            if (this.attackT > 0) { P.spear = false; P.mace = false; }
+            else this.attackT = (L.interval || 1) * (0.7 + Math.random() * 0.6);
+        }
         I.jump = P.jump; I.jumpHeld = jumpHeld || P.jump;
         I.spear = P.spear; I.mace = P.mace; I.slam = false; I.parry = P.parry; I.size = P.size;
     }
@@ -368,6 +374,40 @@ export class BotBrain {
         // hop over gaps now and then to look alive
         if (f.onGround && Math.random() < 0.004) this.press.jump = true;
         void ground; void PHYS;
+    }
+
+    // King of the Hill: get onto the zone and hold it; fight whoever comes close
+    hill(t) {
+        const f = this.f, g = this.game, z = g.hillZone;
+        if (!z) return false;
+        const r = Math.hypot(f.pos.x, f.pos.z);
+        const near = Math.hypot(t.pos.x - f.pos.x, t.pos.z - f.pos.z) < 6 && Math.abs(t.pos.y - f.pos.y) < 4;
+        if (near && t.alive) return false;
+        if (g.inHill(f)) {
+            this.lookAt(t.pos.x, t.pos.y + 1.1, t.pos.z);
+            const l = r || 1;
+            this.moveX = -f.pos.z / l * this.strafe * 0.35;
+            this.moveZ = f.pos.x / l * this.strafe * 0.35;
+            if (r < 3) { this.moveX += f.pos.x / l; this.moveZ += f.pos.z / l; } // keep off the geyser
+            this.plan = 'hill';
+            return true;
+        }
+        const myZone = g.arena.zoneOf(f.pos.x, f.pos.z);
+        if (myZone > 0 && f.onGround) {
+            const pad = g.arena.padFor(myZone, 0);
+            if (!pad) return false;
+            this.plan = 'pad';
+            const d = this.goToward(pad.x, pad.z, 1);
+            this.lookAt(pad.tx, pad.ty + 1.5, pad.tz);
+            if (d < 0.4) { this.moveX = 0; this.moveZ = 0; }
+            return true;
+        }
+        if (myZone !== 0) return false;
+        const k = r > 0.1 ? 3.8 / r : 0;
+        this.goToward(f.pos.x * k + (r > 0.1 ? 0 : 3.8), f.pos.z * k, 1);
+        this.lookAt(t.pos.x, t.pos.y + 1.1, t.pos.z);
+        this.plan = 'hill';
+        return true;
     }
 
     // Would a spear dash along the current aim end over solid ground?

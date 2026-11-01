@@ -3,7 +3,7 @@
 // The HUD only touches the page when a value actually changes.
 // ==========================================
 
-import { CLASSES, SPEAR, PARRY, TEAM_COLORS, BOT_LEVELS } from './config.js';
+import { CLASSES, CLASS_LEVEL, SPEAR, PARRY, TEAM_COLORS, BOT_LEVELS } from './config.js';
 import { SKINS } from './character.js';
 import { slamDamage } from './combat.js';
 import { profile } from './profile.js';
@@ -44,10 +44,12 @@ export class UI {
         document.querySelectorAll('[data-start]').forEach((b) => click(b, () => {
             const m = b.getAttribute('data-start');
             this.closeAllPanels();
-            this.start({ mode: m, level: m === 'duel' ? this.duelLevel : m === 'brawl' ? this.brawlLevel : 'normal' });
+            this.start({ mode: m, level: m === 'duel' ? this.duelLevel : m === 'brawl' ? this.brawlLevel : m === 'hill' ? this.hillLevel : 'normal' });
         }));
         this.seg($('duel-level'), 'level', (v) => { this.duelLevel = v; });
         this.seg($('brawl-level'), 'level', (v) => { this.brawlLevel = v; });
+        this.hillLevel = 'normal';
+        this.seg($('hill-level'), 'level', (v) => { this.hillLevel = v; });
 
         click($('btn-resume'), () => g.resume());
         click($('btn-quit'), () => { $('pause').classList.add('hidden'); this.leaveMatch(); });
@@ -64,6 +66,7 @@ export class UI {
         }));
         click($('res-menu'), () => this.afterResults(() => g.quitToMenu()));
         click($('res-revive'), () => this.watchRevive());
+        click($('res-train'), () => this.afterResults(() => this.start({ mode: 'training' })));
         click($('res-double'), () => {
             const r = this.lastReward;
             if (!r || r.doubled) return;
@@ -234,7 +237,7 @@ export class UI {
         const rp = p.arenaRP || 0;
         const tier = rp >= 2000 ? 'Obsidian' : rp >= 1500 ? 'Diamond' : rp >= 1000 ? 'Gold' : rp >= 500 ? 'Silver' : 'Bronze';
         $('pc-rp').textContent = `${rp} (${tier})`;
-        const c = CLASSES[p.classId];
+        const c = CLASSES[profile.classId];
         $('pc-class').textContent = `${c.name} · ${(SKINS[p.skinId] || SKINS.steve).name}`;
         $('missions-card').innerHTML = '<h5>DAILY MISSIONS</h5>' + missions.list().map(m =>
             `<div class="mi${m.done ? ' done' : ''}"><span>${m.done ? '✓ ' : ''}${esc(m.text)}</span><b>${m.done ? 'done' : `${m.progress}/${m.goal} · 🪙${m.gold}`}</b></div>`).join('');
@@ -256,13 +259,17 @@ export class UI {
         for (const id in CLASSES) {
             const c = CLASSES[id];
             const b = document.createElement('button');
-            b.className = 'pick' + (p.classId === id ? ' on' : '');
-            b.innerHTML = `<i style="background:${c.color}"></i>${esc(c.name)}`;
-            b.addEventListener('click', () => { profile.setClass(id); audio.play('click'); this.renderFighter(); });
-            b.addEventListener('mouseenter', () => { $('class-desc').textContent = c.desc; });
+            const open = profile.classUnlocked(id);
+            b.className = 'pick' + (profile.classId === id ? ' on' : '') + (open ? '' : ' locked');
+            b.innerHTML = `<i style="background:${c.color}"></i>${esc(c.name)}${open ? '' : ` <small>🔒 Lv ${CLASS_LEVEL[id]}</small>`}`;
+            b.addEventListener('click', () => {
+                if (!open) { this.toast(`${c.name} unlocks at level ${CLASS_LEVEL[id]}. Play matches to level up!`); return; }
+                profile.setClass(id); audio.play('click'); this.renderFighter();
+            });
+            b.addEventListener('mouseenter', () => { $('class-desc').textContent = c.desc + (open ? '' : ` (Unlocks at level ${CLASS_LEVEL[id]}.)`); });
             cl.appendChild(b);
         }
-        $('class-desc').textContent = CLASSES[p.classId].desc;
+        $('class-desc').textContent = CLASSES[profile.classId].desc;
         const sl = $('skin-list');
         sl.innerHTML = '';
         for (const id in SKINS) {
@@ -382,6 +389,7 @@ export class UI {
             $('res-rewards').innerHTML = `<span>🪙 +${d.waves * 25} gold</span><span>✦ +${d.waves * 30 + 10} XP</span>`;
             rv.classList.toggle('hidden', !d.canRevive);
             $('res-double').classList.add('hidden');
+            $('res-train').classList.add('hidden');
         } else {
             t.textContent = d.win ? 'VICTORY!' : 'DEFEAT';
             t.className = d.win ? 'win' : 'lose';
@@ -390,7 +398,12 @@ export class UI {
             const r = d.reward;
             this.lastReward = r;
             $('res-double').classList.toggle('hidden', !(r && r.gold > 0 && crazyGames.adsAvailable));
-            $('res-rewards').innerHTML = r ? `<span>🪙 +${r.gold} gold</span><span>✦ +${r.xp} XP</span>${r.rp ? `<span>⚔ ${r.rp > 0 ? '+' : ''}${r.rp} RP</span>` : ''}${r.levelUps ? `<span>⬆ Level up! +${r.levelUps * 200} gold</span>` : ''}` : '';
+            $('res-rewards').innerHTML = r ? `<span>🪙 +${r.gold} gold</span><span>✦ +${r.xp} XP</span>${r.rp ? `<span>⚔ ${r.rp > 0 ? '+' : ''}${r.rp} RP</span>` : ''}${r.levelUps ? `<span>⬆ Level ${profile.data.level}! +${r.levelUps * 200} gold</span>` : ''}` : '';
+            if (r && r.levelUps && profile.newClasses && profile.newClasses.length) {
+                $('res-rewards').innerHTML += `<span>🔓 New class: ${profile.newClasses.map(esc).join(', ')}</span>`;
+                profile.newClasses = null;
+            }
+            $('res-train').classList.toggle('hidden', profile.tutorialDone || g.mode === 'training' || !!g.remote);
             rv.classList.add('hidden');
             for (const m of d.missions || []) $('res-rewards').innerHTML += `<span>✓ Mission: ${esc(m.text)} +${m.gold} gold</span>`;
         }
@@ -402,9 +415,10 @@ export class UI {
 
     statTable(list) {
         const g = this.game;
-        let h = '<table class="scores"><tr><th>Fighter</th><th>KOs</th><th>Falls</th><th>Damage</th><th>Slams</th><th>Spear hits</th><th>Best slam</th></tr>';
+        const hill = g.mode === 'hill';
+        let h = `<table class="scores"><tr><th>Fighter</th>${hill ? '<th>Hill</th>' : ''}<th>KOs</th><th>Falls</th><th>Damage</th><th>Slams</th><th>Spear hits</th><th>Best slam</th></tr>`;
         for (const f of list) {
-            h += `<tr class="${f === g.local ? 'me' : ''}"><td><span class="swatch" style="background:${TEAM_COLORS[f.id % 4]}"></span>${esc(f.name)}</td><td>${f.kos}</td><td>${f.deaths}</td><td>${Math.round(f.stats.damageDealt)}</td><td>${f.stats.slamsLanded}</td><td>${f.stats.dashesLanded}</td><td>${Math.round(f.stats.maxSlamDamage)}</td></tr>`;
+            h += `<tr class="${f === g.local ? 'me' : ''}"><td><span class="swatch" style="background:${TEAM_COLORS[f.id % 4]}"></span>${esc(f.name)}</td>${hill ? `<td>${Math.floor(f.hill || 0)}</td>` : ''}<td>${f.kos}</td><td>${f.deaths}</td><td>${Math.round(f.stats.damageDealt)}</td><td>${f.stats.slamsLanded}</td><td>${f.stats.dashesLanded}</td><td>${Math.round(f.stats.maxSlamDamage)}</td></tr>`;
         }
         return h + '</table>';
     }
@@ -578,8 +592,9 @@ export class UI {
         } else if (g.mode === 'training') {
             sc = `<div class="sc me" style="--c:#6ff0ff"><span class="sc-n">TRAINING</span></div>`;
         } else {
-            for (const f of g.fighters) sc += `<div class="sc${f === me ? ' me' : ''}" style="--c:${TEAM_COLORS[f.id % 4]}"><span class="sc-n">${esc(f.name)}</span><b>${f.kos}</b></div>`;
-            sc += `<div class="sc" style="--c:#fff"><span class="sc-n">to ${g.modeDef.kos}</span></div>`;
+            for (const f of g.fighters) sc += `<div class="sc${f === me ? ' me' : ''}" style="--c:${TEAM_COLORS[f.id % 4]}"><span class="sc-n">${esc(f.name)}</span><b>${g.score(f)}</b></div>`;
+            sc += `<div class="sc" style="--c:#fff"><span class="sc-n">to ${g.mode === 'hill' ? g.modeDef.hill : g.modeDef.kos}</span></div>`;
+            if (g.mode === 'hill') sc += `<div class="sc" style="--c:${g.hillZone && g.hillZone.contested ? '#ff5a4a' : '#ffd54a'}"><span class="sc-n">${g.inHill(me) ? (g.hillZone.contested ? 'CONTESTED!' : 'HOLDING THE HILL') : 'GET TO THE HILL'}</span></div>`;
         }
         this.set('sc', $('scorebar'), 'html', sc);
         if (g.modeDef.time) {

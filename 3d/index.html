@@ -89,6 +89,13 @@
         </div>
         <button class="btn btn-go" data-start="brawl">Fight</button>
       </div>
+      <div class="mode-card" data-mode="hill">
+        <h3>King of the Hill</h3><p>Hold the glowing zone alone to score. First to 45 points against 3 bots.</p>
+        <div class="seg" id="hill-level">
+          <button data-level="easy">Easy</button><button data-level="normal" class="on">Normal</button><button data-level="pro">Pro</button>
+        </div>
+        <button class="btn btn-go" data-start="hill">Fight</button>
+      </div>
       <div class="mode-card" data-mode="gauntlet">
         <h3>Gauntlet</h3><p>One life. Wave after wave of tougher bots. How far can you go?</p>
         <div class="best">Best: <b id="gauntlet-best">0</b> waves</div>
@@ -244,6 +251,7 @@
       <button id="res-double" class="btn btn-ad hidden">▶ Double your gold<small>Watch a short ad</small></button>
       <button id="res-revive" class="btn btn-ad hidden">▶ Revive and keep going<small>Watch a short ad: full health, same wave</small></button>
       <button id="res-again" class="btn btn-go">Play again</button>
+      <button id="res-train" class="btn btn-sec hidden">Learn the moves (1 min)</button>
       <button id="res-menu" class="btn btn-ghost">Menu</button>
     </div>
   </div>

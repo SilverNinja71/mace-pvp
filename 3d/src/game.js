@@ -23,6 +23,7 @@ export const MODES = {
     duel:     { name: 'Duel',       bots: 1, kos: MATCH.duelKOs, time: MATCH.timeLimit },
     brawl:    { name: 'Brawl',      bots: 3, kos: MATCH.brawlKOs, time: MATCH.timeLimit + 60 },
     gauntlet: { name: 'Gauntlet',   bots: 0, kos: 0, time: 0 },
+    hill:     { name: 'King of the Hill', bots: 3, kos: 0, time: MATCH.timeLimit, hill: 45 },
     training: { name: 'Training',   bots: 1, kos: 0, time: 0 },
     online:   { name: 'Online',     bots: 0, kos: MATCH.duelKOs, time: MATCH.timeLimit }
 };
@@ -198,6 +199,7 @@ export class Game {
     clearMatch() {
         for (const m of this.models) { this.scene.remove(m.root); m.dispose(); }
         this.fighters = []; this.models = []; this.brains = []; this.intents = [];
+        if (this.hillZone) { this.scene.remove(this.hillZone.ring, this.hillZone.column); this.hillZone.ring.geometry.dispose(); this.hillZone.column.geometry.dispose(); this.hillZone = null; }
         this.local = null;
         this.fx.clear();
         this.tutorial = null;
@@ -259,7 +261,7 @@ export class Game {
         const order = this.fighters.length <= 2 ? [2, 0] : (opts.mode === 'online' ? [0, 2, 1, 3] : shuffle([0, 1, 2, 3]));
         this.fighters.forEach((f, i) => {
             f.reset(this.arena.spawns[order[i % order.length]]);
-            f.kos = 0; f.deaths = 0;
+            f.kos = 0; f.deaths = 0; f.hill = 0;
             for (const k in f.stats) f.stats[k] = 0;
         });
         if (opts.mode === 'training') {
@@ -268,6 +270,7 @@ export class Game {
             me.reset({ x: 0, y: 0, z: 9, yaw: 0 });
         }
         if (opts.mode === 'gauntlet') this.startWave(1, true);
+        if (opts.mode === 'hill') this.makeHill();
 
         this.look.yaw = me.yaw; this.look.pitch = me.pitch;
         if (this.viewModel) this.viewModel.dispose();
@@ -630,6 +633,9 @@ export class Game {
         this.fx.emit(f.pos.x, f.pos.y + 1, f.pos.z, 16, '#bff6ff', 4, 0.1, 0.6, 2, 1);
     }
 
+    // What wins the match: knockouts, or hill points in King of the Hill
+    score(f) { return this.mode === 'hill' ? Math.floor(f.hill || 0) : f.kos; }
+
     checkWin() {
         const def = this.modeDef;
         if (!def.kos) return;
@@ -640,13 +646,51 @@ export class Game {
 
     leader() {
         let best = null;
-        for (const f of this.fighters) if (!best || f.kos > best.kos) best = f;
+        for (const f of this.fighters) if (!best || this.score(f) > this.score(best)) best = f;
         return best;
     }
 
     tied() {
         const top = this.leader();
-        return this.fighters.filter(f => f.kos === top.kos).length > 1;
+        return this.fighters.filter(f => this.score(f) === this.score(top)).length > 1;
+    }
+
+    // King of the Hill: standing in the glowing zone alone earns a point a second
+    makeHill() {
+        const ruins = this.arena.layout === 'ruins';
+        const z = { r: ruins ? 6.2 : 7, y: ruins ? this.arena.daisH : 0, owner: null, contested: false };
+        const ringGeo = new THREE.RingGeometry(z.r - 0.4, z.r, 56, 1);
+        ringGeo.rotateX(-Math.PI / 2);
+        z.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, depthWrite: false }));
+        z.ring.position.y = z.y + 0.06;
+        const colGeo = new THREE.CylinderGeometry(z.r, z.r, 7, 40, 1, true);
+        colGeo.translate(0, 3.5, 0);
+        z.column = new THREE.Mesh(colGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.12, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+        z.column.position.y = z.y;
+        this.scene.add(z.ring, z.column);
+        this.hillZone = z;
+    }
+
+    inHill(f) {
+        const z = this.hillZone;
+        return z && f.alive && Math.hypot(f.pos.x, f.pos.z) < z.r && f.pos.y > z.y - 0.5 && f.pos.y < z.y + 3;
+    }
+
+    hillTick(dt) {
+        const z = this.hillZone;
+        let inside = null, count = 0;
+        for (const f of this.fighters) if (this.inHill(f)) { inside = f; count++; }
+        z.contested = count > 1;
+        const owner = count === 1 ? inside : null;
+        if (owner !== z.owner && owner === this.local) audio.play('score');
+        z.owner = owner;
+        if (owner) {
+            const before = Math.floor(owner.hill);
+            owner.hill += dt;
+            if (Math.floor(owner.hill) !== before && owner === this.local && Math.floor(owner.hill) % 10 === 0) this.ui.banner('', `${Math.floor(owner.hill)} POINTS`, '#ffd54a', 0.8, true);
+            if (owner.hill >= this.modeDef.hill) return this.endMatch();
+        }
+        if (this.suddenDeath && !this.tied()) this.endMatch();
     }
 
     endMatch() {
@@ -658,7 +702,7 @@ export class Game {
         this.input.exitLock();
         crazyGames.setGameplay(false);
         this.ui.offerRevive(false);
-        const ranked = this.fighters.slice().sort((a, b) => b.kos - a.kos || a.deaths - b.deaths || b.stats.damageDealt - a.stats.damageDealt);
+        const ranked = this.fighters.slice().sort((a, b) => this.score(b) - this.score(a) || b.kos - a.kos || a.deaths - b.deaths || b.stats.damageDealt - a.stats.damageDealt);
         const win = ranked[0] === this.local;
         let reward = null;
         let done = [];
@@ -835,6 +879,7 @@ export class Game {
                 if (this.waveT > 1.6) this.startWave(this.wave + 1);
             }
         }
+        if (this.mode === 'hill' && this.hillZone) this.hillTick(dt);
         // match clock
         const def = this.modeDef;
         if (def.time && !(this.remote && !this.remote.isHost)) {
@@ -842,7 +887,7 @@ export class Game {
             if (!this.suddenDeath && this.matchT >= def.time) {
                 if (this.tied()) {
                     this.suddenDeath = true;
-                    this.ui.banner('SUDDEN DEATH', 'Next knockout wins', '#ff6b5a', 2);
+                    this.ui.banner(this.mode === 'hill' ? 'OVERTIME' : 'SUDDEN DEATH', this.mode === 'hill' ? 'Next point wins' : 'Next knockout wins', '#ff6b5a', 2);
                 } else this.endMatch();
             }
         }
@@ -853,6 +898,13 @@ export class Game {
         const fs = this.fighters;
         const me = this.local;
         this.arena.update(dt);
+        if (this.hillZone) {
+            const z = this.hillZone;
+            const col = z.contested ? 0xff5a4a : z.owner ? new THREE.Color(TEAM_COLORS[z.owner.id % 4]).getHex() : 0xffffff;
+            z.ring.material.color.setHex(col);
+            z.column.material.color.setHex(col);
+            z.column.material.opacity = 0.1 + Math.sin(this.time * 4) * 0.04 + (z.owner ? 0.06 : 0);
+        }
 
         for (let i = 0; i < fs.length; i++) {
             const f = fs[i], m = this.models[i];

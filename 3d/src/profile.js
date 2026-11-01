@@ -5,7 +5,7 @@
 // left exactly as they are.
 // ==========================================
 
-import { CLASSES } from './config.js';
+import { CLASSES, CLASS_LEVEL } from './config.js';
 import { SKINS } from './character.js';
 
 const KEY = 'spear_mace_user_profile';
@@ -56,14 +56,17 @@ class Profile {
     }
 
     get name() { return this.data.username || 'Steve'; }
-    get classId() { return this.data.classId; }
+    // The class used in 3D matches: the saved one if your level has unlocked it, else Normal
+    // (the saved choice is left alone, since the 2D game shares this save)
+    get classId() { return this.classUnlocked(this.data.classId) ? this.data.classId : 'normal'; }
     get skinId() { return this.data.skinId; }
     get gold() { return this.data.gold; }
     get level() { return this.data.level; }
     get settings() { return this.data.arena3d.settings; }
     get tutorialDone() { return !!this.data.arena3d.tutorialDone; }
 
-    setClass(id) { if (CLASSES[id]) { this.data.classId = id; this.save(); } }
+    classUnlocked(id) { return (this.data.level || 1) >= (CLASS_LEVEL[id] || 1); }
+    setClass(id) { if (CLASSES[id] && this.classUnlocked(id)) { this.data.classId = id; this.save(); } }
     setSkin(id) { if (this.data.unlockedSkins.includes(id)) { this.data.skinId = id; this.save(); } }
     setName(n) {
         if (window.GameAccounts && window.GameAccounts.current && window.GameAccounts.current()) return false;
@@ -81,7 +84,12 @@ class Profile {
         p.xp += x;
         const next = Math.floor(p.xp / 200) + 1;
         const ups = Math.max(0, next - p.level);
-        if (ups) { p.level = next; p.gold += ups * 200; }
+        if (ups) {
+            const before = p.level;
+            p.level = next; p.gold += ups * 200;
+            // classes this level-up unlocked, for the results screen
+            this.newClasses = Object.keys(CLASS_LEVEL).filter(id => CLASS_LEVEL[id] > before && CLASS_LEVEL[id] <= next).map(id => CLASSES[id].name);
+        }
         return ups;
     }
     levelProgress() { return (this.data.xp % 200) / 200; }

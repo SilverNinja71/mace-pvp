@@ -124,13 +124,17 @@ export const CLASSES = {
 };
 export const CLASS_IDS = Object.keys(CLASSES);
 
+// Player level needed to use each class (bots can use any). Levels come every 200 XP.
+export const CLASS_LEVEL = { normal: 1, energy: 1, lightning: 2, pyro: 3, potion: 4, shadow: 5, void: 6, buddha: 7 };
+
 // Bot skill levels. react = seconds before a bot notices a change, aim = how well it leads
-// a dash (0-1), dodge/parry = chances to react to an attack aimed at it.
+// a dash (0-1), dodge/parry = chances to react to an attack aimed at it, interval = least
+// seconds between its attacks (the main difficulty knob).
 export const BOT_LEVELS = {
-    easy:   { name: "Easy",   react: 0.55, aim: 0.35, dodge: 0.12, parry: 0.0,  climb: 0.15, aggression: 0.45, speed: 0.78, damage: 0.8,  slamLead: 0.0 },
-    normal: { name: "Normal", react: 0.32, aim: 0.65, dodge: 0.35, parry: 0.12, climb: 0.45, aggression: 0.7,  speed: 0.92, damage: 1.0,  slamLead: 0.5 },
-    pro:    { name: "Pro",    react: 0.2,  aim: 0.85, dodge: 0.6,  parry: 0.3,  climb: 0.75, aggression: 0.85, speed: 1.0,  damage: 1.15, slamLead: 0.85 },
-    god:    { name: "God",    react: 0.12, aim: 0.97, dodge: 0.8,  parry: 0.5,  climb: 0.9,  aggression: 1.0,  speed: 1.06, damage: 1.3,  slamLead: 1.0 }
+    easy:   { name: "Easy",   react: 0.65, aim: 0.3,  dodge: 0.1,  parry: 0.0,  climb: 0.04, aggression: 0.35, speed: 0.74, damage: 0.7,  slamLead: 0.0,  interval: 2.6 },
+    normal: { name: "Normal", react: 0.35, aim: 0.6,  dodge: 0.3,  parry: 0.1,  climb: 0.3,  aggression: 0.6,  speed: 0.9,  damage: 0.95, slamLead: 0.5,  interval: 1.3 },
+    pro:    { name: "Pro",    react: 0.2,  aim: 0.85, dodge: 0.6,  parry: 0.3,  climb: 0.75, aggression: 0.85, speed: 1.0,  damage: 1.15, slamLead: 0.85, interval: 0.7 },
+    god:    { name: "God",    react: 0.12, aim: 0.97, dodge: 0.8,  parry: 0.5,  climb: 0.9,  aggression: 1.0,  speed: 1.06, damage: 1.3,  slamLead: 1.0,  interval: 0.35 }
 };
 
 export const BOT_NAMES = [
