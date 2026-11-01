@@ -50,4 +50,6 @@ if (onlineAvailable()) {
 crazyGames.init();
 document.getElementById('loading').classList.add('hidden');
 ui.showMenu();
+window.SMA_READY = true;
+crazyGames.loadingStop();
 window.__sma = game; // handy for debugging in the browser console

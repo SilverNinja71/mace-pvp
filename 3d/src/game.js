@@ -1056,7 +1056,13 @@ export class Game {
         if (this.frameEMA > 19.5) { this.slowT += dt; this.fastT = 0; }
         else if (this.frameEMA < 15.5) { this.fastT += dt; this.slowT = 0; }
         else { this.slowT = 0; this.fastT = 0; }
-        if (this.slowT > 1 && this.dpr > 0.6) {
+        if (this.slowT > 2.5 && this.dpr <= 0.6 && this.renderer.shadowMap.enabled) {
+            // still too slow at the lowest resolution: drop the real shadows (blob shadows take over)
+            this.renderer.shadowMap.enabled = false;
+            this.sun.castShadow = false;
+            this.scene.traverse((n) => { if (n.material) for (const m of [].concat(n.material)) m.needsUpdate = true; });
+            this.slowT = 0;
+        } else if (this.slowT > 1 && this.dpr > 0.6) {
             this.dpr = Math.max(0.6, this.dpr - 0.15);
             this.renderer.setPixelRatio(this.dpr);
             this.resize();

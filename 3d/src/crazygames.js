@@ -63,6 +63,8 @@ class CrazyGames {
 
     activate() {
         document.documentElement.classList.add('on-crazygames');
+        // the game usually finishes loading before the SDK is ready; if not, report the loading phase
+        if (!window.SMA_READY) { this.loadingStart(); this.loadingOpen = true; }
         const apply = (st) => audio.setPlatformMuted(!!(st && st.muteAudio));
         this.safe(() => apply(this.sdk.game.settings));
         this.safe(() => this.sdk.game.addSettingsChangeListener((st) => apply({ ...(this.sdk.game.settings || {}), ...(st || {}) })));
@@ -78,7 +80,7 @@ class CrazyGames {
     }
 
     loadingStart() { if (this.active) this.safe(() => this.sdk.game.loadingStart()); }
-    loadingStop() { if (this.active) this.safe(() => this.sdk.game.loadingStop()); }
+    loadingStop() { if (this.active && this.loadingOpen) { this.loadingOpen = false; this.safe(() => this.sdk.game.loadingStop()); } }
 
     // true while a match is actually being played (not menus, pauses or ads)
     setGameplay(on) {
