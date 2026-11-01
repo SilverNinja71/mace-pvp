@@ -26,7 +26,10 @@ Once this branch is merged, GitHub Pages serves it at `https://silverninja71.git
 - **Quick Play**: one click from the title screen. A duel against a bot whose level follows your record (Easy for your first wins, then Normal, then Pro).
 - **Duel**: 1 vs 1 bot (Easy, Normal, Pro, God), first to 3 knockouts, 3 minutes, then sudden death.
 - **Brawl**: free-for-all against 3 bots, first to 7.
+- **King of the Hill**: hold the glowing centre zone alone to score; first to 45 against 3 bots.
+- **Last Stand**: 2 lives each; be the last fighter standing against 3 bots.
 - **Gauntlet**: one life, waves of tougher bots. On CrazyGames you can revive once by watching an ad.
+- Classes unlock as you level up: Normal and Energy at the start, then Lightning (2), Pyro (3), Potionmaster (4), Shadow (5), Void Walker (6), Buddha (7).
 - **Training**: a 7-step tutorial (skippable), then free practice on a dummy.
 - **Online**: rooms for up to 4 friends with a room code or a `?room=CODE` link (GitHub Pages copy only).
 

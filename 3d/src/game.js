@@ -24,6 +24,7 @@ export const MODES = {
     brawl:    { name: 'Brawl',      bots: 3, kos: MATCH.brawlKOs, time: MATCH.timeLimit + 60 },
     gauntlet: { name: 'Gauntlet',   bots: 0, kos: 0, time: 0 },
     hill:     { name: 'King of the Hill', bots: 3, kos: 0, time: MATCH.timeLimit, hill: 45 },
+    stand:    { name: 'Last Stand', bots: 3, kos: 0, time: 0, lives: 2 },
     training: { name: 'Training',   bots: 1, kos: 0, time: 0 },
     online:   { name: 'Online',     bots: 0, kos: MATCH.duelKOs, time: MATCH.timeLimit }
 };
@@ -287,7 +288,7 @@ export class Game {
         const order = this.fighters.length <= 2 ? [2, 0] : (opts.mode === 'online' ? [0, 2, 1, 3] : shuffle([0, 1, 2, 3]));
         this.fighters.forEach((f, i) => {
             f.reset(this.arena.spawns[order[i % order.length]]);
-            f.kos = 0; f.deaths = 0; f.hill = 0;
+            f.kos = 0; f.deaths = 0; f.hill = 0; f.out = false;
             for (const k in f.stats) f.stats[k] = 0;
         });
         if (opts.mode === 'training') {
@@ -579,6 +580,15 @@ export class Game {
             }
             return;
         }
+        // Last Stand: out of lives means out of the match
+        if (this.mode === 'stand' && f.deaths >= this.modeDef.lives) {
+            f.respawnT = Infinity;
+            f.out = true;
+            if (f === this.local) this.ui.banner('ELIMINATED', 'Out of lives', '#ff6b5a', 1.6);
+            else this.ui.banner('', `${f.name} is out!`, '#ffd54a', 1.2, true);
+            const left = this.fighters.filter(o => !o.out);
+            if (left.length <= 1 || f === this.local) { this.endMatch(); return; }
+        }
         // A one-time revive in matches against bots (rewarded ad)
         if (f === this.local && !this.reviveUsed && !this.remote && crazyGames.adsAvailable && this.mode !== 'training' && killer) {
             this.reviveOffered = true;
@@ -661,7 +671,11 @@ export class Game {
     }
 
     // What wins the match: knockouts, or hill points in King of the Hill
-    score(f) { return this.mode === 'hill' ? Math.floor(f.hill || 0) : f.kos; }
+    score(f) {
+        if (this.mode === 'hill') return Math.floor(f.hill || 0);
+        if (this.mode === 'stand') return (f.out ? 0 : 100) + (this.modeDef.lives - f.deaths) * 10 + f.kos;
+        return f.kos;
+    }
 
     checkWin() {
         const def = this.modeDef;

@@ -44,12 +44,14 @@ export class UI {
         document.querySelectorAll('[data-start]').forEach((b) => click(b, () => {
             const m = b.getAttribute('data-start');
             this.closeAllPanels();
-            this.start({ mode: m, level: m === 'duel' ? this.duelLevel : m === 'brawl' ? this.brawlLevel : m === 'hill' ? this.hillLevel : 'normal' });
+            this.start({ mode: m, level: m === 'duel' ? this.duelLevel : m === 'brawl' ? this.brawlLevel : m === 'hill' ? this.hillLevel : m === 'stand' ? this.standLevel : 'normal' });
         }));
         this.seg($('duel-level'), 'level', (v) => { this.duelLevel = v; });
         this.seg($('brawl-level'), 'level', (v) => { this.brawlLevel = v; });
         this.hillLevel = 'normal';
         this.seg($('hill-level'), 'level', (v) => { this.hillLevel = v; });
+        this.standLevel = 'normal';
+        this.seg($('stand-level'), 'level', (v) => { this.standLevel = v; });
 
         click($('btn-resume'), () => g.resume());
         click($('btn-quit'), () => { $('pause').classList.add('hidden'); this.leaveMatch(); });
@@ -593,8 +595,9 @@ export class UI {
         } else if (g.mode === 'training') {
             sc = `<div class="sc me" style="--c:#6ff0ff"><span class="sc-n">TRAINING</span></div>`;
         } else {
-            for (const f of g.fighters) sc += `<div class="sc${f === me ? ' me' : ''}" style="--c:${TEAM_COLORS[f.id % 4]}"><span class="sc-n">${esc(f.name)}</span><b>${g.score(f)}</b></div>`;
-            sc += `<div class="sc" style="--c:#fff"><span class="sc-n">to ${g.mode === 'hill' ? g.modeDef.hill : g.modeDef.kos}</span></div>`;
+            const stand = g.mode === 'stand';
+            for (const f of g.fighters) sc += `<div class="sc${f === me ? ' me' : ''}" style="--c:${TEAM_COLORS[f.id % 4]};${f.out ? 'opacity:0.4' : ''}"><span class="sc-n">${esc(f.name)}</span><b>${stand ? (f.out ? '✖' : '♥'.repeat(g.modeDef.lives - f.deaths)) : g.score(f)}</b></div>`;
+            if (!stand) sc += `<div class="sc" style="--c:#fff"><span class="sc-n">to ${g.mode === 'hill' ? g.modeDef.hill : g.modeDef.kos}</span></div>`;
             if (g.mode === 'hill') sc += `<div class="sc" style="--c:${g.hillZone && g.hillZone.contested ? '#ff5a4a' : '#ffd54a'}"><span class="sc-n">${g.inHill(me) ? (g.hillZone.contested ? 'CONTESTED!' : 'HOLDING THE HILL') : 'GET TO THE HILL'}</span></div>`;
         }
         this.set('sc', $('scorebar'), 'html', sc);
