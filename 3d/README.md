@@ -44,6 +44,10 @@ moves you up from Bronze to Obsidian (these tiers also award the shared trophies
 
 Each map comes at sunset, at night under the stars, or in a thunderstorm. New players start in the Colosseum at sunset.
 
+## Store page (CrazyGames, Poki, itch.io)
+`store/` has the covers, the preview videos and `store-page.md` (title, descriptions, controls, tags).
+`tools/covers.js` and `tools/preview-video.js` remake them from the game in the browser.
+
 ## How it's built
 Plain ES modules in `src/`, with Three.js r160 bundled in `lib/three`. There's no build step for the web
 copy. `tools/build-crazygames.py` makes `dist/spear-mace-crazygames.zip` for the CrazyGames upload.
