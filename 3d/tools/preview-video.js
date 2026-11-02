@@ -87,7 +87,7 @@ export async function recordPreview(game, w, h, seconds = 18) {
         if (focus) {
             orbit += 0.006;
             const fx = focus.pos.x, fy = Math.max(0, focus.pos.y), fz = focus.pos.z;
-            const want = new THREE.Vector3(fx + Math.cos(orbit) * 8.5, fy + 3.6, fz + Math.sin(orbit) * 8.5);
+            const want = new THREE.Vector3(fx + Math.cos(orbit) * 6.4, fy + 2.5, fz + Math.sin(orbit) * 6.4);
             camPos.lerp(want, 0.06);
             look.lerp(new THREE.Vector3(fx, fy + 1.3, fz), 0.12);
         }

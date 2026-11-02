@@ -10,10 +10,11 @@
 import * as THREE from 'three';
 import { CharacterModel, preloadSkin } from '../src/character.js';
 
+// Fighters fill the frame: the hero comes down from above with the mace, the rival braces underneath
 const SIZES = {
-    landscape: { w: 1920, h: 1080, cam: [7.5, 2.2, 9.5], look: [-1.6, 3.6, 1.5], fov: 42, title: 'left' },
-    portrait:  { w: 800,  h: 1200, cam: [5.6, 4.2, 10.5], look: [0.25, 4.6, 1.5], fov: 60, title: 'top' },
-    square:    { w: 800,  h: 800,  cam: [7.4, 3.9, 11.5], look: [0.25, 5.0, 1.5], fov: 58, title: 'top' }
+    landscape: { w: 1920, h: 1080, cam: [-5.2, 0.9, 15.0], look: [-0.7, 2.05, 8.7], fov: 42, title: 'left' },
+    portrait:  { w: 800,  h: 1200, cam: [-3.5, 0.8, 13.4], look: [0.7, 2.75, 10.0], fov: 62, title: 'top' },
+    square:    { w: 800,  h: 800,  cam: [-4.1, 0.9, 14.0], look: [0.7, 2.55, 10.0], fov: 54, title: 'top' }
 };
 
 function pose(model, f, dt = 0.016) {
@@ -22,16 +23,17 @@ function pose(model, f, dt = 0.016) {
 
 // Build the posed scene once: the hero slamming down on a rival
 function stage(game) {
+    if (game.showcase) game.showcase.model.root.visible = false; // the lobby's own fighter and podium stay out of the picture
     game.useLayout('colosseum');
     game.arena.setTheme('sunset', game.scene, game.hemi, game.sun);
     const hero = new CharacterModel('steve', '#4aa3ff', 'sun');
-    hero.root.position.set(-0.4, 4.6, 2.2);
-    hero.root.rotation.set(-0.35, -2.25, 0.12, 'YXZ'); // face the camera, leaning into the slam
+    hero.root.position.set(0.1, 1.95, 10.5);
+    hero.root.rotation.set(-0.25, 2.5, 0.08, 'YXZ'); // face the camera, leaning into the slam
     const heroPose = { vel: { x: 0, y: -20, z: 0 }, onGround: false, dashT: 0, spearCd: 0, slamming: true, swingT: 0, parryT: 0, glide: false, pitch: 0.5, bigScale: 1, stunT: 0 };
     pose(hero, heroPose);
     const rival = new CharacterModel('noob', '#ff5a4a', 'ember');
-    rival.root.position.set(0.9, 0, 0.6);
-    rival.root.rotation.set(-0.12, 2.6, 0.08);
+    rival.root.position.set(1.25, 0, 9.5);
+    rival.root.rotation.set(-0.08, 2.05, 0.05);
     const rivalPose = { vel: { x: 3, y: 0, z: 0 }, onGround: true, dashT: 0.1, spearCd: 0, slamming: false, swingT: 0, parryT: 0, glide: false, pitch: 0.35, bigScale: 1, stunT: 0.2 };
     pose(rival, rivalPose);
     stage.repose = () => { pose(hero, heroPose); pose(rival, rivalPose); };
@@ -39,13 +41,12 @@ function stage(game) {
     // shockwave and debris under the rival
     const fx = game.fx;
     fx.clear();
-    fx.ring(0.9, 0.08, 0.6, 0.5, 5.5, 1, '#ffb43a');
-    fx.ring(0.9, 0.12, 0.6, 0.3, 3.2, 1, '#fff1b0');
-    fx.groundBurst(0.9, 0, 0.6, 30, '#b9ab95', 8, 0.22);
-    fx.emit(0.9, 1.2, 0.6, 30, '#ffd27a', 7, 0.12, 2, -2, 0.6);
-    fx.emit(-0.4, 5.3, 2.2, 14, '#5ff3ff', 3, 0.09, 2, 0, 0);
+    fx.ring(1.25, 0.08, 9.5, 0.5, 3.6, 1, '#ffb43a');
+    fx.groundBurst(1.25, 0, 9.5, 16, '#b9ab95', 5, 0.14);
+    fx.emit(1.25, 1.1, 9.5, 22, '#ffd27a', 5, 0.08, 2, -2, 0.6);
+    fx.emit(0.1, 2.9, 10.5, 12, '#5ff3ff', 2, 0.07, 2, 0, 0);
     fx.update(0.18, 100, 100);
-    return () => { game.scene.remove(hero.root, rival.root); hero.dispose(); rival.dispose(); fx.clear(); };
+    return () => { game.scene.remove(hero.root, rival.root); hero.dispose(); rival.dispose(); fx.clear(); if (game.showcase) game.showcase.model.root.visible = true; };
 }
 
 function drawTitle(ctx, w, h, where) {
