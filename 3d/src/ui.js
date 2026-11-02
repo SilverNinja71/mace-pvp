@@ -398,8 +398,8 @@ export class UI {
     }
 
     renderPlaySummary() {
-        const map = this.sel.mode === 'training' ? 'colosseum' : this.sel.map;
-        $('play-sub').textContent = `${t('mode.' + this.sel.mode)} · ${t('map.' + map)}`;
+        const mode = t('mode.' + this.sel.mode);
+        $('play-sub').textContent = this.sel.mode === 'training' ? mode : `${mode} · ${t('map.' + this.sel.map)}`;
     }
 
     renderPlay() {

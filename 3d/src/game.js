@@ -197,8 +197,8 @@ export class Game {
         // yaw 0 faces the camera, three-quarters on so both weapons show
         const fw = lobbyForward(s.spot);
         s.model.root.rotation.y = Math.atan2(fw.x, fw.z) + 0.42 + (this.showYaw || 0);
-        s.model.animate(f, dt, this.time);
-        s.podium.update(this.time, weapons);
+        s.model.animate(f, dt, s.t);
+        s.podium.update(s.t, weapons);
     }
 
     // The lobby's camera: a fixed distance behind the fighter, a lens wide enough to show them at the size

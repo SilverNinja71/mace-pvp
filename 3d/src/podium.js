@@ -49,18 +49,19 @@ function buildRibbon(c1, c2) {
     const a = new THREE.Color(c1), b = new THREE.Color(c2), tmp = new THREE.Color();
     for (let i = 0; i <= N; i++) {
         const k = i / N, ang = k * Math.PI * 1.7;
-        const r = 0.92, y = 0.2 + k * 0.5, w = 0.14 * (1 - k) + 0.02;
+        const r = 0.95, y = k * 0.5, w = 0.2 * (1 - k) + 0.02;
         const x = Math.cos(ang) * r, z = Math.sin(ang) * r;
         pos.push(x, y - w, z, x, y + w, z);
-        tmp.copy(a).lerp(b, k).multiplyScalar((1 - k) ** 1.5 * 1.1);
-        col.push(tmp.r, tmp.g, tmp.b, tmp.r, tmp.g, tmp.b);
+        tmp.copy(a).lerp(b, k);
+        const alpha = (1 - k) ** 1.2;
+        col.push(tmp.r, tmp.g, tmp.b, alpha, tmp.r, tmp.g, tmp.b, alpha);
         if (i < N) { const v = i * 2; idx.push(v, v + 1, v + 2, v + 1, v + 3, v + 2); }
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 4)); // the fourth number fades it out
     geo.setIndex(idx);
-    return new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+    return new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false }));
 }
 
 // The top of the podium is at y = 0 in this group. Returns { group, height, update(time, showTrail) }
@@ -74,8 +75,8 @@ export function buildPodium(glowColor, trail) {
         group.add(m);
         return m;
     };
-    const stone = new THREE.MeshLambertMaterial({ color: 0x27366f, flatShading: true });
-    const stoneTop = new THREE.MeshLambertMaterial({ color: 0x3b4e98, flatShading: true });
+    const stone = new THREE.MeshLambertMaterial({ color: 0x34478a, flatShading: true });
+    const stoneTop = new THREE.MeshLambertMaterial({ color: 0x5068c4, flatShading: true });
     const gold = new THREE.MeshLambertMaterial({ color: 0xffc23a, emissive: 0x7a4a00, flatShading: true });
     add(new THREE.CylinderGeometry(1.32, 1.5, 0.24, 16), stone, -H + 0.12);
     add(new THREE.CylinderGeometry(1.06, 1.24, 0.3, 16), stone, -H + 0.39);
@@ -118,7 +119,7 @@ export function buildPodium(glowColor, trail) {
             ribbon.visible = !!showTrail;
             if (showTrail) {
                 ribbon.rotation.y = -time * 3.2;
-                ribbon.position.y = 0.45 + Math.sin(time * 1.4) * 0.25;
+                ribbon.position.y = 0.5 + Math.sin(time * 1.4) * 0.3;
             }
         }
     };

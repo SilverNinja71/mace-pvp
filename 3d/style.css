@@ -58,7 +58,7 @@ kbd { display: inline-block; padding: 0.05em 0.45em; margin: 0 0.15em; border-ra
   box-shadow: 0 0.16em 0 #a4570a, 0 0.34em 0.7em rgba(5, 10, 35, 0.5), inset 0 1px 0 rgba(255,255,255,0.7); animation: pulse 2.2s ease-in-out infinite; }
 .btn-play .play-main { display: flex; align-items: center; justify-content: center; gap: 0.25em; line-height: 1; letter-spacing: 0.02em; }
 #menu .btn-play .ico { width: 0.72em; height: 0.72em; }
-.btn-play small { font-family: var(--text); font-size: 0.34em; font-weight: 600; color: #4d2c00; margin-top: 0.3em; opacity: 1; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btn-play small { font-family: var(--text); font-size: max(0.34em, 10.5px); font-weight: 600; color: #4d2c00; margin-top: 0.3em; opacity: 1; letter-spacing: 0; line-height: 1.1; }
 @keyframes pulse { 0%, 100% { box-shadow: 0 0.16em 0 #a4570a, 0 0.34em 0.7em rgba(5, 10, 35, 0.5), inset 0 1px 0 rgba(255,255,255,0.7); } 50% { box-shadow: 0 0.16em 0 #a4570a, 0 0.34em 1.3em rgba(255, 190, 50, 0.85), inset 0 1px 0 rgba(255,255,255,0.7); } }
 .btn-sec { background: var(--navy-600); border: 2px solid var(--line); box-shadow: 0 0.14em 0 #0c1433; color: #fff; }
 .btn-ghost { background: var(--navy-700); border: 2px solid var(--line); box-shadow: 0 0.14em 0 #0c1433; color: #fff; padding: 0.5em 1em; }
@@ -130,7 +130,7 @@ button.chip:active { transform: translateY(1px); }
 .lv-badge b { font-family: var(--title); font-size: 1.15em; line-height: 1; }
 .pc-text { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 0.12em; }
 .pc-name { font-family: var(--title); font-size: 1.12em; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pc-line { font-size: 0.78em; color: var(--soft); display: flex; gap: 0.35em; white-space: nowrap; overflow: hidden; line-height: 1.2; }
+.pc-line { font-size: max(0.78em, 10.5px); color: var(--soft); display: flex; gap: 0.35em; white-space: nowrap; overflow: hidden; line-height: 1.2; }
 .pc-bar { display: block; height: 0.42em; border-radius: 0.3em; background: var(--navy-900); overflow: hidden; }
 .pc-bar i { display: block; height: 100%; background: linear-gradient(90deg, #4fd8ff, var(--cyan)); }
 .chip-gold { font-family: var(--title); font-size: 1.12em; height: calc(3.5em / 1.12); padding: 0 0.8em 0 0.6em; color: var(--gold); }
@@ -151,7 +151,7 @@ button.chip:active { transform: translateY(1px); }
 .nav-tab span { max-width: 100%; }
 .nav-tab:hover { filter: brightness(1.2); }
 .nav-tab.on { color: #3a2100; border-color: #fff0b0; background: linear-gradient(180deg, #ffe873, var(--gold) 50%, var(--gold-2)); box-shadow: 0 0.16em 0 #a4570a, 0 0 0.9em rgba(255, 190, 50, 0.55); }
-.nav-badge { position: absolute; top: 0.3em; right: 0.3em; font-family: var(--text); font-style: normal; font-weight: 700; font-size: 0.72em; padding: 0.05em 0.4em; border-radius: 0.6em; background: var(--navy-900); color: var(--cyan); }
+.nav-badge { position: absolute; top: 0.3em; right: 0.3em; font-family: var(--text); font-style: normal; font-weight: 700; font-size: max(0.72em, 10px); padding: 0.05em 0.4em; border-radius: 0.6em; background: var(--navy-900); color: var(--cyan); }
 .nav-dot { position: absolute; top: 0.45em; right: 0.45em; width: 0.75em; height: 0.75em; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 2px #fff; }
 
 /* the card that holds a tab's content */
@@ -169,7 +169,7 @@ button.chip:active { transform: translateY(1px); }
 .sec-row { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6em; flex-wrap: wrap; }
 .pane-scroll > .sec-row:not(:first-child) { margin-top: 0.9em; }
 .sec-row .sec-title { margin: 0 0 0.45em; }
-.sec-note { font-size: 0.8em; color: var(--soft); font-weight: 600; }
+.sec-note { font-size: max(0.8em, 10.5px); color: var(--soft); font-weight: 600; }
 #menu .desc { color: var(--soft); font-size: 0.86em; margin: 0.4em 0 0; line-height: 1.3; }
 #menu .desc:empty { display: none; }
 #menu .name-row input { background: var(--navy-900); border: 2px solid var(--line); }
@@ -183,7 +183,7 @@ button.chip:active { transform: translateY(1px); }
 #menu .mode-ico .ico { width: 1.25em; height: 1.25em; }
 .mode-text { min-width: 0; display: flex; flex-direction: column; gap: 0.08em; }
 .mode-text b { font-family: var(--title); font-weight: 400; font-size: 1.1em; line-height: 1.1; }
-.mode-text small { font-size: 0.8em; line-height: 1.2; color: var(--soft); font-weight: 500; }
+.mode-text small { font-size: max(0.8em, 10.5px); line-height: 1.2; color: var(--soft); font-weight: 500; }
 .mode-row.on { border-color: var(--gold); background: linear-gradient(90deg, #4a3a22, #27306b); box-shadow: 0 0 0.7em rgba(255, 200, 60, 0.45); }
 .mode-row.on .mode-ico { background: var(--gold); color: #3a2100; }
 .mode-row.on .mode-text b { color: var(--gold); }
@@ -198,7 +198,7 @@ button.chip:active { transform: translateY(1px); }
 .tile-name { min-width: 0; font-weight: 600; line-height: 1.12; overflow-wrap: break-word; hyphens: auto; }
 .tile.on { border-color: var(--gold); background: #3a3564; box-shadow: 0 0 0.6em rgba(255, 200, 60, 0.4); }
 .tile.tried { border-color: var(--cyan); box-shadow: 0 0 0.6em rgba(111, 240, 255, 0.5); }
-.tile-tag { display: inline-flex; align-items: center; gap: 0.25em; flex: none; font-size: 0.78em; font-weight: 700; white-space: nowrap; }
+.tile-tag { display: inline-flex; align-items: center; gap: 0.25em; flex: none; font-size: max(0.78em, 10.5px); font-weight: 700; white-space: nowrap; }
 .tile .tag-on { position: absolute; top: -0.1em; right: -0.1em; border-radius: 0 0.55em 0 0.55em; }
 .tag-price { color: var(--gold); }
 .tile .tag-on { background: var(--gold); color: #3a2100; padding: 0.2em 0.3em; }
@@ -218,7 +218,7 @@ button.chip:active { transform: translateY(1px); }
 .buy-bar { display: flex; align-items: center; justify-content: space-between; gap: 0.6em; padding: 0.5em 0.7em; background: var(--navy-900); border-top: 2px solid var(--line); }
 .buy-name { min-width: 0; display: flex; flex-direction: column; line-height: 1.15; }
 .buy-name b { font-family: var(--title); font-weight: 400; font-size: 1.1em; }
-.buy-name small { font-size: 0.8em; color: #ffb4a8; font-weight: 600; }
+.buy-name small { font-size: max(0.8em, 10.5px); color: #ffb4a8; font-weight: 600; }
 .btn-buy { flex: none; display: inline-flex; align-items: center; gap: 0.4em; color: #3a2100; font-weight: 700; padding: 0.55em 0.9em; background: linear-gradient(180deg, #ffe873, var(--gold-2)); box-shadow: 0 0.15em 0 #a4570a; }
 
 /* quests */
@@ -228,7 +228,7 @@ button.chip:active { transform: translateY(1px); }
 .quest-name { font-weight: 600; font-size: 0.95em; line-height: 1.15; display: flex; gap: 0.35em; align-items: center; }
 .quest-bar { position: relative; margin-top: 0.35em; height: 1.2em; border-radius: 0.5em; overflow: hidden; background: var(--navy-900); }
 .quest-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #2d8bff, var(--cyan)); }
-.quest-bar span { position: relative; display: block; text-align: center; font-size: 0.78em; font-weight: 700; line-height: 1.5; text-shadow: 0 1px 2px #0c1433; }
+.quest-bar span { position: relative; display: block; text-align: center; font-size: max(0.78em, 10.5px); font-weight: 700; line-height: 1.5; text-shadow: 0 1px 2px #0c1433; }
 .quest.done { border-color: var(--green); }
 .quest.done .quest-bar i { background: linear-gradient(90deg, #2fd27f, var(--green)); }
 .quest.done .quest-name .ico { color: var(--green); }
@@ -238,7 +238,7 @@ button.chip:active { transform: translateY(1px); }
 .quest.ach.done { border-color: var(--gold); }
 .ach-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.15; }
 .ach-text b { font-weight: 700; font-size: 0.95em; }
-.ach-text small { color: var(--soft); font-size: 0.8em; font-weight: 500; }
+.ach-text small { color: var(--soft); font-size: max(0.8em, 10.5px); font-weight: 500; }
 
 /* how to play */
 .howto-goal { display: flex; flex-direction: column; gap: 0.55em; }
@@ -266,7 +266,7 @@ button.chip:active { transform: translateY(1px); }
   background: var(--navy-800); border: 2px solid var(--line); box-shadow: 0 0.16em 0 var(--navy-900); line-height: 1.15; text-align: center; }
 #plate-name { font-family: var(--title); font-weight: 400; font-size: 1.15em; }
 #plate-sub { color: var(--gold); font-weight: 600; font-size: 0.86em; }
-.plate-hint { font-size: 0.8em; color: var(--soft); font-weight: 500; }
+.plate-hint { font-size: max(0.8em, 10.5px); color: var(--soft); font-weight: 500; }
 .plate-hint.used { display: none; }
 
 /* the dock: Play is always in this corner */
@@ -296,6 +296,8 @@ button.chip:active { transform: translateY(1px); }
   .chip-icon { width: 2.9em; }
   .lv-badge { width: 2.2em; height: 2.2em; }
   .chip-player { min-width: 12em; }
+  .pc-name { font-size: 1em; }
+  .pc-text { gap: 0.05em; }
   .lobby-logo .logo { font-size: 2.05em; }
   .lobby-logo .logo-sub { display: none; }
   #menu .nav-tab .ico { width: 1.55em; height: 1.55em; }
@@ -312,6 +314,18 @@ button.chip:active { transform: translateY(1px); }
   #stage-plate { padding: 0.18em 0.6em; }
   #menu #level-row.auto { display: none; }
 }
+
+/* very small landscape windows: the same grid, tighter */
+@media (max-width: 760px) and (min-aspect-ratio: 1/1) {
+  #menu { grid-template-columns: 4.9em 16em minmax(0, 1fr) 13.5em; font-size: 11px; }
+  #menu:not([data-tab="play"]) { grid-template-columns: 4.9em 18.5em minmax(0, 1fr) 11em; }
+  .nav-tab { font-size: 0.82em; }
+  .lobby-logo .logo { font-size: 1.7em; }
+  .chip-player { min-width: 10em; }
+  .btn-play { font-size: 1.7em; }
+  .tile-grid { grid-template-columns: repeat(auto-fill, minmax(8.2em, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) { .btn-play { animation: none; } }
 
 /* upright phones and narrow windows: stacked, with the tabs along the bottom */
 @media (max-aspect-ratio: 1/1) {
