@@ -777,7 +777,7 @@ export class CharacterModel {
         } else this.standInLegs(R, speed, grounded, f, time, back);
 
         // ---- torso
-        this.lean = smoothE(this.lean, f.dashT > 0 ? 0.42 : (f.slamming ? 0.35 : (air ? (rising ? 0.05 : 0.18) : Math.min(speed, 9) * 0.018 * back)), 10, dt);
+        this.lean = smoothE(this.lean, f.dashT > 0 ? 0.26 : (f.slamming ? 0.35 : (air ? (rising ? 0.05 : 0.18) : Math.min(speed, 9) * 0.018 * back)), 10, dt);
         this.body.updateWorldMatrix(true, false);
         R.root.updateMatrixWorld(true);
         const upW = _w1.set(0, 1, 0).transformDirection(this.body.matrixWorld);
@@ -795,7 +795,7 @@ export class CharacterModel {
         if (this.lean || flinch || upright) rotW(R.spineA, rightW, -(this.lean + flinch - upright));
         if (A && W.air > 0.01) rotW(R.spineB, rightW, W.air * 0.25);
         // the chest turns into each move
-        const twist = f.dashT > 0 ? -0.55 : (f.slamming ? 0.25 : (f.swingT > 0 ? 0.45 * (f.swingT / 0.3 * 2 - 1) : 0));
+        const twist = f.dashT > 0 ? -0.38 : (f.slamming ? 0.25 : (f.swingT > 0 ? 0.45 * (f.swingT / 0.3 * 2 - 1) : 0));
         this.twist = smoothE(this.twist || 0, twist, 18, dt);
         if (this.twist) rotW(R.spineB, upW, this.twist);
         // head follows the aim
@@ -1007,7 +1007,7 @@ export class ViewModel {
         this.kickR = 0; this.kickL = 0;
         this.handS = new THREE.Vector3(0.24, -0.16, -0.52);
         this.handM = new THREE.Vector3(-0.25, -0.17, -0.52);
-        this.dirS = new THREE.Vector3(-0.1, 0.4, -0.9).normalize();
+        this.dirS = new THREE.Vector3(-0.18, 0.74, -0.64).normalize();
         this.dirM = new THREE.Vector3(0.12, 0.8, -0.58).normalize();
         this.disposed = false;
         if (ready) return;
@@ -1059,8 +1059,8 @@ export class ViewModel {
         this.root.position.set(bx + this.swayX, by + this.swayY + fall, 0);
 
         // targets in camera space: x right, y up, -z forward
-        let sx = 0.24, sy = -0.16, sz = -0.52, dsx = -0.14, dsy = 0.5, dsz = -0.85;
-        let mx = -0.25, my = -0.17, mz = -0.52, dmx = 0.2, dmy = 0.88, dmz = -0.42;
+        let sx = 0.25, sy = -0.13, sz = -0.54, dsx = -0.18, dsy = 0.74, dsz = -0.64;
+        let mx = -0.26, my = -0.14, mz = -0.54, dmx = 0.2, dmy = 0.88, dmz = -0.42;
         let rate = 14;
         const thrust = f.dashT > 0;
         if (thrust) { sx = 0.1; sy = -0.13; sz = -0.72; dsx = -0.015; dsy = 0.04; dsz = -1; rate = 34; }

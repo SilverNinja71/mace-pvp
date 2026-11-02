@@ -56,7 +56,7 @@ const WORLD = {
     rock:  { set: 'rock',  rough: 1.0 },
     grass: { set: 'grass', rough: 1.0 },
     slate: { set: 'slate', rough: 0.4, env: 1.1 },   // polished obsidian
-    gold:  { rough: 0.38, metal: 1, env: 0.9 },
+    gold:  { rough: 0.62, metal: 0.7, env: 0.9 }, // rough: the flat inlays under a low sun flared over anyone near them
     bronze: { rough: 0.45, metal: 0.9, env: 1.1 },
     plain: { rough: 0.85 }
 };
@@ -257,8 +257,9 @@ export function chamferBox(w, h, d, c = 0.06) {
     }
     const cap = (ring, flip) => {
         for (let i = 1; i < 7; i++) {
-            if (flip) P.push(...ring[0], ...ring[i], ...ring[i + 1]);
-            else P.push(...ring[0], ...ring[i + 1], ...ring[i]);
+            // the rings run counter-clockwise seen from above, so this order faces up (and flip faces down)
+            if (flip) P.push(...ring[0], ...ring[i + 1], ...ring[i]);
+            else P.push(...ring[0], ...ring[i], ...ring[i + 1]);
         }
     };
     cap(rings[3], false);

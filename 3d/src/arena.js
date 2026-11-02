@@ -117,7 +117,7 @@ export class Arena {
         this.quality = quality;
         // one batch per material, in tile repeats per metre
         const W = this.world = {
-            tile: new GeoBatch(0.9), pave: new GeoBatch(0.95), flag: new GeoBatch(0.8), block: new GeoBatch(0.34), wall: new GeoBatch(0.42),
+            tile: new GeoBatch(0.9), pave: new GeoBatch(0.95), flag: new GeoBatch(0.5), block: new GeoBatch(0.34), wall: new GeoBatch(0.42),
             rock: new GeoBatch(0.13), grass: new GeoBatch(0.22), slate: new GeoBatch(0.4), gold: new GeoBatch(1), bronze: new GeoBatch(1), plain: new GeoBatch(1)
         };
         const glow = new GeoBatch(1);
@@ -316,7 +316,7 @@ export class Arena {
     // A round floor made of rings of tiles that follow the circle
     floorRing(batch, r0, r1, y, color, tilesPerMeter = 0.5, seg = 72, sectors = 0, color2 = 0) {
         const uTiles = Math.max(4, Math.round(Math.PI * (r0 + r1) * tilesPerMeter));
-        const bright = batch === this.world.tile ? 2.1 : batch === this.world.pave ? 1.9 : batch === this.world.flag ? 1.4 : 1;
+        const bright = batch === this.world.tile ? 2.1 : batch === this.world.pave ? 1.9 : 1;
         if (!sectors) {
             const g = new THREE.RingGeometry(r0, r1, seg, 3);
             g.rotateX(-R90);
@@ -452,10 +452,10 @@ export class Arena {
         ph.addCylinder(0, 0, R, -6, 0, 'center');
         this.floorDrum(W, R, 5);
         // old flagstones with patches of a lighter stone laid over them
-        this.floorRing(W.flag, 0.1, R - 0.8, 0, PAL.tileC, 0.8, 112, 12, PAL.tileA);
+        this.floorRing(W.flag, 0.1, R - 0.8, 0, 0xd8a47c, 0.5, 112, 12, 0x9fb0ac);
         for (let i = 0; i < 26; i++) {
             const a = i * 2.39, d = 8 + (i * 5.3) % 12;
-            W.pave.addAt(new THREE.PlaneGeometry(1.6 + (i % 3) * 0.5, 1.2 + (i % 2) * 0.6).rotateX(-R90), Math.cos(a) * d, 0.006, Math.sin(a) * d, i % 2 ? PAL.tileC : PAL.stoneDark, 0.05, a);
+            W.flag.addAt(new THREE.PlaneGeometry(1.6 + (i % 3) * 0.5, 1.2 + (i % 2) * 0.6).rotateX(-R90), Math.cos(a) * d, 0.006, Math.sin(a) * d, i % 2 ? 0xb8845e : 0x7f8f8c, 0.05, a);
         }
         this.floorRing(W.block, R - 0.8, R, 0.003, PAL.stoneDark, 0.4, 112);
         // the raised dais, with stairs on four sides
@@ -541,13 +541,13 @@ export class Arena {
             const a = Math.PI / 4 + i * Math.PI / 2;
             const x = Math.cos(a) * 10.5, z = Math.sin(a) * 10.5, h = heights[i];
             ph.addCylinder(x, z, 2.4, 0, h, 'spire');
-            W.wall.addAt(new THREE.CylinderGeometry(2.3, 2.8, h, 24, Math.ceil(h)), x, h / 2, z, PAL.stone, 0.05, a, 1, 1, 1, 0, 0, { uv: 'cyl', uRadius: 2.5, ao: { y0: 0, h: 2, min: 0.55 } });
+            W.wall.addAt(new THREE.CylinderGeometry(2.3, 2.8, h, 24, Math.ceil(h), true), x, h / 2, z, PAL.stone, 0.05, a, 1, 1, 1, 0, 0, { uv: 'cyl', uRadius: 2.5, ao: { y0: 0, h: 2, min: 0.55 } });
             // rings of carved stone every few metres
             for (let k = 2; k < h - 1; k += 3) W.block.addAt(new THREE.TorusGeometry(2.72 - k * 0.5 * 0.5 / h, 0.12, 6, 28).rotateX(R90), x, k, z, PAL.stoneDark, 0.03, 0, 1, 1, 1, 0, 0, { uv: 'cyl', uRadius: 2.5 });
             W.flag.addAt(new THREE.CylinderGeometry(3.1, 2.6, 0.6, 28, 1), x, h - 0.3, z, PAL.stoneDark, 0.04, a);
             ph.addCylinder(x, z, 3.1, h - 0.6, h, 'spire-top');
             addGlow(glow, new THREE.CylinderGeometry(3.14, 3.14, 0.08, 36), x, h - 0.35, z, i === 3 ? 0xd2b8ff : 0x6fe7ff, GLOW);
-            if (i === 3) addGlow(glow, new THREE.OctahedronGeometry(0.5, 0), x, h + 2.2, z, 0xd2b8ff, GLOW * 1.2, 0, 1, 1.8, 1);
+            if (i === 3) addGlow(glow, new THREE.OctahedronGeometry(0.5, 0), x, h + 2.2, z, 0xb48cff, 1.5, 0, 1, 1.8, 1);
             tops.push({ x, z, h, a });
             this.contacts.push([x, 0.015, z, 3.9, 0.62]);
         }

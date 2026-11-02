@@ -431,7 +431,7 @@ export class FX {
             if (q.y < q.floor && q.vy < 0) { q.y = q.floor; q.vy *= -0.42; q.vx *= 0.7; q.vz *= 0.7; q.sr *= 0.6; }
             q.rx += q.sr * dt; q.ry += q.sr * 0.7 * dt;
             this.chunks[w++] = q;
-            const s = q.size * Math.min(1, q.life * 4);
+            const s = q.size * 0.72 * Math.min(1, q.life * 4);
             this._e.set(q.rx, q.ry, 0);
             this._q.setFromEuler(this._e);
             this._v.set(q.x, q.y, q.z);
