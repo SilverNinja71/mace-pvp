@@ -141,6 +141,8 @@ export function preloadSkin(id) {
 
 // After the first screen is up, fetch the other fighters one at a time so matches start without waiting
 export function preloadAllSkins(first) {
+    // the outfit textures too, so a fighter never appears in flat colours
+    for (const n of ['ranger', 'peasant']) { chartex(n + '_d', true); chartex(n + '_n', false, [128, 128, 255]); chartex(n + '_orm', false); }
     const ids = Object.keys(SKINS).filter((k) => k !== first);
     const next = () => { const id = ids.shift(); if (id) preloadSkin(id).then(next, next); };
     preloadSkin(first).then(next, next);

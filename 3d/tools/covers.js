@@ -8,7 +8,8 @@
 // ==========================================
 
 import * as THREE from 'three';
-import { CharacterModel, preloadSkin } from '../src/character.js';
+import { CharacterModel, preloadAllSkins, preloadSkin } from '../src/character.js';
+import { assetStats } from '../src/gfx.js';
 
 // Fighters fill the frame: the hero comes down from above with the mace, the rival braces underneath
 const SIZES = {
@@ -34,7 +35,7 @@ function stage(game) {
     const rival = new CharacterModel('noob', '#ff5a4a', 'ember');
     rival.root.position.set(1.25, 0, 9.5);
     rival.root.rotation.set(-0.08, 2.05, 0.05);
-    const rivalPose = { vel: { x: 3, y: 0, z: 0 }, onGround: true, dashT: 0.1, spearCd: 0, slamming: false, swingT: 0, parryT: 0, glide: false, pitch: 0.35, bigScale: 1, stunT: 0.2 };
+    const rivalPose = { vel: { x: 0, y: 0, z: 0 }, onGround: true, dashT: 0, spearCd: 0, slamming: false, swingT: 0, parryT: 0.2, glide: false, pitch: 0.55, bigScale: 1, stunT: 0 };
     pose(rival, rivalPose);
     stage.repose = () => { pose(hero, heroPose); pose(rival, rivalPose); };
     game.scene.add(hero.root, rival.root);
@@ -83,11 +84,17 @@ function drawTitle(ctx, w, h, where) {
 export async function renderCovers(game) {
     await document.fonts.load("100px 'Lilita One'");
     await preloadSkin('steve'); await preloadSkin('noob');
+    preloadAllSkins('steve');
     const r = game.renderer;
     const oldDpr = r.getPixelRatio();
     const unstage = stage(game);
     await new Promise((res) => { const c = new MessageChannel(); c.port1.onmessage = res; c.port2.postMessage(0); }); // let the models swap in
     if (stage.repose) stage.repose();
+    // every image must be in, or fighters would show in flat colours
+    const t0 = performance.now();
+    while (assetStats.loaded + assetStats.failed < assetStats.started && performance.now() - t0 < 12000) {
+        await new Promise((res) => { const c = new MessageChannel(); c.port1.onmessage = res; c.port2.postMessage(0); });
+    }
     const cam = new THREE.PerspectiveCamera(45, 1, 0.05, 900);
     const out = {};
     for (const [name, s] of Object.entries(SIZES)) {
