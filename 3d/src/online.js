@@ -73,7 +73,8 @@ export class OnlineRoom {
         this.isHost = false;
         this.code = String(code || '').trim().toUpperCase();
         this.peer = new window.Peer();
-        const timer = setTimeout(() => { if (!this.hostConn || !this.hostConn.open) this.status("Couldn't reach that room. Check the code and that your friend's room is still open."); }, 12000);
+        clearTimeout(this.joinTimer);
+        const timer = this.joinTimer = setTimeout(() => { if (!this.hostConn || !this.hostConn.open) this.status("Couldn't reach that room. Check the code and that your friend's room is still open."); }, 12000);
         this.peer.on('open', () => {
             const conn = this.peer.connect(PREFIX + this.code, { reliable: true });
             this.hostConn = conn;
@@ -95,18 +96,24 @@ export class OnlineRoom {
 
     leave(quiet = false) {
         const g = this.game;
+        // clear everything first: destroying the peer fires 'close' events right away,
+        // and those must not count as someone else leaving
+        this.leaving = true;
+        clearTimeout(this.joinTimer);
+        this.inMatch = false;
+        this.guests.clear();
+        this.hostConn = null;
         if (this.peer) {
             try { this.peer.destroy(); } catch (e) { /* gone */ }
         }
         this.peer = null;
-        this.guests.clear();
-        this.hostConn = null;
-        this.inMatch = false;
+        this.leaving = false;
         if (g.remote === this) g.remote = null;
         if (!quiet && this.onClosed) this.onClosed(null);
     }
 
     closed(reason) {
+        if (this.leaving) return;
         const wasPlaying = this.inMatch;
         this.leave(true);
         if (this.onClosed) this.onClosed(reason, wasPlaying);
@@ -127,6 +134,7 @@ export class OnlineRoom {
     toHost(m) { if (this.hostConn && this.hostConn.open) { try { this.hostConn.send(m); } catch (e) { /* closed */ } } }
 
     guestLeft(peerId) {
+        if (this.leaving) return;
         const g = this.guests.get(peerId);
         if (!g) return;
         this.guests.delete(peerId);
@@ -148,11 +156,15 @@ export class OnlineRoom {
         this.matchMode = mode === 'hill' ? 'hill' : 'online';
         const roster = [{ ...this.me() }];
         let i = 1;
+        // only friends whose connection is still open
+        for (const [id, g] of [...this.guests]) if (!g.conn.open) this.guests.delete(id);
+        if (this.guests.size === 0) return false;
         for (const g of this.guests.values()) { g.fighterId = i++; roster.push({ name: g.name, classId: g.classId, skinId: g.skinId, glowId: g.glowId }); }
         const kos = roster.length === 2 ? MATCH.duelKOs : MATCH.brawlKOs;
         const layout = ['colosseum', 'ruins', 'spires'][Math.floor(Math.random() * 3)];
         const theme = ['sunset', 'sunset', 'night', 'storm'][Math.floor(Math.random() * 4)];
-        for (const [, g] of this.guests) g.conn.send({ t: 'start', roster, you: g.fighterId, kos, layout, theme, mode: this.matchMode });
+        this.inMatch = true;
+        for (const [, g] of this.guests) if (g.conn.open) g.conn.send({ t: 'start', roster, you: g.fighterId, kos, layout, theme, mode: this.matchMode });
         this.begin(roster, 0, kos, layout, theme, this.matchMode);
         return true;
     }
@@ -248,6 +260,8 @@ export class OnlineRoom {
         if (!this.inMatch || gu.fighterId < 0) return;
         const f = g.fighters[gu.fighterId];
         if (!f) return;
+        // a knocked-out guest's late moves (a slam landing, a swing) don't count
+        if ((m.t === 'ev' || m.t === 'slam') && !f.alive) return;
         if (m.t === 'st' && Array.isArray(m.s)) {
             // ignore reports sent before the guest heard about their latest respawn
             if ((m.s[13] | 0) !== (f.spawnSeq | 0)) return;

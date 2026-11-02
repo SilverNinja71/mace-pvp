@@ -228,7 +228,7 @@ export class Game {
     clearMatch() {
         for (const m of this.models) { this.scene.remove(m.root); m.dispose(); }
         this.fighters = []; this.models = []; this.brains = []; this.intents = [];
-        if (this.hillZone) { this.scene.remove(this.hillZone.ring, this.hillZone.column); this.hillZone.ring.geometry.dispose(); this.hillZone.column.geometry.dispose(); this.hillZone = null; }
+        if (this.hillZone) { this.scene.remove(this.hillZone.ring, this.hillZone.column); this.hillZone.ring.geometry.dispose(); this.hillZone.column.geometry.dispose(); this.hillZone.ring.material.dispose(); this.hillZone.column.material.dispose(); this.hillZone = null; }
         this.local = null;
         this.fx.clear();
         this.tutorial = null;
@@ -258,6 +258,9 @@ export class Game {
         this.endT = 0;
         this.pendingResults = null;
         this.timeScale = 1;
+        this.streak = 0;
+        this.lastKoTime = -99;
+        this.onlineMatch = !!opts.roster;
         this.mode = opts.mode;
         this.level = opts.level || 'normal';
         this.modeDef = MODES[opts.mode];
@@ -293,7 +296,7 @@ export class Game {
         const order = this.fighters.length <= 2 ? [2, 0] : (opts.roster ? [0, 2, 1, 3] : shuffle([0, 1, 2, 3]));
         this.fighters.forEach((f, i) => {
             f.reset(this.arena.spawns[order[i % order.length]]);
-            f.kos = 0; f.deaths = 0; f.hill = 0; f.out = false;
+            f.kos = 0; f.deaths = 0; f.hill = 0; f.out = false; f.outAt = 0; f.left = false;
             for (const k in f.stats) f.stats[k] = 0;
         });
         if (opts.mode === 'training') {
@@ -575,7 +578,7 @@ export class Game {
     // ---------------- knockouts ----------------
 
     knockOut(f, cause) {
-        if (!f.alive) return;
+        if (!f.alive || this.state === 'over') return; // nothing counts after the match is decided
         if (this.remote && !this.remote.isHost) return; // the host decides KOs
         f.deaths++;
         f.stats.deaths++;
@@ -602,6 +605,7 @@ export class Game {
         if (this.mode === 'stand' && f.deaths >= this.modeDef.lives) {
             f.respawnT = Infinity;
             f.out = true;
+            f.outAt = this.time;
             if (f === this.local) this.ui.banner('ELIMINATED', 'Out of lives', '#ff6b5a', 1.6);
             else this.ui.banner('', `${f.name} is out!`, '#ffd54a', 1.2, true);
             const left = this.fighters.filter(o => !o.out);
@@ -712,13 +716,13 @@ export class Game {
 
     leader() {
         let best = null;
-        for (const f of this.fighters) if (!best || this.score(f) > this.score(best)) best = f;
+        for (const f of this.fighters) if (!f.left && (!best || this.score(f) > this.score(best))) best = f;
         return best;
     }
 
     tied() {
         const top = this.leader();
-        return this.fighters.filter(f => this.score(f) === this.score(top)).length > 1;
+        return !!top && this.fighters.filter(f => !f.left && this.score(f) === this.score(top)).length > 1;
     }
 
     // King of the Hill: standing in the glowing zone alone earns a point a second
@@ -769,7 +773,8 @@ export class Game {
         this.input.exitLock();
         crazyGames.setGameplay(false);
         this.ui.offerRevive(false);
-        const ranked = this.fighters.slice().sort((a, b) => this.score(b) - this.score(a) || b.kos - a.kos || a.deaths - b.deaths || b.stats.damageDealt - a.stats.damageDealt);
+        // players who left rank last; in Last Stand, whoever went out later ranks higher
+        const ranked = this.fighters.slice().sort((a, b) => (a.left ? 1 : 0) - (b.left ? 1 : 0) || this.score(b) - this.score(a) || (b.outAt || 0) - (a.outAt || 0) || b.kos - a.kos || a.deaths - b.deaths || b.stats.damageDealt - a.stats.damageDealt);
         const win = ranked[0] === this.local;
         let reward = null;
         let done = [];
@@ -817,7 +822,8 @@ export class Game {
         this.input.active = false;
         this.input.exitLock();
         crazyGames.setGameplay(false);
-        const waves = this.wave - 1;
+        // died between waves (the current one already cleared)? then it counts
+        const waves = this.fighters.slice(1).some(f => f.alive) ? this.wave - 1 : this.wave;
         this.pendingGauntlet = { waves };
         this.ui.showResults({ gauntlet: true, waves, local: this.local, canRevive, best: profile.data.arena3d.gauntletBest });
     }

@@ -59,7 +59,7 @@ export class UI {
         click($('btn-pause-touch'), () => g.pause());
         click($('click-to-play'), () => { g.input.requestLock(); });
         click($('res-again'), () => this.afterResults(() => {
-            if (this.game.remote) {
+            if (this.wasOnline) {
                 // online rematch: back to the same room's lobby
                 const r = this.room;
                 const connected = r && r.peer && (r.isHost || (r.hostConn && r.hostConn.open));
@@ -125,7 +125,7 @@ export class UI {
         const g = this.game;
         if (g.mode === 'gauntlet') {
             // leaving mid-run still pays for the waves already cleared
-            if (!g.pendingGauntlet && g.wave > 1) g.pendingGauntlet = { waves: g.wave - 1 };
+            if (!g.pendingGauntlet && g.wave > 1) g.pendingGauntlet = { waves: g.fighters.slice(1).some(f => f.alive) ? g.wave - 1 : g.wave };
             if (g.pendingGauntlet) g.finishGauntlet();
         }
         g.quitToMenu();
@@ -418,6 +418,7 @@ export class UI {
 
     showResults(d) {
         const g = this.game;
+        this.wasOnline = !!g.onlineMatch; // even if the host has already left
         $('hud').classList.add('hidden');
         $('touch').classList.add('hidden');
         $('click-to-play').classList.add('hidden');
@@ -667,7 +668,7 @@ export class UI {
         this.set('sc', $('scorebar'), 'html', sc);
         if (g.modeDef.time) {
             const left = Math.max(0, g.modeDef.time - g.matchT);
-            const txt = g.suddenDeath ? 'SUDDEN DEATH' : `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
+            const txt = g.suddenDeath ? (g.mode === 'hill' ? 'OVERTIME' : 'SUDDEN DEATH') : `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
             this.set('tm', $('timer'), 'text', txt);
             this.set('tmu', $('timer'), 'class:urgent', g.suddenDeath || left < 20);
         } else this.set('tm', $('timer'), 'text', '');
@@ -677,7 +678,7 @@ export class UI {
 
         // scoreboard (hold Tab)
         this.set('sb', $('scoreboard'), 'class:hidden', !g.input.showScores);
-        if (g.input.showScores) this.set('sbh', $('scoreboard'), 'html', this.statTable(g.fighters.slice().sort((a, b) => b.kos - a.kos)));
+        if (g.input.showScores) this.set('sbh', $('scoreboard'), 'html', this.statTable(g.fighters.slice().sort((a, b) => g.score(b) - g.score(a))));
 
         // name tags over other fighters
         const cam = g.camera, W = g.width, H = g.height;
