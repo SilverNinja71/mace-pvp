@@ -282,17 +282,20 @@ export function rockMass(radius, depth, segments = 16, seed = 1) {
         const shape = Math.pow(1 - (t * 0.55 + ledge * 0.45), 0.7);
         const y = -t * depth;
         const ox = (rnd() - 0.5) * radius * 0.25 * t, oz = (rnd() - 0.5) * radius * 0.25 * t;
-        for (let i = 0; i <= segments; i++) {
-            const a = (i % segments) / segments * Math.PI * 2;
+        for (let i = 0; i < segments; i++) {
+            const a = i / segments * Math.PI * 2;
             const n = 1 + 0.13 * Math.sin(a * 3 + lobes[0]) + 0.08 * Math.sin(a * 7 + lobes[1] + t * 3) + 0.05 * Math.sin(a * 13 + lobes[2] - t * 7);
             const j = r === 0 ? 1 : n * (0.9 + rnd() * 0.2);
             const rr = radius * (r === 0 ? 1 : Math.max(0.02, shape)) * j;
-            pos.push(Math.cos(a) * rr + (r ? ox : 0), y * (r ? 0.92 + rnd() * 0.16 : 1), Math.sin(a) * rr + (r ? oz : 0));
+            // height wobble stays well inside a row's height, so rows never fold over each other (folds left holes)
+            pos.push(Math.cos(a) * rr + (r ? ox : 0), y + (r ? (rnd() - 0.5) * depth / rows * 0.5 : 0), Math.sin(a) * rr + (r ? oz : 0));
         }
     }
-    const w = segments + 1;
+    // the last column joins the first, so the seam can't crack open
+    const w = segments;
     for (let r = 0; r < rows; r++) for (let i = 0; i < segments; i++) {
-        const A = r * w + i, B = A + 1, C = A + w, D = C + 1;
+        const j = (i + 1) % segments;
+        const A = r * w + i, B = r * w + j, C = (r + 1) * w + i, D = (r + 1) * w + j;
         idx.push(A, B, C, B, D, C);
     }
     const g = new THREE.BufferGeometry();

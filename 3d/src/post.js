@@ -81,9 +81,12 @@ export class PostFX {
               c = clamp(mix(vec3(l), c, saturation), 0.0, 1.0);
               vec2 q = vUv - 0.5; c *= 1.0 - vignette * smoothstep(0.1, 0.55, dot(q, q));
               c = mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c));
-              c += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
+              // dither: two noises make a triangular spread, which hides contour steps without looking grainy
+              float n1 = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
+              float n2 = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+              c += (n1 + n2 - 1.0) / 255.0;
               gl_FragColor = vec4(c, 1.0); }`,
-        { t: { value: null }, tBloom: { value: null }, bloom: { value: opts.bloom ? 0.32 : 0 }, exposure: { value: 1.0 }, vignette: { value: 0.22 }, saturation: { value: 1.12 } });
+        { t: { value: null }, tBloom: { value: null }, bloom: { value: opts.bloom ? 0.28 : 0 }, exposure: { value: 1.0 }, vignette: { value: 0.22 }, saturation: { value: 1.15 } });
         this.watch = { last: 0, bad: 0, n: 0, px: null, pbo: null, fence: null };
     }
 
@@ -159,6 +162,8 @@ export class PostFX {
             return W.bad >= 2;
         }
         if (now - W.last < (W.n < 6 ? 1000 : 6000)) return false;
+        // no picture to judge: a hidden or zero-size canvas reads as black
+        if (gl.drawingBufferWidth < 8 || gl.drawingBufferHeight < 8 || document.hidden || this.w < 8 || this.h < 8) return false;
         W.last = now; W.n++;
         if (!W.pbo) {
             W.pbo = gl.createBuffer();

@@ -18,7 +18,7 @@ export function setCharacterQuality(q) { QUALITY = q; }
 // Skin palettes, keyed by the skin ids saved in the shared profile
 // (internal ids kept from the 2D game: "steve", "alex", "noob", ...)
 export const SKINS = {
-    steve:          { name: 'Skye',           skin: '#e8b48c', shirt: '#d8452e', pants: '#3f4656', hair: '#e8b53e', accent: '#2f6fb3', cap: '#1d2c55', eyes: '#2b5fae', leather: '#6b4630', gear: 'skye' },
+    steve:          { name: 'Skye',           skin: '#e8b48c', shirt: '#d8452e', pants: '#3f4656', hair: '#c8922e', accent: '#2f6fb3', cap: '#1d2c55', eyes: '#2b5fae', leather: '#6b4630', gear: 'skye' },
     alex:           { name: 'Gale',           skin: '#f1c39a', shirt: '#eceee6', pants: '#2f7a58', hair: '#7fd3ff', accent: '#7b5cff', eyes: '#2e8b57', leather: '#5a4a68', gear: 'gale' },
     noob:           { name: 'Sunbolt',        skin: '#e9b98f', shirt: '#ff8a1f', pants: '#34508f', hair: '#fff6df', accent: '#ffe9c0', eyes: '#3b2a1e', grin: true, gear: 'sunbolt', tan: '#e87a18' },
     man_face:       { name: 'Dapper Duke',    skin: '#e8b48f', shirt: '#3a3a4a', pants: '#20202a', hair: '#1c1c22', accent: '#c9a227', eyes: '#222', moustache: true, gear: 'duke', tan: '#34343f' },
@@ -83,8 +83,8 @@ export function buildSpear(scale = 1, glowId = 'sun') {
     for (const c of g.children) c.castShadow = true;
     g.children[1].castShadow = false;
     // the soft glow around the tip (its own material: it brightens during dashes)
-    const halo = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 1), new THREE.MeshBasicMaterial({ color: C.halo, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false }));
-    halo.scale.set(0.8, 0.5, 3.2);
+    const halo = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 1), new THREE.MeshBasicMaterial({ color: C.halo, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false }));
+    halo.scale.set(0.7, 0.4, 2.9);
     halo.position.z = -1.74;
     halo.material.userData.noFlash = true;
     halo.material.userData.ownGlow = true;
@@ -216,11 +216,11 @@ function makeSkinMaterials(id) {
     const out = {};
     out.cloth = recolorPatch(litMat({ map: chartex(set + '_d', true), normalMap: chartex(set + '_n', false, [128, 128, 255]), roughnessMap: chartex(set + '_orm', false), metalnessMap: chartex(set + '_orm', false, [0, 200, 0]), roughness: 1, metalness: 1 }),
         set === 'ranger' ? 1 : 2, s.shirt, s.pants, s.tan || s.leather || s.accent, 0.4, 1, s.leather ? 1 : 0);
-    out.skin = recolorPatch(litMat({ map: chartex('arm_' + g + '_d', true), normalMap: chartex('arm_' + g + '_n', false, [128, 128, 255]), roughness: 0.62 }), 0, s.skin, null, null, 0.22, 1);
+    out.skin = recolorPatch(litMat({ map: chartex('arm_' + g + '_d', true), normalMap: chartex('arm_' + g + '_n', false, [128, 128, 255]), roughness: 0.62 }), 0, s.skin, null, null, 0.34, 1);
     out.head = recolorPatch(litMat({ map: chartex('head_' + g + '_d', true), normalMap: chartex('head_' + g + '_n', false, [128, 128, 255]), roughness: s.stone ? 0.8 : 0.55 }), 0, s.skin, null, null, 0.5, s.stone ? 1 : 0.8);
     out.brow = recolorPatch(litMat({ map: chartex('hair1_d', true), roughness: 0.8 }), 0, new THREE.Color(s.hair).multiplyScalar(0.45), null, null, 0.25, 1);
     const hairTex = (id === 'alex' || id === 'diamond_knight') ? 'hair2' : 'hair1';
-    out.hair = recolorPatch(litMat({ map: chartex(hairTex + '_d', true), normalMap: chartex(hairTex + '_n', false, [128, 128, 255]), roughness: 0.62 }), 0, s.hair, null, null, hairTex === 'hair2' ? 0.28 : 0.2, 1);
+    out.hair = recolorPatch(litMat({ map: chartex(hairTex + '_d', true), normalMap: chartex(hairTex + '_n', false, [128, 128, 255]), roughness: 0.62 }), 0, s.hair, null, null, hairTex === 'hair2' ? 0.42 : 0.34, 1);
     out.eye = recolorPatch(litMat({ map: chartex('eye_d', true), roughness: 0.22 }), 0, s.eyes, null, null, 0.3, s.glowEyes ? 1 : 0.55);
     if (s.glowEyes) { out.eye.emissive = new THREE.Color(s.eyes); out.eye.emissiveIntensity = s.glowEyes; }
     for (const k in out) out[k].userData.baseEmissive = out[k].emissive ? out[k].emissive.clone() : null;
@@ -247,7 +247,6 @@ function buildHeadGear(s) {
     const h = new THREE.Group();
     const accent = plainMat(s.accent, 0.5, 0.2);
     switch (s.gear) {
-        case 'skye': addPiece(h, new THREE.TorusGeometry(0.098, 0.012, 6, 22), plainMat(s.cap, 0.8), 0, 0.05, 0.002, 0.92, 1.12, 0.6, R90); break;
         case 'sunbolt': addPiece(h, new THREE.TorusGeometry(0.098, 0.012, 6, 22), plainMat(0xffffff, 0.8), 0, 0.05, 0.002, 0.92, 1.12, 0.6, R90); break;
         case 'duke': {
             const black = plainMat(0x17171d, 0.42, 0.1);
@@ -431,6 +430,14 @@ function buildSkinnedRig(skinId, file, wantClips) {
     root.add(headGear);
     headB.attach(headGear);
     if (bones.neck_01) {
+        // a body under the open collars: the outfits are hollow, and the head file stops at the neck
+        const plug = new THREE.Mesh(new THREE.SphereGeometry(0.1, 14, 10), mats.head);
+        plug.scale.set(1.22, 1.15, 0.8);
+        plug.position.copy(bones.neck_01.getWorldPosition(new THREE.Vector3()));
+        plug.position.y -= 0.115;
+        plug.castShadow = false;
+        root.add(plug);
+        bones.spine_03.attach(plug);
         const neckGear = buildNeckGear(s);
         neckGear.position.copy(bones.neck_01.getWorldPosition(new THREE.Vector3()));
         root.add(neckGear);
@@ -576,8 +583,8 @@ export class CharacterModel {
         this.sash = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.018, 6, 20).rotateX(R90), this.teamMat);
         this.sash.scale.z = 0.74;
 
-        this.spear = buildSpear(0.82, glowId);
-        this.mace = buildMace(0.78, glowId);
+        this.spear = buildSpear(0.62, glowId);
+        this.mace = buildMace(0.6, glowId);
         this.attachWeapons(this.rig);
         this.placeSash(this.rig);
 
@@ -666,9 +673,9 @@ export class CharacterModel {
             for (const [k, a] of Object.entries(A)) {
                 a.enabled = true;
                 a.setEffectiveWeight(0);
-                if (k === 'idle' || k === 'walk' || k === 'jog' || k === 'sprint' || k === 'jumpLoop') { a.setLoop(THREE.LoopRepeat, Infinity); a.play(); }
+                if (k === 'idle' || k === 'swordIdle' || k === 'walk' || k === 'jog' || k === 'sprint' || k === 'jumpLoop') { a.setLoop(THREE.LoopRepeat, Infinity); a.play(); }
             }
-            A.idle.setEffectiveWeight(1);
+            A.idle.setEffectiveWeight(0.65); A.swordIdle.setEffectiveWeight(0.35);
             R.mixer.update(0);
         }
     }
@@ -712,7 +719,7 @@ export class CharacterModel {
     koPose(dt) {
         const A = this.rig.acts;
         if (A && !this.ko) {
-            for (const k of ['idle', 'walk', 'jog', 'sprint', 'jumpLoop']) A[k].setEffectiveWeight(0);
+            for (const k of ['idle', 'swordIdle', 'walk', 'jog', 'sprint', 'jumpLoop']) A[k].setEffectiveWeight(0);
             A.death.reset(); A.death.setLoop(THREE.LoopOnce, 1); A.death.clampWhenFinished = true; A.death.setEffectiveWeight(1); A.death.timeScale = 1.6; A.death.play();
         }
         this.ko = 1;
@@ -725,7 +732,7 @@ export class CharacterModel {
         if (this.ko && A) {
             // back from a knockout
             A.death.stop();
-            for (const k of ['idle', 'walk', 'jog', 'sprint', 'jumpLoop']) A[k].play();
+            for (const k of ['idle', 'swordIdle', 'walk', 'jog', 'sprint', 'jumpLoop']) A[k].play();
         }
         this.ko = 0;
         const yaw = this.root.rotation.y;
@@ -738,6 +745,7 @@ export class CharacterModel {
         const rising = f.vel.y > 1;
         // ---- body: clips on the real model, swings on the stand-in
         const W = this.w;
+        if (A && !this.ko) { /* the fighting stance replaces the plain idle */ }
         const tgt = (k, v) => { W[k] = smoothE(W[k], v, 12, dt); };
         tgt('air', air ? 1 : 0);
         const gr = grounded ? 1 : 0;
@@ -753,7 +761,7 @@ export class CharacterModel {
         this.yawOff = smoothE(this.yawOff, yawTgt, 10, dt);
         const back = vF < -0.5 ? -1 : 1;
         if (A) {
-            A.idle.setEffectiveWeight(W.idle);
+            A.idle.setEffectiveWeight(W.idle * 0.65); A.swordIdle.setEffectiveWeight(W.idle * 0.35); // a plain stand with a little of the fighting stance
             A.walk.setEffectiveWeight(W.walk); A.walk.timeScale = back * Math.max(0.6, sp / 1.7);
             A.jog.setEffectiveWeight(W.jog); A.jog.timeScale = back * Math.max(0.7, sp / 4.2);
             A.sprint.setEffectiveWeight(W.sprint); A.sprint.timeScale = back * Math.max(0.8, sp / 7.5);
@@ -818,7 +826,7 @@ export class CharacterModel {
         // stun wobble
         this.body.rotation.z = stun;
         // spear tip glows during dashes
-        this.spear.userData.glow.material.opacity = f.dashT > 0 ? 0.42 : 0.18;
+        this.spear.userData.glow.material.opacity = f.dashT > 0 ? 0.4 : 0.1;
         if (this.flashT > 0 || this.flashOn) {
             this.flashT = Math.max(0, this.flashT - dt);
             const k = this.flashT / 0.14 * 0.85;
@@ -855,10 +863,11 @@ export class CharacterModel {
         const breath = Math.sin(time * 2.1) * 0.008;
         const runK = this.w.jog + this.w.sprint + this.w.walk * 0.5;
         const swing = Math.sin(this.walkPhase) * runK;
-        let sx = 0.27, sy = 1.02 + breath + Math.abs(swing) * 0.03, sz = -0.22 - swing * 0.06, ikS = 0.85;
-        let mx = -0.29, my = 0.98 + breath + Math.abs(swing) * 0.03, mz = -0.15 + swing * 0.06, ikM = 0.85;
-        let dsx = 0.04, dsy = 0.9, dsz = -0.42;     // spear: up and a little forward
-        let dmx = -0.22, dmy = 0.85, dmz = -0.46;   // mace: held up, ready
+        // ready stance: spear angled forward like a lance, mace low in the other fist, elbows in
+        let sx = 0.23, sy = 1.04 + breath + Math.abs(swing) * 0.03, sz = -0.2 - swing * 0.06, ikS = 0.9;
+        let mx = -0.25, my = 0.95 + breath + Math.abs(swing) * 0.03, mz = -0.14 + swing * 0.06, ikM = 0.9;
+        let dsx = -0.06, dsy = 0.62, dsz = -0.78;
+        let dmx = -0.22, dmy = 0.62, dmz = -0.75;
         let rate = 14;
         const pitch = f.pitch || 0;
         const cp = Math.cos(pitch), spitch = Math.sin(pitch);
@@ -927,7 +936,7 @@ export class CharacterModel {
         if (f.dashT > 0) {
             this.spear.updateWorldMatrix(true, false);
             tip.set(0, 0, this.spear.userData.tipZ).applyMatrix4(this.spear.matrixWorld);
-            base.set(0, 0, -0.9).applyMatrix4(this.spear.matrixWorld);
+            base.set(0, 0, -1.45).applyMatrix4(this.spear.matrixWorld);
             return 'spear';
         }
         if (f.slamming || f.swingT > 0 || this.slamHit > 0) {
@@ -1086,6 +1095,6 @@ export class ViewModel {
         solveArm(R.arms.l, _hM, POLE_L, 1);
         aimGrip(R, 'r', this.dirS, 1);
         aimGrip(R, 'l', this.dirM, 1);
-        this.spear.userData.glow.material.opacity = thrust ? 0.42 : 0.18;
+        this.spear.userData.glow.material.opacity = thrust ? 0.4 : 0.1;
     }
 }

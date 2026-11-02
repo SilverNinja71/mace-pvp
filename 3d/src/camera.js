@@ -68,8 +68,8 @@ export class CameraRig {
         } else {
             // pivot over the right shoulder, then back along the look direction
             const bs = f.bigScale || 1;
-            const sx = ex + right.x * 0.85 * bs, sy = ey + 0.5 * bs, sz = ez + right.z * 0.85 * bs;
-            const want = 4.6 * bs;
+            const sx = ex + right.x * 0.75 * bs, sy = ey + 0.22 * bs, sz = ez + right.z * 0.75 * bs;
+            const want = 3.9 * bs;
             const hit = this.physics.raycast(sx, sy, sz, -look.x, -look.y, -look.z, want + 0.3) - 0.3;
             const d = Math.max(0.6, Math.min(want, hit));
             this.distNow = d < this.distNow ? d : this.distNow + (d - this.distNow) * Math.min(1, dt * 5);

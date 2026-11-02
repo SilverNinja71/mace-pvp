@@ -33,7 +33,7 @@ export const LAYOUTS = {
 
 // Tints multiply the photo textures, so 0xffffff means the stone's own colour
 const PAL = {
-    stone: 0xf3ead9, stoneDark: 0xb7aa96, tileA: 0xe9d9c0, tileB: 0x9cc4d4, tileC: 0xe8905e, gold: 0xc9962f, bronze: 0xb98a55,
+    stone: 0xf3ead9, stoneDark: 0xb7aa96, tileA: 0xfff0d8, tileB: 0x7fb0c8, tileC: 0xf0a070, tileWarm: 0xe07a50, tileTeal: 0x58b8b0, gold: 0xc9962f, bronze: 0xb98a55,
     rock: 0xb5a999, rockDark: 0x7f756b, grass: 0xbfe08a, grassDark: 0x8dbb62, dirt: 0x9a6f4c,
     obsidian: 0x5a4a8c, trunk: 0x7a5236, leaf: 0x56b04f, leaf2: 0x86d05f
 };
@@ -117,7 +117,7 @@ export class Arena {
         this.quality = quality;
         // one batch per material, in tile repeats per metre
         const W = this.world = {
-            tile: new GeoBatch(0.5), pave: new GeoBatch(0.4), flag: new GeoBatch(0.42), block: new GeoBatch(0.34), wall: new GeoBatch(0.42),
+            tile: new GeoBatch(0.9), pave: new GeoBatch(0.95), flag: new GeoBatch(0.8), block: new GeoBatch(0.34), wall: new GeoBatch(0.42),
             rock: new GeoBatch(0.13), grass: new GeoBatch(0.22), slate: new GeoBatch(0.4), gold: new GeoBatch(1), bronze: new GeoBatch(1), plain: new GeoBatch(1)
         };
         const glow = new GeoBatch(1);
@@ -151,7 +151,8 @@ export class Arena {
             const sx = Math.cos(a + 0.42) * (DIST + 0.8), sz = Math.sin(a + 0.42) * (DIST + 0.8);
             ph.addBox(sx - 0.8, y, sz - 0.8, sx + 0.8, y + 1.5, sz + 0.8, 'step');
             W.wall.addAt(chamferBox(1.6, 1.5, 1.6, 0.09), sx, y + 0.75, sz, PAL.stoneDark, 0.08, 0, 1, 1, 1, 0, 0, { ao: { y0: y, h: 0.7, min: 0.6 } });
-            this.contacts.push([sx, y + 0.015, sz, 1.7, 0.5]);
+            // (it floats off the island's edge, so it needs a root of its own)
+            W.rock.addAt(rockMass(1.0, 1.7, 10, i + 61), sx, y + 0.02, sz, PAL.rock, 0.06, i, 1, 1, 1, 0, 0, { scale: 3 });
             // a tree on the tier and crystals on the island
             this.addTree(ux + Math.cos(a + 1.6) * 1.2, y + 3, uz + Math.sin(a + 1.6) * 1.2, i);
             for (let k = 0; k < 3; k++) {
@@ -313,10 +314,22 @@ export class Arena {
     }
 
     // A round floor made of rings of tiles that follow the circle
-    floorRing(batch, r0, r1, y, color, tilesPerMeter = 0.5, seg = 72) {
-        const g = new THREE.RingGeometry(r0, r1, seg, 3);
-        g.rotateX(-R90);
-        batch.addAt(g, 0, y, 0, color, 0.015, 0, 1, 1, 1, 0, 0, { uv: 'polar', uTiles: Math.max(4, Math.round(Math.PI * (r0 + r1) * tilesPerMeter)) });
+    floorRing(batch, r0, r1, y, color, tilesPerMeter = 0.5, seg = 72, sectors = 0, color2 = 0) {
+        const uTiles = Math.max(4, Math.round(Math.PI * (r0 + r1) * tilesPerMeter));
+        const bright = batch === this.world.tile ? 2.1 : batch === this.world.flag ? 1.4 : 1;
+        if (!sectors) {
+            const g = new THREE.RingGeometry(r0, r1, seg, 3);
+            g.rotateX(-R90);
+            batch.addAt(g, 0, y, 0, color, 0.015, 0, 1, 1, 1, 0, 0, { uv: 'polar', uTiles, bright });
+            return;
+        }
+        // wedges in two alternating colours
+        const per = Math.max(2, Math.round(seg / sectors));
+        for (let i = 0; i < sectors; i++) {
+            const g = new THREE.RingGeometry(r0, r1, per, 3, (i / sectors) * Math.PI * 2, (1 / sectors) * Math.PI * 2);
+            g.rotateX(-R90);
+            batch.addAt(g, 0, y, 0, i % 2 ? color2 : color, 0.02, 0, 1, 1, 1, 0, 0, { uv: 'polar', uTiles, bright });
+        }
     }
 
     // The carved drum under a round floor: its wall, a band of dentils, a metal trim, and the rock below
@@ -357,11 +370,13 @@ export class Arena {
         ph.addCylinder(0, 0, CENTER_R, -6, 0, 'center');
         this.floorDrum(W, CENTER_R, 3);
         // floor rings of patterned tile with metal inlays; everything sits a hair apart so nothing flickers
-        this.floorRing(W.tile, GEYSER_R + 0.2, 6.5, 0, PAL.tileC, 0.55, 48);
-        this.floorRing(W.gold, 6.5, 7.0, 0.004, PAL.gold, 1, 72);
-        this.floorRing(W.pave, 7.0, 13.6, 0, PAL.tileB, 0.42, 96);
-        this.floorRing(W.gold, 13.6, 14.1, 0.004, PAL.gold, 1, 96);
-        this.floorRing(W.tile, 14.1, CENTER_R - 0.7, 0, PAL.tileA, 0.5, 128);
+        this.floorRing(W.tile, GEYSER_R + 0.2, 6.5, 0, PAL.tileC, 0.9, 48, 8, PAL.tileWarm);
+        this.floorRing(W.gold, 6.5, 6.8, 0.004, PAL.gold, 1, 72);
+        this.floorRing(W.tile, 6.8, 9.6, 0, PAL.tileTeal, 1.0, 96, 16, PAL.tileB);
+        this.floorRing(W.bronze, 9.6, 9.72, 0.004, PAL.bronze, 1, 96);
+        this.floorRing(W.pave, 9.72, 13.7, 0, PAL.tileC, 1.0, 112);
+        this.floorRing(W.gold, 13.7, 14.0, 0.004, PAL.gold, 1, 96);
+        this.floorRing(W.tile, 14.0, CENTER_R - 0.7, 0, PAL.tileA, 0.85, 144, 16, PAL.tileWarm);
         this.floorRing(W.block, CENTER_R - 0.7, CENTER_R, 0.002, PAL.stoneDark, 0.4, 128);
         // radial bronze seams on the outer ring
         for (let i = 0; i < 16; i++) {
@@ -421,7 +436,7 @@ export class Arena {
     monolith(W, glow, x, z, hw, yb, yt, seed) {
         const hgt = yt - yb;
         W.slate.addAt(chamferBox(hw * 2, hgt, hw * 2, 0.1), x, yb + hgt / 2, z, PAL.obsidian, 0.04);
-        W.slate.addAt(rockMass(hw * 1.2, 2.8, 9, seed), x, yb + 0.02, z, PAL.obsidian, 0.1, seed, 1, 1, 1, 0, 0, { scale: 0.7 });
+        W.rock.addAt(rockMass(hw * 1.32, 3.0, 14, seed), x, yb + 0.02, z, 0x6a5f70, 0.08, seed, 1, 1, 1, 0, 0, { scale: 2.2, ao: { y0: 0, h: 0, top: yb, hTop: 1.1, min: 0.5 } });
         addGlow(glow, new THREE.BoxGeometry(hw * 2 + 0.06, 0.1, hw * 2 + 0.06), x, yt - 0.15, z, 0xd2b8ff, GLOW);
         for (let s = 0; s < 4; s++) {
             const sa = s * Math.PI / 2;
@@ -437,7 +452,7 @@ export class Arena {
         ph.addCylinder(0, 0, R, -6, 0, 'center');
         this.floorDrum(W, R, 5);
         // old flagstones with patches of a lighter stone laid over them
-        this.floorRing(W.flag, 0.1, R - 0.8, 0, PAL.tileA, 0.42, 112);
+        this.floorRing(W.flag, 0.1, R - 0.8, 0, PAL.tileC, 0.8, 112, 12, PAL.tileA);
         for (let i = 0; i < 26; i++) {
             const a = i * 2.39, d = 8 + (i * 5.3) % 12;
             W.pave.addAt(new THREE.PlaneGeometry(1.6 + (i % 3) * 0.5, 1.2 + (i % 2) * 0.6).rotateX(-R90), Math.cos(a) * d, 0.006, Math.sin(a) * d, i % 2 ? PAL.tileC : PAL.stoneDark, 0.05, a);
@@ -516,9 +531,9 @@ export class Arena {
         const R = this.centerR;
         ph.addCylinder(0, 0, R, -6, 0, 'center');
         this.floorDrum(W, R, 13);
-        this.floorRing(W.pave, GEYSER_R + 0.2, 7, 0, PAL.tileC, 0.42, 64);
-        this.floorRing(W.gold, 7, 7.5, 0.004, PAL.gold, 1, 72);
-        this.floorRing(W.tile, 7.5, R - 0.7, 0, PAL.tileB, 0.5, 96);
+        this.floorRing(W.pave, GEYSER_R + 0.2, 7, 0, PAL.tileC, 1.0, 64);
+        this.floorRing(W.gold, 7, 7.3, 0.004, PAL.gold, 1, 72);
+        this.floorRing(W.tile, 7.3, R - 0.7, 0, PAL.tileTeal, 0.9, 112, 12, PAL.tileB);
         this.floorRing(W.block, R - 0.7, R, 0.002, PAL.stoneDark, 0.4, 96);
         const heights = [4, 7, 10, 13];
         const tops = [];
@@ -659,11 +674,18 @@ export class Arena {
                     float u = atan(d.z, d.x) / (2.0 * PI) + 0.5 + skyOff;
                     float v = asin(clamp(max(h, 0.002), 0.0, 1.0)) / (PI * 0.5);
                     vec3 s = textureLod(tSky, vec2(u, v), 0.0).rgb;
+                    // the photo is 8 bits: a little noise before decoding breaks up its contour steps
+                    float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+                    s = clamp(s + (ign - 0.5) * 2.0 / 255.0, 0.0, 0.995);
                     s = pow(s, vec3(2.2));
                     s = s / max(vec3(1.0) - s, vec3(0.04));
                     c = s * exposure * skyTint;
-                    c = max(mix(vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))), c, skySat), vec3(0.0));
-                    c = c / (1.0 + max(max(c.r, c.g), c.b) * 0.12);
+                    // richer colour in the sky, but ease off where it's bright: pushing saturation near the sun clips one
+                    // channel to zero and leaves hard-edged blocks of pure yellow
+                    float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
+                    float sat = mix(skySat, 0.82, smoothstep(0.35, 1.5, lum));
+                    c = max(mix(vec3(lum), c, sat), vec3(0.0));
+                    c = c / (1.0 + max(max(c.r, c.g), c.b) * 0.22); // soft shoulder: the sun stays bright, the sky around it keeps its colour
                     c = min(c, vec3(6.0));
                   }
                   // a thin high cloud layer that drifts, so the sky is alive and sharp up close
@@ -831,7 +853,7 @@ export class Arena {
 
     // Light and sky for each time of day. exposure scales the photo sky; lit/shade colour the clouds; horizon, top and mid are the painted fallback sky.
     static THEMES = {
-        sunset: { top: 0x2a4f9c, mid: 0x7b8fc4, horizon: 0xffb98a, bottom: 0xc9b0b4, fog: 0xd8b4a8, fogFar: 340, hs: 0xcfdcff, hg: 0x8a6a58, sun: 0xffc98f, sunI: 3.0, hemiI: 0.22, stars: false, sunC: 0xffd9a8, sunSize: 1, exposure: 0.85, lit: 0xfff0e0, shade: 0x8d80a0, sea: 0xcfb6b8, cloudTint: 0xffc9a8, cloudAmt: 0.2, sunDir: [-0.62, 0.46, -0.64], env: 0.75, skySat: 1.12 },
+        sunset: { top: 0x2a4f9c, mid: 0x7b8fc4, horizon: 0xffb98a, bottom: 0xa9a2bc, fog: 0xc2a6a6, fogFar: 340, hs: 0xcfdcff, hg: 0x8a6a58, sun: 0xffc98f, sunI: 3.0, hemiI: 0.22, stars: false, sunC: 0xffd9a8, sunSize: 1, exposure: 0.42, lit: 0xffe4d0, shade: 0x6f6e98, sea: 0xa9a2bc, cloudTint: 0xffc9a8, cloudAmt: 0.2, sunDir: [-0.62, 0.46, -0.64], env: 1.55, skySat: 1.28 },
         night:  { top: 0x070b24, mid: 0x1b2a5c, horizon: 0x4a4a8a, bottom: 0x1a2148, fog: 0x232a58, fogFar: 280, hs: 0x8fa6ff, hg: 0x2a2440, sun: 0xaec2ff, sunI: 1.5, hemiI: 0.42, stars: true, sunC: 0xdfe8ff, sunSize: 0.35, exposure: 0.16, lit: 0x5c6aa8, shade: 0x1c2148, sea: 0x232a58, cloudTint: 0x39427a, cloudAmt: 0.12, sunDir: [-0.5, 0.72, -0.48], env: 5.0, skySat: 1.2, skyTint: [0.42, 0.62, 1.5] },
         storm:  { top: 0x2b3240, mid: 0x4f5a6e, horizon: 0x8a94a6, bottom: 0x4c5463, fog: 0x69738a, fogFar: 230, hs: 0xc8d2e6, hg: 0x5a5560, sun: 0xdde4f0, sunI: 1.25, hemiI: 0.6, stars: false, sunC: 0x9aa4b4, sunSize: 0, exposure: 0.28, lit: 0x7c8698, shade: 0x2c3340, sea: 0x4a5364, cloudTint: 0x3a4250, cloudAmt: 0.55, sunDir: [-0.5, 0.7, -0.5], env: 1.5, skySat: 1.0 }
     };

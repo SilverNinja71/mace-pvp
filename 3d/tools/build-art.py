@@ -135,6 +135,182 @@ def read_prim(g, prim, target_names, target_ib, keep=None):
     return p
 
 
+def decimate(p, ratio):
+    """Quadric edge collapse (Garland-Heckbert, half-edge form): moves a vertex onto a neighbour, so UVs, normals and
+    skin weights stay exact. Open edges, which include UV seams, never move, so textures don't tear."""
+    import heapq
+    if ratio >= 0.999 or not p.idx:
+        return p
+    pos = p.pos
+    tris = [list(p.idx[i:i + 3]) for i in range(0, len(p.idx), 3)]
+    n = len(pos)
+    vt = [set() for _ in range(n)]
+    Q = [[0.0] * 10 for _ in range(n)]
+    def tri_plane(t):
+        a, b, c = pos[t[0]], pos[t[1]], pos[t[2]]
+        ux, uy, uz = b[0]-a[0], b[1]-a[1], b[2]-a[2]
+        vx, vy, vz = c[0]-a[0], c[1]-a[1], c[2]-a[2]
+        nx, ny, nz = uy*vz-uz*vy, uz*vx-ux*vz, ux*vy-uy*vx
+        l = math.sqrt(nx*nx+ny*ny+nz*nz)
+        return (nx/l, ny/l, nz/l, l) if l > 1e-14 else (0.0, 0.0, 0.0, 0.0)
+    edges = {}
+    for ti, t in enumerate(tris):
+        nx, ny, nz, l = tri_plane(t)
+        d = -(nx*pos[t[0]][0]+ny*pos[t[0]][1]+nz*pos[t[0]][2])
+        k = (nx*nx, nx*ny, nx*nz, nx*d, ny*ny, ny*nz, ny*d, nz*nz, nz*d, d*d)
+        for v in t:
+            vt[v].add(ti)
+            q = Q[v]
+            for i in range(10):
+                q[i] += k[i] * (l + 1e-6)
+        for i in range(3):
+            a, b = t[i], t[(i+1) % 3]
+            e = (a, b) if a < b else (b, a)
+            edges[e] = edges.get(e, 0) + 1
+    # Vertices at the same spot are one point split by a UV seam. They move together, so seams can simplify without cracks.
+    # Only a truly open edge (no matching edge across a seam) stays fixed.
+    at = {}
+    for v in range(n):
+        at.setdefault((round(pos[v][0], 5), round(pos[v][1], 5), round(pos[v][2], 5)), []).append(v)
+    twins = [None] * n
+    for grp in at.values():
+        for v in grp:
+            twins[v] = grp
+    key = lambda v: (round(pos[v][0], 5), round(pos[v][1], 5), round(pos[v][2], 5))
+    openings = {}
+    for (a, b), c in edges.items():
+        if c == 1:
+            ka, kb = key(a), key(b)
+            e = (ka, kb) if ka < kb else (kb, ka)
+            openings[e] = openings.get(e, 0) + 1
+    locked = [False] * n
+    for (a, b), c in edges.items():
+        if c > 2 or (c == 1 and openings[((key(a), key(b)) if key(a) < key(b) else (key(b), key(a)))] == 1):
+            for v in twins[a] + twins[b]:
+                locked[v] = True
+    def err(q, v):
+        x, y, z = v
+        return (q[0]*x*x + 2*q[1]*x*y + 2*q[2]*x*z + 2*q[3]*x + q[4]*y*y + 2*q[5]*y*z + 2*q[6]*y + q[7]*z*z + 2*q[8]*z + q[9])
+    def top(v):
+        w = p.wt[v]
+        return p.jn[v][w.index(max(w))] if p.jn else 0
+    def gq(v):
+        q = [0.0] * 10
+        for u in twins[v]:
+            for i in range(10):
+                q[i] += Q[u][i]
+        return q
+    def cost(a, b):
+        qa, qb = gq(a), gq(b)
+        q = [x+y for x, y in zip(qa, qb)]
+        best = None
+        for fr, to in ((a, b), (b, a)):
+            if locked[fr]:
+                continue
+            c = err(q, pos[to])
+            if best is None or c < best[0]:
+                best = (c, fr, to)
+        if best is None:
+            return None
+        na, nb = p.nor[a], p.nor[b]
+        if na[0]*nb[0]+na[1]*nb[1]+na[2]*nb[2] < 0.3:
+            return None
+        c = best[0]
+        d2 = sum((x-y)**2 for x, y in zip(p.uv[a], p.uv[b]))
+        c += d2 * 2e-4                          # keeps texture detail from sliding
+        if p.jn and top(a) != top(b):
+            c = c * 4 + 2e-6                    # keeps joints bending in the right place
+        return (c, best[1], best[2])
+    stamp = [0] * n
+    heap = []
+    def push(a, b):
+        r = cost(a, b)
+        if r:
+            heapq.heappush(heap, (r[0], r[1], r[2], stamp[r[1]], stamp[r[2]]))
+    for (a, b) in edges:
+        push(a, b)
+    alive = len(tris)
+    target = int(alive * ratio)
+    dead = [False] * len(tris)
+    while heap and alive > target:
+        c, fr, to, sf, st = heapq.heappop(heap)
+        if stamp[fr] != sf or stamp[to] != st or locked[fr] or not vt[fr] or not vt[to]:
+            continue
+        # every copy of this point must collapse along its own copy of the edge
+        pairs = []
+        ok = True
+        for f in twins[fr]:
+            if not vt[f]:
+                continue
+            found = None
+            for ti in vt[f]:
+                for v in tris[ti]:
+                    if v != f and key(v) == key(to):
+                        found = v
+                        break
+                if found is not None:
+                    break
+            if found is None:
+                ok = False
+                break
+            pairs.append((f, found))
+        if not ok or not pairs:
+            continue
+        # would any remaining triangle flip or collapse?
+        for f, g in pairs:
+            shared = vt[f] & vt[g]
+            for ti in vt[f]:
+                if ti in shared:
+                    continue
+                t = tris[ti]
+                old = tri_plane(t)
+                nw = tri_plane([g if v == f else v for v in t])
+                if nw[3] < old[3] * 0.05 or old[0]*nw[0]+old[1]*nw[1]+old[2]*nw[2] < 0.35:
+                    ok = False
+                    break
+            if not ok:
+                break
+        if not ok:
+            continue
+        touched = set()
+        for f, g in pairs:
+            shared = vt[f] & vt[g]
+            for ti in shared:
+                dead[ti] = True
+                alive -= 1
+                for v in tris[ti]:
+                    vt[v].discard(ti)
+            for ti in vt[f]:
+                t = tris[ti]
+                t[t.index(f)] = g
+                vt[g].add(ti)
+            vt[f] = set()
+            Q[g] = [x+y for x, y in zip(Q[g], Q[f])]
+            stamp[f] += 1
+            stamp[g] += 1
+            touched.add(g)
+        for g in touched:
+            nbrs = set()
+            for ti in vt[g]:
+                nbrs.update(tris[ti])
+            nbrs.discard(g)
+            for v in nbrs:
+                push(g, v)
+    out = Part()
+    remap = {}
+    for ti, t in enumerate(tris):
+        if dead[ti]:
+            continue
+        for v in t:
+            if v not in remap:
+                remap[v] = len(out.pos)
+                out.pos.append(pos[v]); out.nor.append(p.nor[v]); out.uv.append(p.uv[v])
+                if p.jn:
+                    out.jn.append(p.jn[v]); out.wt.append(p.wt[v])
+            out.idx.append(remap[v])
+    return out
+
+
 def is_head(jn, wt, names, pos):
     w = sum(wt[k] for k in range(4) if names[jn[k]] in ('Head', 'neck_01'))
     return w > 0.25
@@ -235,6 +411,10 @@ SKINS = {
 }
 
 
+# How much of each material's triangles to keep. Faces get the most care; boots and buckles had far more than anyone can see.
+DECIMATE = {'cloth': 0.42, 'skin': 0.55, 'head': 0.8, 'eye': 0.6, 'brow': 0.5, 'hair': 0.6}
+
+
 def build_chars():
     d = os.path.join(OUT, 'chars'); os.makedirs(d, exist_ok=True)
     for sid, (of, hd, parts, hairs) in SKINS.items():
@@ -278,6 +458,8 @@ def build_chars():
         ibi = w.add(ibb, 5126, 'MAT4', len(ib))
         w.j['skins'] = [{'joints': [remap[x] for x in g.j['skins'][0]['joints']], 'inverseBindMatrices': ibi}]
         w.j['materials'] = []; prims = []
+        for name in list(mats):
+            mats[name] = decimate(mats[name], DECIMATE[name])
         for name, p in mats.items():
             if not p.pos:
                 continue
@@ -453,7 +635,7 @@ def build_skies():
         png = os.path.join(d, 'sky_' + name + '.png')
         write_png(png, w, top, out)
         jpg = os.path.join(d, 'sky_' + name + '.jpg')
-        subprocess.run(['sips', '-s', 'format', 'jpeg', '-s', 'formatOptions', '82', png, '--out', jpg], capture_output=True, check=True)
+        subprocess.run(['sips', '-s', 'format', 'jpeg', '-s', 'formatOptions', '95', png, '--out', jpg], capture_output=True, check=True)
         os.remove(png)
         info[name] = {'sunU': best[1] / w, 'sunV': best[2] / h, 'peak': best[0] / 3}
         print(name, w, top, os.path.getsize(jpg) // 1024, 'KB', info[name])
@@ -478,6 +660,8 @@ def build_nature():
                 p.pos = g.acc(a['POSITION']); p.nor = g.acc(a['NORMAL']); p.uv = g.acc(a['TEXCOORD_0'])
                 p.idx = [x[0] for x in g.acc(pr['indices'])]
                 mn = g.j['materials'][pr['material']]['name']
+                if 'Bark' in mn:
+                    p = decimate(p, 0.4)  # (leaves are alpha cards: those stay as they are)
                 if mn not in mats:
                     mats[mn] = len(w.j['materials']); w.j['materials'].append({'name': mn})
                 prims.append(add_prim(w, p, mats[mn], skinned=False))

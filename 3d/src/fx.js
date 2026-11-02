@@ -301,6 +301,11 @@ export class FX {
             t.key = key;
         }
         t.active = true;
+        // a jump (respawn, blink) would draw a long smear across the map: start over instead
+        if (t.n > 0) {
+            const dx = this._tip.x - t.tip[0], dy = this._tip.y - t.tip[1], dz = this._tip.z - t.tip[2];
+            if (dx * dx + dy * dy + dz * dz > 16) t.n = 0;
+        }
         // newest sample at the front
         t.tip.copyWithin(3, 0, (TRAIL_N - 1) * 3); t.base.copyWithin(3, 0, (TRAIL_N - 1) * 3); t.age.copyWithin(1, 0, TRAIL_N - 1);
         t.tip[0] = this._tip.x; t.tip[1] = this._tip.y; t.tip[2] = this._tip.z;
