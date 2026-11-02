@@ -40,7 +40,7 @@ export class OnlineRoom {
         this.onClosed = null;         // (reason) => void
     }
 
-    me() { return { name: profile.name, classId: profile.classId, skinId: profile.skinId, glowId: profile.glowId }; }
+    me() { return { name: profile.name, classId: profile.classId, skinId: profile.skinId, glowId: profile.glowId, trailId: profile.trailId }; }
 
     // ---------------- rooms ----------------
     host(onReady) {
@@ -161,7 +161,7 @@ export class OnlineRoom {
         // only friends whose connection is still open
         for (const [id, g] of [...this.guests]) if (!g.conn.open) this.guests.delete(id);
         if (this.guests.size === 0) return false;
-        for (const g of this.guests.values()) { g.fighterId = i++; roster.push({ name: g.name, classId: g.classId, skinId: g.skinId, glowId: g.glowId }); }
+        for (const g of this.guests.values()) { g.fighterId = i++; roster.push({ name: g.name, classId: g.classId, skinId: g.skinId, glowId: g.glowId, trailId: g.trailId }); }
         const kos = roster.length === 2 ? MATCH.duelKOs : MATCH.brawlKOs;
         const layout = ['colosseum', 'ruins', 'spires'][Math.floor(Math.random() * 3)];
         const theme = ['sunset', 'sunset', 'night', 'storm'][Math.floor(Math.random() * 4)];
@@ -255,7 +255,7 @@ export class OnlineRoom {
         if (!gu || !m || typeof m !== 'object') return;
         const g = this.game;
         if (m.t === 'hello') {
-            gu.name = cleanName(m.name); gu.classId = String(m.classId || 'normal'); gu.skinId = String(m.skinId || 'steve'); gu.glowId = String(m.glowId || 'sun');
+            gu.name = cleanName(m.name); gu.classId = String(m.classId || 'normal'); gu.skinId = String(m.skinId || 'steve'); gu.glowId = String(m.glowId || 'sun'); gu.trailId = String(m.trailId || 'glow');
             this.pushLobby();
             return;
         }

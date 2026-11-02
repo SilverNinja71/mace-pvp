@@ -6,6 +6,7 @@
 
 import * as THREE from 'three';
 import { toon, canvasTexture, toonRamp, GeoBatch } from './gfx.js';
+import { GLOWS } from './cosmetics.js';
 
 const SPEAR_RECOVER = 0.6; // spear cooldown left while the arm is still pulling back
 
@@ -60,14 +61,8 @@ function wm(key, make) {
     return WEAPON_MATS[key];
 }
 
-// Weapon glow styles (bought with gold): spear tip and mace rune colours
-export const GLOWS = {
-    sun:     { tip: 0xffd54a, halo: 0xffe28a, rune: 0x5ff3ff, cost: 0 },
-    frost:   { tip: 0x9ff4ff, halo: 0xc8fbff, rune: 0x9fd8ff, cost: 300 },
-    ember:   { tip: 0xff7a2f, halo: 0xffb070, rune: 0xff9a3a, cost: 450 },
-    verdant: { tip: 0x6dff8e, halo: 0xb4ffc4, rune: 0x6dffb0, cost: 450 },
-    void:    { tip: 0xc77dff, halo: 0xe2c2ff, rune: 0xb48cff, cost: 700 }
-};
+// Weapon styles live in cosmetics.js (still exported from here for anything importing them)
+export { GLOWS };
 
 // Weapons are merged into a couple of meshes each (lit parts + glowing parts) to keep draw calls low
 const weaponLit = () => wm('wlit', () => new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonRamp() }));

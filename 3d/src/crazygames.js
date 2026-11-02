@@ -137,6 +137,26 @@ class CrazyGames {
         });
     }
 
+    // ---- the player's CrazyGames account (the SDK's user module) ----
+    get accountsAvailable() {
+        if (!this.active || !this.sdk || !this.sdk.user) return false;
+        const u = this.sdk.user;
+        return u.isUserAccountAvailable !== false && typeof u.getUser === 'function';
+    }
+    // { username, ... } or null when signed out. Never rejects.
+    getUser() {
+        if (!this.accountsAvailable) return Promise.resolve(null);
+        return Promise.resolve().then(() => this.sdk.user.getUser()).then((u) => u || null).catch(() => null);
+    }
+    // Asks the player to sign in. Resolves with the user, or null if they didn't.
+    showAuthPrompt() {
+        if (!this.accountsAvailable || typeof this.sdk.user.showAuthPrompt !== 'function') return Promise.resolve(null);
+        return Promise.resolve().then(() => this.sdk.user.showAuthPrompt()).then((u) => u || null).catch(() => null);
+    }
+    onAuthChange(fn) {
+        if (this.accountsAvailable && typeof this.sdk.user.addAuthListener === 'function') this.safe(() => this.sdk.user.addAuthListener(fn));
+    }
+
     // ---- multiplayer invites ----
     inviteRoom() {
         if (!this.active) return null;
@@ -219,6 +239,11 @@ class PokiPortal {
             .then((res) => end(type === 'rewarded' ? !!res : true))
             .catch((e) => { console.warn('Poki ad error:', e); return end(false); });
     }
+
+    get accountsAvailable() { return false; } // Poki has no player accounts
+    getUser() { return Promise.resolve(null); }
+    showAuthPrompt() { return Promise.resolve(null); }
+    onAuthChange() {}
 
     inviteRoom() { return null; }
     inviteLink() { return Promise.resolve(null); }
