@@ -47,7 +47,7 @@ const LOBBY_SPOTS = {
     ruins:     { x: -15, z: -3, az: Math.PI * 5 / 9 }
 };
 const LOBBY_DIST = 8;        // metres from camera to fighter
-const LOBBY_MAX_TAN = 0.84; // the widest the lens gets (80 degrees); after that the camera backs off
+const LOBBY_MAX_TAN = 1.7;  // the widest the lens gets (about 120 degrees); after that the camera backs off
 const LOBBY_PITCH = 0.06;   // looking slightly up
 
 function lobbyForward(spot) { return { x: Math.sin(spot.az), z: -Math.cos(spot.az) }; }

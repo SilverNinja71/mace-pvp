@@ -48,8 +48,8 @@ function buildRibbon(c1, c2) {
     const N = 42, pos = [], col = [], idx = [];
     const a = new THREE.Color(c1), b = new THREE.Color(c2), tmp = new THREE.Color();
     for (let i = 0; i <= N; i++) {
-        const k = i / N, ang = k * Math.PI * 1.7;
-        const r = 0.95, y = k * 0.5, w = 0.2 * (1 - k) + 0.02;
+        const k = i / N, ang = k * Math.PI * 2.6; // a rising spiral, so it reads as a streak from the side too
+        const r = 0.82, y = k * 1.5, w = 0.085 * (1 - k) + 0.015;
         const x = Math.cos(ang) * r, z = Math.sin(ang) * r;
         pos.push(x, y - w, z, x, y + w, z);
         tmp.copy(a).lerp(b, k);
@@ -119,7 +119,7 @@ export function buildPodium(glowColor, trail) {
             ribbon.visible = !!showTrail;
             if (showTrail) {
                 ribbon.rotation.y = -time * 3.2;
-                ribbon.position.y = 0.5 + Math.sin(time * 1.4) * 0.3;
+                ribbon.position.y = 0.2 + Math.sin(time * 1.4) * 0.12;
             }
         }
     };
