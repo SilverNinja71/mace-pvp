@@ -9,6 +9,7 @@ import { audio } from './audio.js';
 import { crazyGames } from './crazygames.js';
 import { OnlineRoom, onlineAvailable } from './online.js';
 import { profile } from './profile.js';
+import { account } from './account.js';
 import { t, initLanguage, setPortalLocale, applyDom } from './i18n.js';
 
 initLanguage({ saved: profile.settings.lang, browser: navigator.language });
@@ -57,7 +58,10 @@ if (onlineAvailable()) {
 }
 
 // the portal's language is only known once its SDK has started
-crazyGames.init().then(() => { if (setPortalLocale(crazyGames.locale())) ui.applyLanguage(); });
+crazyGames.init().then(() => {
+    if (setPortalLocale(crazyGames.locale())) ui.applyLanguage();
+    return account.start(); // the player's portal account, where there is one
+}).catch((e) => console.warn(e));
 document.getElementById('loading').classList.add('hidden');
 ui.showMenu();
 window.SMA_READY = true;

@@ -21,6 +21,8 @@ import { crazyGames } from './crazygames.js';
 import { missions } from './missions.js';
 import { achievements } from './achievements.js';
 import { t, tn } from './i18n.js';
+import { buildPodium } from './podium.js';
+import { trailColors, TRAILS } from './cosmetics.js';
 
 // Mode names are in i18n.js (mode.<id>)
 export const MODES = {
@@ -41,6 +43,18 @@ const QUALITY = {
     medium: { shadows: 1024, dynamicShadows: false, maxDpr: 1.5, post: true,  samples: 2 },
     low:    { shadows: 0,    dynamicShadows: false, maxDpr: 1,   post: false, samples: 0 }
 };
+
+// Where the lobby's podium stands on each map, and which way the camera looks from there (radians: 0 = toward -z)
+const LOBBY_SPOTS = {
+    colosseum: { x: -10, z: -3, az: Math.PI * 5 / 9 },
+    spires:    { x: -6,  z: 3,  az: Math.PI / 9 },
+    ruins:     { x: -15, z: -3, az: Math.PI * 5 / 9 }
+};
+const LOBBY_DIST = 8;        // metres from camera to fighter
+const LOBBY_MAX_TAN = 1.7;  // the widest the lens gets (about 120 degrees); after that the camera backs off
+const LOBBY_PITCH = 0.06;   // looking slightly up
+
+function lobbyForward(spot) { return { x: Math.sin(spot.az), z: -Math.cos(spot.az) }; }
 
 const _v = new THREE.Vector3();
 const GUEST_SENDS = new Set(['jump', 'windJump', 'dash', 'slamStart', 'swing', 'parryUp', 'land', 'pad', 'geyser', 'grow', 'vanish', 'reveal', 'blinkOut', 'blinkIn']);
@@ -143,30 +157,106 @@ export class Game {
         requestAnimationFrame(this.loop);
     }
 
-    // The menu's fighter: your skin, idling and showing off a move now and then
+    // The lobby's fighter on the podium: your look, or what you're trying on (showcaseLook)
     refreshShowcase() {
+        const clock = this.showcase ? this.showcase.t : 0;
         if (this.showcase) { this.scene.remove(this.showcase.model.root); this.showcase.model.dispose(); this.showcase = null; }
         if (this.state !== 'menu') return;
-        const model = new CharacterModel(profile.skinId, TEAM_COLORS[0], profile.glowId);
-        model.root.position.set(0, 0, 9);
+        const look = this.showcaseLook || {};
+        const glowId = look.glowId || profile.glowId;
+        const trailId = look.trailId || profile.trailId;
+        const model = new CharacterModel(look.skinId || profile.skinId, TEAM_COLORS[0], glowId);
+        const podium = buildPodium((GLOWS[glowId] || GLOWS.sun).tip, trailColors(trailId, glowId));
+        // the podium rides on the model's root, so it turns with the fighter and leaves with it when a match starts
+        model.root.add(podium.group);
+        const spot = LOBBY_SPOTS[this.arena.layout] || LOBBY_SPOTS.colosseum;
+        const floor = this.physics.groundAt(spot.x, spot.z, 0.5, 40);
+        model.root.position.set(spot.x, (floor === -Infinity ? 0 : floor) + podium.height, spot.z);
         this.scene.add(model.root);
-        const fake = { vel: { x: 0, y: 0, z: 0 }, onGround: true, dashT: 0, spearCd: 0, slamming: false, swingT: 0, parryT: 0, glide: false, pitch: 0, bigScale: 1, stunT: 0, alive: true };
-        this.showcase = { model, fake, t: 0 };
+        const fake = { vel: { x: 0, y: 0, z: 0 }, onGround: true, dashT: 0, spearCd: 0, slamming: false, swingT: 0, parryT: 0, glide: false, pitch: 0, bigScale: 1, stunT: 0, alive: true, trailId, glowId };
+        this.showcase = { model, podium, fake, spot, t: clock };
+    }
+
+    // Turn the fighter (the lobby's drag). dx in pixels
+    turnShowcase(dx) {
+        this.showYaw = (this.showYaw || 0) + dx * 0.0085;
+        this.showSpin = Math.max(-3, Math.min(3, dx * 0.12));
+    }
+
+    // Show a map behind the podium
+    previewMap(layout) {
+        if (this.state !== 'menu' || this.arena.layout === layout) return;
+        this.useLayout(layout);
+        this.arena.setTheme('sunset', this.scene, this.hemi, this.sun);
+        this.refreshShowcase();
     }
 
     updateShowcase(dt) {
         const s = this.showcase;
         if (!s) return;
         s.t += dt;
-        const k = s.t % 6, f = s.fake;
-        f.dashT = k > 2 && k < 2.35 ? 0.1 : 0;          // spear thrust
-        f.slamming = k > 4 && k < 4.7;                  // mace raised overhead
-        f.pitch = f.slamming ? 0.4 : 0;
-        // face the camera, turning a little toward each pose
-        const a = this.menuT;
-        s.model.root.rotation.y = Math.atan2(-Math.cos(a), -Math.sin(a)) + (f.dashT ? -0.6 : 0); // forward (-sin, -cos) toward the camera
-        s.model.animate(f, dt, this.time);
+        const f = s.fake, weapons = this.ui.lobbyTab === 'weapons';
+        // idle, showing off a move now and then. On the Weapons tab: spear out, then mace up, held longer
+        if (weapons) {
+            const k = s.t % 5;
+            f.dashT = k < 2.3 ? 0.1 : 0;
+            f.slamming = k >= 2.6 && k < 4.8;
+        } else {
+            const k = s.t % 7;
+            f.dashT = k > 3 && k < 3.4 ? 0.1 : 0;
+            f.slamming = k > 5.2 && k < 6;
+        }
+        f.pitch = f.slamming ? 0.35 : 0;
+        // a turn keeps drifting after you let go
+        if (this.showSpin) {
+            this.showYaw = (this.showYaw || 0) + this.showSpin * dt;
+            this.showSpin *= Math.exp(-dt * 5);
+            if (Math.abs(this.showSpin) < 0.01) this.showSpin = 0;
+        }
+        // yaw 0 faces the camera, three-quarters on so both weapons show
+        const fw = lobbyForward(s.spot);
+        s.model.root.rotation.y = Math.atan2(fw.x, fw.z) + 0.42 + (this.showYaw || 0);
+        s.model.animate(f, dt, s.t);
         this.fx.trail('showcase', s.model, f);
+        s.podium.update(s.t, weapons);
+    }
+
+    // The lobby's camera: a fixed distance behind the fighter, a lens wide enough to show them at the size
+    // the free space between the panels allows, and a lens shift (like a tilt-shift camera) that slides the
+    // picture so they stand in that space. The shift never skews them, and the next match's first
+    // change of field of view rebuilds the projection without it.
+    frameShowcase(dt) {
+        const s = this.showcase, cam = this.camera;
+        if (!s) return;
+        const W = this.width || 1, H = this.height || 1;
+        const rect = this.ui.stageRect ? this.ui.stageRect() : null;
+        const r = rect && rect.w > 10 && rect.h > 10 ? rect : { x: 0, y: 0, w: W, h: H };
+        const want = { scale: Math.min(r.h / 3.45, r.w / 3.2), cx: r.x + r.w / 2, cy: r.y + r.h / 2 }; // scale: pixels per metre
+        const m = this.menuShot || (this.menuShot = { ...want });
+        const k = this.settings.reducedMotion ? 1 : 1 - Math.exp(-dt * 7);
+        m.scale += (want.scale - m.scale) * k;
+        m.cx += (want.cx - m.cx) * k;
+        m.cy += (want.cy - m.cy) * k;
+
+        const p = s.model.root.position;
+        const focusY = p.y + 0.72; // the middle of podium and fighter
+        const fw = lobbyForward(s.spot);
+        const sway = this.settings.reducedMotion ? 0 : Math.sin(this.menuT * 0.26) * 0.012;
+        const fx = fw.x * Math.cos(sway) - fw.z * Math.sin(sway), fz = fw.z * Math.cos(sway) + fw.x * Math.sin(sway);
+        // stay in front of anything solid behind the camera
+        const room = this.physics.raycast(p.x, focusY, p.z, -fx, 0, -fz, LOBBY_DIST + 1);
+        let dist = Math.max(4, Math.min(LOBBY_DIST, room - 0.6));
+        let tan = (H / 2) / (m.scale * dist);
+        if (tan > LOBBY_MAX_TAN) { tan = LOBBY_MAX_TAN; dist = (H / 2) / (m.scale * tan); }
+
+        cam.fov = THREE.MathUtils.radToDeg(2 * Math.atan(tan));
+        cam.updateProjectionMatrix();
+        const e = cam.projectionMatrix.elements;
+        e[8] = -2 * (m.cx - W / 2) / W;
+        e[9] = 2 * (m.cy - H / 2) / H;
+        cam.projectionMatrixInverse.copy(cam.projectionMatrix).invert();
+        cam.position.set(p.x - fx * dist, focusY - LOBBY_PITCH * dist, p.z - fz * dist);
+        cam.lookAt(cam.position.x + fx, cam.position.y + LOBBY_PITCH, cam.position.z + fz);
     }
 
     // Build the arena for a layout (if it isn't the one already built)
@@ -254,7 +344,7 @@ export class Game {
         const f = new Fighter({ id: i, team: i, ...opts });
         this.fighters.push(f);
         f.glowId = opts.glowId || 'sun';
-        f.trailId = opts.trailId || f.trailId || 'glow';
+        f.trailId = opts.trailId || 'glow';
         const model = new CharacterModel(f.skinId, TEAM_COLORS[i % TEAM_COLORS.length], f.glowId);
         this.scene.add(model.root);
         this.models.push(model);
@@ -340,10 +430,10 @@ export class Game {
         let me;
         if (opts.roster) {
             opts.roster.forEach((r, i) => {
-                const f = this.makeFighter(i, { name: r.name, classId: r.classId, skinId: r.skinId, glowId: GLOWS[r.glowId] ? r.glowId : 'sun', isLocal: i === opts.localIndex });
+                const f = this.makeFighter(i, { name: r.name, classId: r.classId, skinId: r.skinId, glowId: GLOWS[r.glowId] ? r.glowId : 'sun', trailId: TRAILS[r.trailId] ? r.trailId : 'glow', isLocal: i === opts.localIndex });
                 if (i === opts.localIndex) me = f;
             });
-        } else me = this.makeFighter(0, { name: profile.name, isLocal: true, classId: profile.classId, skinId: profile.skinId, glowId: profile.glowId });
+        } else me = this.makeFighter(0, { name: profile.name, isLocal: true, classId: profile.classId, skinId: profile.skinId, glowId: profile.glowId, trailId: profile.trailId });
         this.local = me;
         if (opts.mode === 'training') {
             const d = this.makeFighter(1, { name: t('fighter.dummy'), isBot: true, botLevel: 'dummy', classId: 'normal', skinId: 'skeleton', dmgMult: 0.5 });
@@ -1100,17 +1190,10 @@ export class Game {
             audio.setListener(x, y + 1.6, z, this.look.yaw);
             this.viewModel.animate(me, dt, this.lookDX || 0, this.lookDY || 0, this.settings.reducedMotion);
         } else {
-            // menu: your fighter shows off in the arena while the camera circles
-            this.menuT += dt * (this.settings.reducedMotion ? 0.03 : 0.12);
+            // lobby: your fighter on the podium
+            this.menuT += dt;
             this.updateShowcase(dt);
-            const a = this.menuT;
-            const sx = 0, sz = 9;
-            const cx = sx + Math.cos(a) * 7, cz = sz + Math.sin(a) * 7;
-            this.camera.position.set(cx, 2.3 + Math.sin(a * 0.7) * 0.4, cz);
-            // aim a little to the fighter's left so they stand right of the menu
-            const lx = -Math.sin(a), lz = Math.cos(a); // the camera's left
-            this.camera.lookAt(sx + lx * 0.55, 1.2, sz + lz * 0.55);
-            this.rig.applyFov(70);
+            this.frameShowcase(dt);
         }
         this.fx.update(dt, this.width, this.height);
 

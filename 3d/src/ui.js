@@ -4,7 +4,11 @@
 // ==========================================
 
 import { CLASSES, CLASS_LEVEL, SPEAR, PARRY, TEAM_COLORS, BOT_LEVELS } from './config.js';
-import { SKINS, GLOWS } from './character.js';
+import { SKINS } from './character.js';
+import { WEAPON_SKINS, GLOW_COLORS, TRAILS, styleId, trailColors } from './cosmetics.js';
+import { MODES } from './game.js';
+import { LAYOUTS } from './arena.js';
+import { account } from './account.js';
 import { slamDamage } from './combat.js';
 import { profile } from './profile.js';
 import { audio } from './audio.js';
@@ -17,7 +21,14 @@ import { t, tn, keyHtml, applyDom, LANGS, getLang, setSavedLang } from './i18n.j
 // Skin prices in gold, the same as the 2D game's shop
 const SKIN_COST = { steve: 0, alex: 0, noob: 200, man_face: 400, creeper: 500, enderman: 600, skeleton: 500, zombie: 400, diamond_knight: 800 };
 
+// Which difficulties each mode offers (Quick Play picks by itself; Gauntlet ramps up; Training has none)
+const MODE_LEVELS = { duel: ['easy', 'normal', 'pro', 'god'], brawl: ['easy', 'normal', 'pro'], hill: ['easy', 'normal', 'pro'], stand: ['easy', 'normal', 'pro'] };
+const LOBBY_TABS = ['play', 'fighter', 'weapons', 'quests', 'howto'];
+
 const $ = (id) => document.getElementById(id);
+const hex = (n) => '#' + (n >>> 0).toString(16).padStart(6, '0');
+const icon = (id) => `<svg class="ico"><use href="#i-${id}"/></svg>`;
+const coin = '<i class="coin"></i>';
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 export class UI {
@@ -26,8 +37,8 @@ export class UI {
         this.cache = {};
         this.speed = 0;
         this.bannerT = 0;
-        this.duelLevel = 'normal';
-        this.brawlLevel = 'normal';
+        this.lobbyTab = 'play';
+        this.tryOn = null;        // { kind, id }: an unowned look shown on the podium before buying
         this.lastStart = { mode: 'quick', level: 'normal' };
         this.panelStack = [];
         this.tags = [];
@@ -39,21 +50,11 @@ export class UI {
         const g = game;
         const click = (el, fn) => el && el.addEventListener('click', (e) => { audio.unlock(); audio.play('click'); fn(e); });
 
-        click($('btn-play'), () => this.start({ mode: 'quick', level: quickLevel() }));
-        click($('btn-training'), () => this.start({ mode: 'training' }));
+        click($('btn-play'), () => this.playSelected());
+        click($('btn-tutorial'), () => this.start({ mode: 'training' }));
         document.querySelectorAll('[data-panel]').forEach((b) => click(b, () => this.openPanel(b.getAttribute('data-panel'))));
         document.querySelectorAll('.panel-close').forEach((b) => click(b, () => this.closePanel()));
-        document.querySelectorAll('[data-start]').forEach((b) => click(b, () => {
-            const m = b.getAttribute('data-start');
-            this.closeAllPanels();
-            this.start({ mode: m, level: m === 'duel' ? this.duelLevel : m === 'brawl' ? this.brawlLevel : m === 'hill' ? this.hillLevel : m === 'stand' ? this.standLevel : 'normal' });
-        }));
-        this.seg($('duel-level'), 'level', (v) => { this.duelLevel = v; });
-        this.seg($('brawl-level'), 'level', (v) => { this.brawlLevel = v; });
-        this.hillLevel = 'normal';
-        this.seg($('hill-level'), 'level', (v) => { this.hillLevel = v; });
-        this.standLevel = 'normal';
-        this.seg($('stand-level'), 'level', (v) => { this.standLevel = v; });
+        this.bindLobby(click);
 
         click($('btn-resume'), () => g.resume());
         click($('btn-quit'), () => { $('pause').classList.add('hidden'); this.leaveMatch(); });
@@ -96,7 +97,10 @@ export class UI {
 
         this.bindSettings();
         this.bindFighter();
-        this.refreshProfile();
+        account.onChange = () => this.refreshProfile();
+        // another tab (or the main page, logging in) changed the save
+        window.addEventListener('storage', () => { if (g.state === 'menu') this.refreshProfile(); });
+        this.showTab('play');
     }
 
     seg(root, attr, onPick) {
@@ -115,6 +119,7 @@ export class UI {
 
     start(opts) {
         this.lastStart = opts;
+        this.tryOn = null;
         this.closeAllPanels();
         $('results').classList.add('hidden');
         $('pause').classList.add('hidden');
@@ -230,9 +235,8 @@ export class UI {
     openPanel(name) {
         const el = $('panel-' + name);
         if (!el) return;
-        if (name === 'fighter') this.renderFighter();
         if (name === 'settings') this.renderSettings();
-        if (name === 'modes') this.renderGauntletBest();
+        if (name === 'account') this.renderAccount();
         el.classList.remove('hidden');
         this.panelStack.push(el);
     }
@@ -245,11 +249,6 @@ export class UI {
         while (this.panelStack.length) this.panelStack.pop().classList.add('hidden');
     }
 
-    renderGauntletBest() {
-        const n = profile.data.arena3d.gauntletBest || 0;
-        $('gauntlet-best').innerHTML = tn('modes.best', n, { n: `<b>${n}</b>` });
-    }
-
     showMenu() {
         $('hud').classList.add('hidden');
         $('touch').classList.add('hidden');
@@ -260,32 +259,228 @@ export class UI {
         this.speedLines(0);
         $('vignette').style.opacity = 0;
         $('blind').style.opacity = 0;
+        // the map you chose stands behind the podium
+        if (this.sel && LAYOUTS[this.sel.map] && this.sel.mode !== 'training') this.game.previewMap(this.sel.map);
         this.refreshProfile();
     }
 
+    // The top bar, and anything else that shows your progress
     refreshProfile() {
         const p = profile.data;
-        if (this.game && this.game.state === 'menu' && (!this.game.showcase || this.shownSkin !== p.skinId)) { this.shownSkin = p.skinId; this.game.refreshShowcase(); }
-        $('pc-name').textContent = p.username || 'Fighter';
+        this.syncShowcase();
+        $('pc-name').textContent = profile.name;
+        $('pc-level-n').textContent = p.level;
         $('pc-level').textContent = t('profile.level', { n: p.level });
         $('pc-xp').style.width = (profile.levelProgress() * 100).toFixed(0) + '%';
         $('pc-gold').textContent = p.gold;
-        $('pc-wins').innerHTML = tn('profile.wins', p.stats.wins, { n: `<b>${p.stats.wins}</b>` });
         const rp = p.arenaRP || 0;
         const tier = rp >= 2000 ? 'obsidian' : rp >= 1500 ? 'diamond' : rp >= 1000 ? 'gold' : rp >= 500 ? 'silver' : 'bronze';
-        $('pc-rp').textContent = `${rp} (${t('tier.' + tier)})`;
-        $('pc-class').textContent = `${t('class.' + profile.classId + '.name')} · ${(SKINS[p.skinId] || SKINS.steve).name}`;
-        $('missions-card').innerHTML = `<h5>${esc(t('missions.title'))}</h5>` + missions.list().map(m =>
-            `<div class="mi${m.done ? ' done' : ''}"><span>${m.done ? '✓ ' : ''}${esc(t('mission.' + m.id))}</span><b>${m.done ? esc(t('missions.done')) : `${m.progress}/${m.goal} · 🪙${m.gold}`}</b></div>`).join('');
+        $('pc-tier').textContent = t('tier.' + tier);
+        const acc = account.state();
+        const canLogIn = !acc.name && acc.kind !== 'local';
+        $('account-label').textContent = t(canLogIn ? 'acct.login' : 'acct.account');
+        $('btn-account').classList.toggle('can-login', canLogIn);
+        $('btn-account').setAttribute('aria-label', t(canLogIn ? 'acct.login' : 'acct.account'));
+        const list = missions.list();
+        $('quest-badge').textContent = `${list.filter(m => m.done).length}/${list.length}`;
+        $('howto-dot').classList.toggle('hidden', profile.tutorialDone);
+        $('plate-name').textContent = (SKINS[this.shownLook('skin')] || SKINS.steve).name;
+        $('plate-sub').textContent = t('class.' + profile.classId + '.name');
+        this.renderTab();
+    }
+
+    // The fighter on the podium wears what you own, or what you're trying on
+    shownLook(kind) {
+        if (this.tryOn && this.tryOn.kind === kind) return this.tryOn.id;
+        if (kind === 'skin') return profile.skinId;
+        if (kind === 'glow') return profile.glowColor;
+        if (kind === 'wskin') return profile.weaponSkin;
+        return profile.trailId;
+    }
+
+    syncShowcase() {
+        const g = this.game;
+        if (!g || g.state !== 'menu') return;
+        const look = { skinId: this.shownLook('skin'), glowId: styleId(this.shownLook('glow'), this.shownLook('wskin')), trailId: this.shownLook('trail') };
+        const sig = `${look.skinId}|${look.glowId}|${look.trailId}`;
+        if (g.showcase && this.showSig === sig) return;
+        this.showSig = sig;
+        g.showcaseLook = look;
+        g.refreshShowcase();
+    }
+
+    // The free space between the panels, for the lobby's camera
+    stageRect() {
+        const r = $('stage-frame').getBoundingClientRect();
+        return { x: r.left, y: r.top, w: r.width, h: r.height };
+    }
+
+    // ---------------- lobby ----------------
+    bindLobby(click) {
+        const saved = profile.lobby;
+        const levels = saved.levels && typeof saved.levels === 'object' ? saved.levels : {};
+        this.sel = {
+            mode: MODES[saved.mode] && saved.mode !== 'online' ? saved.mode : 'quick',
+            map: LAYOUTS[saved.map] ? saved.map : 'random',
+            levels: {}
+        };
+        for (const m in MODE_LEVELS) this.sel.levels[m] = MODE_LEVELS[m].includes(levels[m]) ? levels[m] : 'normal';
+
+        document.querySelectorAll('.nav-tab').forEach((b) => click(b, () => this.showTab(b.getAttribute('data-tab'))));
+        click($('player-chip'), () => this.showTab('fighter'));
+        click($('btn-account'), () => this.openPanel('account'));
+        this.howtoInput = null;
+        this.seg($('howto-input'), 'input', (v) => { this.howtoInput = v; this.renderHowto(); });
+
+        // turn the fighter by dragging on the stage, with a mouse or a finger
+        const stage = $('stage');
+        let lastX = null;
+        stage.addEventListener('pointerdown', (e) => {
+            lastX = e.clientX;
+            stage.classList.add('dragging');
+            try { stage.setPointerCapture(e.pointerId); } catch (err) { /* synthetic pointer */ }
+        });
+        stage.addEventListener('pointermove', (e) => {
+            if (lastX === null) return;
+            const dx = e.clientX - lastX;
+            lastX = e.clientX;
+            if (dx && this.game) this.game.turnShowcase(dx);
+            if (dx) $('plate-hint').classList.add('used');
+        });
+        const stop = () => { lastX = null; stage.classList.remove('dragging'); };
+        stage.addEventListener('pointerup', stop);
+        stage.addEventListener('pointercancel', stop);
+        window.addEventListener('keydown', (e) => {
+            if (!this.game || this.game.state !== 'menu' || (e.target && e.target.tagName === 'INPUT')) return;
+            if (e.key === 'Escape' && this.panelStack.length) { this.closePanel(); return; }
+            if (this.panelStack.length) return;
+            if (e.key === 'ArrowLeft') this.game.turnShowcase(-18);
+            if (e.key === 'ArrowRight') this.game.turnShowcase(18);
+        });
+        // the countdown to the next missions
+        setInterval(() => { if (this.lobbyTab === 'quests' && this.game.state === 'menu') this.renderResetTime(); }, 30000);
+    }
+
+    showTab(tab) {
+        if (!LOBBY_TABS.includes(tab)) tab = 'play';
+        this.lobbyTab = tab;
+        this.tryOn = null;
+        $('menu').setAttribute('data-tab', tab);
+        document.querySelectorAll('.nav-tab').forEach((b) => {
+            const on = b.getAttribute('data-tab') === tab;
+            b.classList.toggle('on', on);
+            b.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        for (const id of LOBBY_TABS) $('tab-' + id).classList.toggle('hidden', id !== tab);
+        $('play-options').classList.toggle('hidden', tab !== 'play');
+        this.refreshProfile();
+    }
+
+    // Draws the open tab (the Play button's label is always kept up to date)
+    renderTab() {
+        this.renderPlaySummary();
+        const tab = this.lobbyTab;
+        if (tab === 'play') this.renderPlay();
+        else if (tab === 'fighter') this.renderFighter();
+        else if (tab === 'weapons') this.renderWeapons();
+        else if (tab === 'quests') this.renderQuests();
+        else if (tab === 'howto') this.renderHowto();
+    }
+
+    saveLobby() { profile.setLobby({ mode: this.sel.mode, map: this.sel.map, levels: this.sel.levels }); }
+
+    playSelected() {
+        const m = this.sel.mode;
+        const level = m === 'quick' ? quickLevel() : (MODE_LEVELS[m] ? this.sel.levels[m] : 'normal');
+        // Training always uses the colosseum: the tutorial's steps are written for it
+        const layout = m !== 'training' && LAYOUTS[this.sel.map] ? this.sel.map : undefined;
+        this.start({ mode: m, level, layout });
+    }
+
+    renderPlaySummary() {
+        const mode = t('mode.' + this.sel.mode);
+        $('play-sub').textContent = this.sel.mode === 'training' ? mode : `${mode} · ${t('map.' + this.sel.map)}`;
+    }
+
+    renderPlay() {
+        const list = $('mode-list');
+        list.innerHTML = '';
+        const online = this.room !== undefined;
+        for (const id of Object.keys(MODES)) {
+            if (id === 'online' && !online) continue;
+            const b = document.createElement('button');
+            b.className = 'mode-row' + (this.sel.mode === id ? ' on' : '') + (id === 'online' ? ' online-only' : '');
+            const best = id === 'gauntlet' ? tn('modes.best', profile.data.arena3d.gauntletBest || 0) : '';
+            b.innerHTML = `<span class="mode-ico">${icon(id)}</span><span class="mode-text"><b>${esc(t('mode.' + id))}</b><small>${esc(best || t('modeDesc.' + id))}</small></span>`;
+            b.addEventListener('click', () => {
+                audio.unlock(); audio.play('click');
+                if (id === 'online') { this.openPanel('online'); return; }
+                this.sel.mode = id;
+                this.saveLobby();
+                this.renderPlay();
+                this.renderPlaySummary();
+            });
+            list.appendChild(b);
+        }
+        const levels = MODE_LEVELS[this.sel.mode];
+        const seg = $('level-seg');
+        seg.classList.toggle('hidden', !levels);
+        if (levels) {
+            seg.innerHTML = levels.map(l => `<button data-level="${l}"${this.sel.levels[this.sel.mode] === l ? ' class="on"' : ''}>${esc(t('bot.' + l))}</button>`).join('');
+            seg.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+                audio.play('click');
+                this.sel.levels[this.sel.mode] = b.getAttribute('data-level');
+                this.saveLobby();
+                this.renderPlay();
+            }));
+        }
+        $('level-note').classList.toggle('hidden', this.sel.mode !== 'quick');
+        $('level-row').classList.toggle('auto', this.sel.mode === 'quick');
+        $('level-row').classList.toggle('hidden', !levels && this.sel.mode !== 'quick');
+        const training = this.sel.mode === 'training';
+        const maps = $('map-list');
+        maps.innerHTML = '';
+        $('map-row').classList.toggle('hidden', training);
+        for (const id of ['random', ...Object.keys(LAYOUTS)]) {
+            const b = document.createElement('button');
+            b.className = 'map-tile' + (this.sel.map === id ? ' on' : '');
+            b.innerHTML = `${icon(id)}<span>${esc(t('map.' + id))}</span>`;
+            b.addEventListener('click', () => {
+                audio.play('click');
+                this.sel.map = id;
+                this.saveLobby();
+                if (id !== 'random') this.game.previewMap(id);
+                this.renderPlay();
+                this.renderPlaySummary();
+            });
+            maps.appendChild(b);
+        }
+    }
+
+    // One tile in a list of things to choose
+    tile(listEl, { swatch, name, price, on, tried, lockNote, onClick, onHover }) {
+        const b = document.createElement('button');
+        b.className = 'tile' + (on ? ' on' : '') + (tried ? ' tried' : '') + (price || lockNote ? ' locked' : '');
+        b.innerHTML = `<span class="tile-sw">${swatch}</span><span class="tile-body"><span class="tile-name">${esc(name)}</span>`
+            + (price ? `<span class="tile-tag tag-price">${coin}${price}</span>` : '')
+            + (lockNote ? `<span class="tile-tag tag-lock">${icon('lock')}${esc(lockNote)}</span>` : '')
+            + `</span>` + (on ? `<span class="tile-tag tag-on">${icon('check')}</span>` : '');
+        b.addEventListener('click', () => { audio.unlock(); audio.play('click'); onClick(); });
+        if (onHover) b.addEventListener('mouseenter', onHover);
+        listEl.appendChild(b);
     }
 
     bindFighter() {
-        $('name-save').addEventListener('click', () => {
+        const save = () => {
             const ok = profile.setName($('name-input').value);
-            $('name-msg').textContent = t(ok ? 'fighter.saved' : (window.GameAccounts && window.GameAccounts.current && window.GameAccounts.current()
-                ? 'fighter.nameAccount' : 'fighter.nameRule'));
+            const fixed = profile.externalName || (window.GameAccounts && window.GameAccounts.current && window.GameAccounts.current());
+            $('name-msg').textContent = t(ok ? 'fighter.saved' : (fixed ? 'fighter.nameAccount' : 'fighter.nameRule'));
+            const typed = $('name-input').value;
             this.refreshProfile();
-        });
+            if (!ok) $('name-input').value = typed;
+        };
+        $('name-save').addEventListener('click', () => { audio.play('click'); save(); });
+        $('name-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { save(); e.target.blur(); } });
     }
 
     renderFighter() {
@@ -296,16 +491,19 @@ export class UI {
             const c = CLASSES[id];
             const className = t('class.' + id + '.name');
             const classDesc = t('class.' + id + '.desc');
-            const b = document.createElement('button');
             const open = profile.classUnlocked(id);
-            b.className = 'pick' + (profile.classId === id ? ' on' : '') + (open ? '' : ' locked');
-            b.innerHTML = `<i style="background:${c.color}"></i>${esc(className)}${open ? '' : ` <small>🔒 ${esc(t('profile.level', { n: CLASS_LEVEL[id] }))}</small>`}`;
-            b.addEventListener('click', () => {
-                if (!open) { this.toast(t('fighter.classLocked', { name: className, n: CLASS_LEVEL[id] })); return; }
-                profile.setClass(id); audio.play('click'); this.renderFighter();
+            this.tile(cl, {
+                swatch: `<i class="sw-dot" style="background:${c.color}"></i>`,
+                name: className,
+                on: profile.classId === id,
+                lockNote: open ? null : t('profile.level', { n: CLASS_LEVEL[id] }),
+                onClick: () => {
+                    if (!open) { this.toast(t('fighter.classLocked', { name: className, n: CLASS_LEVEL[id] })); $('class-desc').textContent = classDesc + ' ' + t('fighter.unlocksAt', { n: CLASS_LEVEL[id] }); return; }
+                    profile.setClass(id);
+                    this.refreshProfile();
+                },
+                onHover: () => { $('class-desc').textContent = classDesc + (open ? '' : ' ' + t('fighter.unlocksAt', { n: CLASS_LEVEL[id] })); }
             });
-            b.addEventListener('mouseenter', () => { $('class-desc').textContent = classDesc + (open ? '' : ' ' + t('fighter.unlocksAt', { n: CLASS_LEVEL[id] })); });
-            cl.appendChild(b);
         }
         $('class-desc').textContent = t('class.' + profile.classId + '.desc');
         const sl = $('skin-list');
@@ -313,51 +511,151 @@ export class UI {
         for (const id in SKINS) {
             const s = SKINS[id];
             const owned = p.unlockedSkins.includes(id);
-            const b = document.createElement('button');
-            b.className = 'pick' + (p.skinId === id ? ' on' : '') + (owned ? '' : ' locked');
-            b.innerHTML = `<i style="background:${s.shirt};border:2px solid ${s.skin}"></i>${esc(s.name)}${owned ? '' : ` <small>🪙${SKIN_COST[id]}</small>`}`;
-            b.addEventListener('click', () => {
-                if (!owned) {
-                    const cost = SKIN_COST[id] || 0;
-                    if (p.gold < cost) { this.toast(t('fighter.needGold', { n: cost })); return; }
-                    p.gold -= cost;
-                    p.unlockedSkins.push(id);
-                    this.toast(t('fighter.unlockedSkin', { name: s.name }));
+            this.tile(sl, {
+                swatch: `<i class="sw-fig" style="--hair:${s.hair};--skin:${s.skin};--shirt:${s.shirt};--pants:${s.pants}"><b></b><b></b><b></b></i>`,
+                name: s.name,
+                on: p.skinId === id,
+                tried: this.tryOn && this.tryOn.kind === 'skin' && this.tryOn.id === id,
+                price: owned ? 0 : SKIN_COST[id],
+                onClick: () => {
+                    if (owned) { this.tryOn = null; profile.setSkin(id); } else this.tryOn = { kind: 'skin', id };
+                    this.refreshProfile();
                 }
-                profile.setSkin(id);
-                audio.play('click');
-                this.renderFighter();
-                this.refreshProfile();
             });
-            sl.appendChild(b);
         }
-        const gl = $('glow-list');
-        gl.innerHTML = '';
-        for (const id in GLOWS) {
-            const G = GLOWS[id];
-            const glowName = t('glow.' + id);
-            const owned = profile.glows.includes(id);
-            const b = document.createElement('button');
-            b.className = 'pick' + (profile.glowId === id ? ' on' : '') + (owned ? '' : ' locked');
-            b.innerHTML = `<i style="background:#${G.tip.toString(16).padStart(6, '0')};box-shadow:0 0 6px #${G.halo.toString(16).padStart(6, '0')}"></i>${esc(glowName)}${owned ? '' : ` <small>🪙${G.cost}</small>`}`;
-            b.addEventListener('click', () => {
-                if (!owned) {
-                    if (!profile.buyGlow(id, G.cost)) { this.toast(t('fighter.needGold', { n: G.cost })); return; }
-                    this.toast(t('fighter.unlockedGlow', { name: glowName }));
-                } else profile.setGlow(id);
-                audio.play('click');
-                this.renderFighter();
-                this.refreshProfile();
-                this.game.refreshShowcase();
-            });
-            gl.appendChild(b);
-        }
-        const al = $('ach-list');
+        this.renderBuyBar($('buy-fighter'));
+        const input = $('name-input');
+        if (document.activeElement !== input) input.value = profile.name;
+        const fixed = !!profile.externalName;
+        input.disabled = fixed;
+        $('name-save').classList.toggle('hidden', fixed);
+        if (fixed) $('name-msg').textContent = t('fighter.nameAccount');
+    }
+
+    renderWeapons() {
+        const section = (el, kind, items, swatch) => {
+            el.innerHTML = '';
+            const owned = profile.owned(kind);
+            for (const id in items) {
+                const has = owned.includes(id);
+                this.tile(el, {
+                    swatch: swatch(items[id], id),
+                    name: t(items[id].name),
+                    on: (kind === 'glow' ? profile.glowColor : kind === 'wskin' ? profile.weaponSkin : profile.trailId) === id,
+                    tried: this.tryOn && this.tryOn.kind === kind && this.tryOn.id === id,
+                    price: has ? 0 : items[id].cost,
+                    onClick: () => {
+                        if (has) { this.tryOn = null; profile.equip(kind, id); } else this.tryOn = { kind, id };
+                        this.refreshProfile();
+                    }
+                });
+            }
+        };
+        section($('wskin-list'), 'wskin', WEAPON_SKINS, (S) => `<i class="sw-wskin" style="--metal:${hex(S.metal)};--shaft:${hex(S.shaft)}"><b></b><b></b></i>`);
+        section($('glow-list'), 'glow', GLOW_COLORS, (G) => `<i class="sw-glow" style="--tip:${hex(G.tip)};--halo:${hex(G.halo)};--rune:${hex(G.rune)}"></i>`);
+        const glow = styleId(this.shownLook('glow'), 'steel');
+        section($('trail-list'), 'trail', TRAILS, (T, id) => {
+            const [a, b] = trailColors(id, glow);
+            return `<i class="sw-trail" style="--a:${hex(a)};--b:${hex(b)}"></i>`;
+        });
+        this.renderBuyBar($('buy-weapons'));
+    }
+
+    // Below a list: the look you're trying on and what it costs
+    renderBuyBar(bar) {
+        const tr = this.tryOn;
+        bar.classList.toggle('hidden', !tr);
+        if (!tr) { bar.innerHTML = ''; return; }
+        const skin = tr.kind === 'skin';
+        const def = skin ? null : { glow: GLOW_COLORS, wskin: WEAPON_SKINS, trail: TRAILS }[tr.kind][tr.id];
+        const name = skin ? SKINS[tr.id].name : t(def.name);
+        const cost = skin ? (SKIN_COST[tr.id] || 0) : def.cost;
+        const short = cost - profile.data.gold;
+        bar.innerHTML = `<span class="buy-name"><b>${esc(name)}</b>${short > 0 ? `<small>${esc(t('shop.short', { n: short }))}</small>` : ''}</span>`
+            + `<button class="btn btn-buy"${short > 0 ? ' disabled' : ''}>${coin}${esc(t('shop.buy', { n: cost }))}</button>`;
+        bar.querySelector('button').addEventListener('click', () => {
+            audio.unlock(); audio.play('click');
+            let ok;
+            if (skin) {
+                ok = profile.data.gold >= cost && !profile.data.unlockedSkins.includes(tr.id);
+                if (ok) { profile.data.gold -= cost; profile.data.unlockedSkins.push(tr.id); profile.setSkin(tr.id); }
+            } else ok = profile.buy(tr.kind, tr.id, cost);
+            if (!ok) { this.toast(t('fighter.needGold', { n: cost })); return; }
+            this.tryOn = null;
+            this.toast(t('fighter.unlockedSkin', { name }));
+            this.refreshProfile();
+        });
+    }
+
+    renderResetTime() {
+        const now = new Date();
+        const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+        const mins = Math.ceil((next - now) / 60000);
+        $('quest-reset').textContent = t('quests.resets', { h: Math.floor(mins / 60), m: mins % 60 });
+    }
+
+    renderQuests() {
+        this.renderResetTime();
+        $('mission-list').innerHTML = missions.list().map((m) => {
+            const pct = Math.min(100, (m.progress / m.goal) * 100).toFixed(0);
+            return `<div class="quest${m.done ? ' done' : ''}"><div class="quest-top"><span class="quest-name">${m.done ? icon('check') : ''}${esc(t('mission.' + m.id))}</span><span class="tile-tag tag-price">${coin}${m.gold}</span></div>`
+                + `<div class="quest-bar"><i style="width:${pct}%"></i><span>${m.done ? esc(t('missions.done')) : `${m.progress} / ${m.goal}`}</span></div></div>`;
+        }).join('');
         const earned = ACHIEVEMENTS.filter(a => achievements.has(a.id)).length;
         $('ach-count').textContent = `${earned} / ${ACHIEVEMENTS.length}`;
-        al.innerHTML = ACHIEVEMENTS.map(a => `<div class="ach-row${achievements.has(a.id) ? ' got' : ''}"><b>${achievements.has(a.id) ? '🏅' : '🔒'} ${esc(t('ach.' + a.id + '.name'))}</b><span>${esc(t('ach.' + a.id + '.desc'))} · 🪙${a.gold}</span></div>`).join('');
-        $('name-input').value = p.username || '';
-        $('name-msg').textContent = '';
+        // what you've earned first
+        const order = ACHIEVEMENTS.slice().sort((a, b) => achievements.has(b.id) - achievements.has(a.id));
+        $('ach-list').innerHTML = order.map((a) => {
+            const got = achievements.has(a.id);
+            return `<div class="quest ach${got ? ' done' : ''}"><span class="ach-ico">${icon(got ? 'check' : 'lock')}</span><span class="ach-text"><b>${esc(t('ach.' + a.id + '.name'))}</b><small>${esc(t('ach.' + a.id + '.desc'))}</small></span><span class="tile-tag tag-price">${coin}${a.gold}</span></div>`;
+        }).join('');
+    }
+
+    // How to Play: the controls for whichever input you're using, unless you pick another
+    currentInput() {
+        if (this.howtoInput) return this.howtoInput;
+        const I = this.game.input;
+        if (I.usingTouch || (window.matchMedia && matchMedia('(hover: none) and (pointer: coarse)').matches)) return 'touch';
+        return I.usingPad ? 'pad' : 'keys';
+    }
+
+    renderHowto() {
+        const input = this.currentInput();
+        this.setSeg($('howto-input'), 'input', input);
+        const caps = {
+            keys: { move: ['WASD'], look: [t('cap.mouse')], jump: [t('cap.space')], spear: [t('cap.lclick')], mace: [t('cap.rclick'), 'Shift'], parry: ['F', 'E'], camera: ['V'], pause: ['P', 'Esc'], scores: ['Tab'] },
+            pad: { move: [t('cap.lstick')], look: [t('cap.rstick')], jump: ['A'], spear: ['X', 'RB', 'RT'], mace: ['B', 'LT'], parry: ['LB'], camera: ['Back'], pause: ['Start'] },
+            touch: { move: [t('cap.lthumb')], look: [t('cap.rside')], jump: [t('touch.jump')], spear: [t('touch.spear')], mace: [t('touch.mace')], parry: [t('touch.parry')], camera: ['👁'], pause: ['❚❚'] }
+        }[input];
+        $('control-list').innerHTML = Object.keys(caps).map((k) => `<div class="control"><span class="ctl-name">${esc(t('ctl.' + k))}</span><span class="ctl-keys">${caps[k].map(c => `<kbd>${esc(c)}</kbd>`).join('')}</span></div>`).join('');
+        $('move-list').innerHTML = [['spear', 'tu.spear.title'], ['slam', 'tu.slam.title'], ['parry', 'tu.parry.title'], ['high', 'howto.moveHigh']].map(([id, title]) =>
+            `<div class="move"><b>${esc(t(title))}</b><span>${esc(t('howto.move.' + id))}</span></div>`).join('');
+    }
+
+    // ---------------- account ----------------
+    renderAccount() {
+        const box = $('account-box');
+        const st = account.state();
+        const line = (cls, key, vars) => `<p class="${cls}">${esc(t(key, vars))}</p>`;
+        let html = `<div class="acct-head">${icon('account')}<b>${esc(st.name ? t('acct.signedIn', { name: st.name }) : t('acct.guest'))}</b></div>`;
+        if (st.kind === 'crazygames') {
+            html += st.name ? line('desc', 'acct.cgNote') : line('desc', 'acct.cgPrompt') + `<button class="btn btn-go" id="acct-cg" data-go="1">${esc(t('acct.cgBtn'))}</button>`;
+        } else if (st.kind === 'shared') {
+            html += st.name ? line('desc', 'acct.sharedNote') + `<button class="btn btn-sec" id="acct-logout">${esc(t('acct.logout'))}</button>`
+                : line('desc', 'acct.sharedPrompt') + `<a class="btn btn-go btn-link" id="acct-open" href="../">${esc(t('acct.sharedBtn'))}</a>`;
+        } else {
+            html += line('desc', 'acct.guestNote');
+        }
+        if (!st.name) html += `<button class="btn btn-sec" id="acct-name">${esc(t('acct.editName'))}</button>`;
+        box.innerHTML = html;
+        const on = (id, fn) => { const el = $(id); if (el) el.addEventListener('click', () => { audio.unlock(); audio.play('click'); fn(); }); };
+        on('acct-cg', () => account.signInCrazyGames().then((ok) => {
+            if (!ok) this.toast(t('acct.failed'));
+            this.renderAccount();
+            this.refreshProfile();
+        }));
+        on('acct-logout', () => account.logOutShared());
+        on('acct-name', () => { this.closeAllPanels(); this.showTab('fighter'); $('name-input').focus(); });
     }
 
     bindSettings() {
@@ -411,9 +709,8 @@ export class UI {
         applyDom();
         this.refreshProfile();
         const open = (id) => !$(id).classList.contains('hidden');
-        if (open('panel-fighter')) this.renderFighter();
         if (open('panel-settings')) this.renderSettings();
-        if (open('panel-modes')) this.renderGauntletBest();
+        if (open('panel-account')) this.renderAccount();
         if (this.statusMsg) this.onlineStatus(this.statusMsg.key, this.statusMsg.vars);
         this.renderRoomPlayers();
         const g = this.game;

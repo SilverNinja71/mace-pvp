@@ -10,10 +10,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from '../lib/three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from '../lib/three/addons/utils/SkeletonUtils.js';
 import { GeoBatch, lateTexture, canvasTexture, ASSETS } from './gfx.js';
-
-// Weapon looks may come from the lobby's cosmetics file, when it's in this build
-let COS = null;
-try { COS = await import('./cosmetics.js'); } catch (e) { COS = null; }
+import { GLOWS, trailColors } from './cosmetics.js';
 
 let QUALITY = 'high';
 export function setCharacterQuality(q) { QUALITY = q; }
@@ -40,33 +37,17 @@ function wm(key, make) {
     return WEAPON_MATS[k];
 }
 
-// Weapon glow styles (bought with gold): spear tip and mace rune colours
-export const GLOWS = {
-    sun:     { tip: 0xffd54a, halo: 0xffe28a, rune: 0x5ff3ff, cost: 0 },
-    frost:   { tip: 0x9ff4ff, halo: 0xc8fbff, rune: 0x9fd8ff, cost: 300 },
-    ember:   { tip: 0xff7a2f, halo: 0xffb070, rune: 0xff9a3a, cost: 450 },
-    verdant: { tip: 0x6dff8e, halo: 0xb4ffc4, rune: 0x6dffb0, cost: 450 },
-    void:    { tip: 0xc77dff, halo: 0xe2c2ff, rune: 0xb48cff, cost: 700 }
-};
-function glowStyle(id) {
-    const list = COS && COS.GLOWS ? COS.GLOWS : GLOWS;
-    return list[id] || list.sun || GLOWS.sun;
-}
+// Weapon styles live in cosmetics.js (still exported from here for anything importing them)
+export { GLOWS };
+function glowStyle(id) { return GLOWS[id] || GLOWS.sun; }
 export function weaponColors(glowId) {
     const G = glowStyle(glowId);
-    return { metal: G.metal !== undefined ? G.metal : 0x7f8894, shaft: G.shaft !== undefined ? G.shaft : 0x6b4a30, tip: G.tip, halo: G.halo, rune: G.rune };
+    return { metal: G.metal, shaft: G.shaft, tip: G.tip, halo: G.halo, rune: G.rune };
 }
-// The two colours of a fighter's streak: a bought trail, or the weapon's glow
+// The two colours of a fighter's streak: its bought trail, or its weapon's glow
 export function trailStyle(trailId, glowId) {
-    let a = null, b = null;
-    if (COS && COS.trailColors) {
-        const t = COS.trailColors(trailId, glowId);
-        if (t && typeof t === 'object') { a = t.color !== undefined ? t.color : (t[0] !== undefined ? t[0] : null); b = t.color2 !== undefined ? t.color2 : (t[1] !== undefined ? t[1] : null); } else if (typeof t === 'number') a = t;
-    }
-    const G = glowStyle(glowId);
-    if (a === null || a === undefined) a = G.trail !== undefined ? G.trail : G.halo;
-    if (b === null || b === undefined) b = G.tip;
-    return { a, b };
+    const t = trailColors(trailId, glowStyle(glowId) === GLOWS[glowId] ? glowId : 'sun');
+    return { a: t[0], b: t[1] };
 }
 
 const weaponLit = () => wm('wlit', () => (QUALITY === 'low' ? new THREE.MeshLambertMaterial({ vertexColors: true }) : new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.7, roughness: 0.42, envMapIntensity: 0.85 })));
