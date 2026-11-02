@@ -46,8 +46,9 @@ const LOBBY_SPOTS = {
     spires:    { x: -9, z: 4, az: Math.PI / 3 },
     ruins:     { x: -9, z: 4, az: Math.PI / 3 }
 };
-const LOBBY_FOV = 32;      // a long lens: the fighter stands tall and the arena fills the background
-const LOBBY_PITCH = 0.06;  // looking slightly up
+const LOBBY_DIST = 8;        // metres from camera to fighter
+const LOBBY_MAX_TAN = 0.84; // the widest the lens gets (80 degrees); after that the camera backs off
+const LOBBY_PITCH = 0.06;   // looking slightly up
 
 function lobbyForward(spot) { return { x: Math.sin(spot.az), z: -Math.cos(spot.az) }; }
 
@@ -200,35 +201,42 @@ export class Game {
         s.podium.update(this.time, weapons);
     }
 
-    // The lobby's camera: frames the fighter in the free space between the panels, whatever the
-    // screen's shape. It slides sideways rather than turning, so the fighter never looks skewed.
+    // The lobby's camera: a fixed distance behind the fighter, a lens wide enough to show them at the size
+    // the free space between the panels allows, and a lens shift (like a tilt-shift camera) that slides the
+    // picture so they stand in that space. The shift never skews them, and the next match's first
+    // change of field of view rebuilds the projection without it.
     frameShowcase(dt) {
         const s = this.showcase, cam = this.camera;
         if (!s) return;
         const W = this.width || 1, H = this.height || 1;
         const rect = this.ui.stageRect ? this.ui.stageRect() : null;
         const r = rect && rect.w > 10 && rect.h > 10 ? rect : { x: 0, y: 0, w: W, h: H };
-        const scale = Math.min(r.h / 3.2, r.w / 2.9);
-        const want = { scale, cx: r.x + r.w / 2, cy: r.y + r.h / 2 };
+        const want = { scale: Math.min(r.h / 3.45, r.w / 3.2), cx: r.x + r.w / 2, cy: r.y + r.h / 2 }; // scale: pixels per metre
         const m = this.menuShot || (this.menuShot = { ...want });
         const k = this.settings.reducedMotion ? 1 : 1 - Math.exp(-dt * 7);
         m.scale += (want.scale - m.scale) * k;
         m.cx += (want.cx - m.cx) * k;
         m.cy += (want.cy - m.cy) * k;
 
-        if (cam.fov !== LOBBY_FOV) { cam.fov = LOBBY_FOV; cam.updateProjectionMatrix(); }
-        const dist = (H / 2) / (m.scale * Math.tan(THREE.MathUtils.degToRad(LOBBY_FOV) / 2));
-        const fw = lobbyForward(s.spot);
-        const sway = this.settings.reducedMotion ? 0 : Math.sin(this.menuT * 2.2) * 0.012;
-        const fx = fw.x * Math.cos(sway) - fw.z * Math.sin(sway), fz = fw.z * Math.cos(sway) + fw.x * Math.sin(sway);
-        const rx = -fz, rz = fx; // the camera's right
         const p = s.model.root.position;
-        const mx = (m.cx - W / 2) / m.scale, my = (m.cy - H / 2) / m.scale; // how far off-centre, in metres
         const focusY = p.y + 0.72; // the middle of podium and fighter
-        const dy = LOBBY_PITCH;
-        cam.position.set(p.x - fx * dist - rx * mx, focusY - dy * dist + my, p.z - fz * dist - rz * mx);
-        cam.up.set(0, 1, 0);
-        cam.lookAt(cam.position.x + fx, cam.position.y + dy, cam.position.z + fz);
+        const fw = lobbyForward(s.spot);
+        const sway = this.settings.reducedMotion ? 0 : Math.sin(this.menuT * 0.26) * 0.012;
+        const fx = fw.x * Math.cos(sway) - fw.z * Math.sin(sway), fz = fw.z * Math.cos(sway) + fw.x * Math.sin(sway);
+        // stay in front of anything solid behind the camera
+        const room = this.physics.raycast(p.x, focusY, p.z, -fx, 0, -fz, LOBBY_DIST + 1);
+        let dist = Math.max(4, Math.min(LOBBY_DIST, room - 0.6));
+        let tan = (H / 2) / (m.scale * dist);
+        if (tan > LOBBY_MAX_TAN) { tan = LOBBY_MAX_TAN; dist = (H / 2) / (m.scale * tan); }
+
+        cam.fov = THREE.MathUtils.radToDeg(2 * Math.atan(tan));
+        cam.updateProjectionMatrix();
+        const e = cam.projectionMatrix.elements;
+        e[8] = -2 * (m.cx - W / 2) / W;
+        e[9] = 2 * (m.cy - H / 2) / H;
+        cam.projectionMatrixInverse.copy(cam.projectionMatrix).invert();
+        cam.position.set(p.x - fx * dist, focusY - LOBBY_PITCH * dist, p.z - fz * dist);
+        cam.lookAt(cam.position.x + fx, cam.position.y + LOBBY_PITCH, cam.position.z + fz);
     }
 
     // Build the arena for a layout (if it isn't the one already built)

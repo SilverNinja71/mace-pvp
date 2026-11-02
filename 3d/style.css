@@ -12,7 +12,7 @@
   --title: 'Lilita One', 'Fredoka', system-ui, sans-serif;
   --text: 'Fredoka', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --u: clamp(11px, min(1.55vw, 2.6vh), 18px);
-  --lu: clamp(11px, min(1.22vw, 2.16vh), 25px); /* the lobby's text size */
+  --lu: clamp(12px, min(1.22vw, 2.16vh), 25px); /* the lobby's text size */
   --navy-900: #0c1433;
   --navy-800: #141f4d;
   --navy-700: #1d2c68;
@@ -193,16 +193,16 @@ button.chip:active { transform: translateY(1px); }
   background: var(--navy-700); border: 2px solid var(--line); transition: filter 0.15s ease; }
 .tile:hover { filter: brightness(1.2); }
 .tile-sw { flex: none; width: 1.9em; height: 1.9em; border-radius: 0.45em; background: var(--navy-900); display: grid; place-items: center; overflow: hidden; }
-.tile-name { min-width: 0; flex: 1; font-weight: 600; line-height: 1.12; overflow-wrap: break-word; hyphens: auto; }
+.tile-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 0.1em; }
+.tile-name { min-width: 0; font-weight: 600; line-height: 1.12; overflow-wrap: break-word; hyphens: auto; }
 .tile.on { border-color: var(--gold); background: #3a3564; box-shadow: 0 0 0.6em rgba(255, 200, 60, 0.4); }
 .tile.tried { border-color: var(--cyan); box-shadow: 0 0 0.6em rgba(111, 240, 255, 0.5); }
 .tile-tag { display: inline-flex; align-items: center; gap: 0.25em; flex: none; font-size: 0.78em; font-weight: 700; white-space: nowrap; }
-.tile .tile-tag { position: absolute; top: -0.1em; right: -0.1em; padding: 0.08em 0.4em; border-radius: 0 0.7em 0 0.6em; background: var(--navy-900); }
+.tile .tag-on { position: absolute; top: -0.1em; right: -0.1em; border-radius: 0 0.55em 0 0.55em; }
 .tag-price { color: var(--gold); }
 .tile .tag-on { background: var(--gold); color: #3a2100; padding: 0.2em 0.3em; }
 .tag-lock { color: var(--soft); }
 #menu .tile-tag .ico { width: 0.9em; height: 0.9em; }
-.tile.locked .tile-name { padding-top: 0.75em; }
 .sw-dot { width: 1.2em; height: 1.2em; border-radius: 0.3em; box-shadow: inset 0 0 0 0.12em rgba(255, 255, 255, 0.45); }
 .sw-fig { display: flex; flex-direction: column; align-items: center; width: 100%; height: 100%; justify-content: center; }
 .sw-fig b { display: block; }
@@ -245,7 +245,7 @@ button.chip:active { transform: translateY(1px); }
 .howto-goal .btn { width: 100%; padding: 0.55em 0.7em; font-family: var(--title); font-weight: 400; font-size: 1.2em; }
 .howto-goal .btn small { font-family: var(--text); font-weight: 600; font-size: 0.66em; color: #0a4a2a; }
 .seg-full { display: flex; width: 100%; background: var(--navy-900); border-radius: 0.6em; padding: 0.18em; gap: 0.18em; flex-wrap: nowrap; }
-.seg-full button { flex: 1 1 0; min-width: 0; padding: 0.42em 0.25em; color: #fff; font-weight: 600; line-height: 1.1; font-size: 0.86em; }
+.seg-full button { flex: 1 1 auto; min-width: 0; min-height: 2.5em; padding: 0.3em 0.3em; color: #fff; font-weight: 600; line-height: 1.1; font-size: 0.9em; }
 .seg-full button.on { background: linear-gradient(180deg, #ffe873, var(--gold-2)); color: #3a2100; font-weight: 700; }
 .control-list { display: flex; flex-direction: column; gap: 0.3em; margin-top: 0.45em; }
 .control { display: flex; align-items: center; justify-content: space-between; gap: 0.6em; background: var(--navy-700); border-radius: 0.5em; padding: 0.3em 0.55em; min-height: 2.3em; }
@@ -288,8 +288,8 @@ button.chip:active { transform: translateY(1px); }
 
 /* short screens (800x450, phones on their side): less chrome, every pixel to the choices */
 @media (max-height: 560px) {
-  #menu { --gap: 0.45em; grid-template-columns: 5.9em 19.5em minmax(0, 1fr) 17.5em; }
-  #menu:not([data-tab="play"]) { grid-template-columns: 5.9em 25em minmax(0, 1fr) 15em; }
+  #menu { --gap: 0.45em; grid-template-columns: 5.9em 19.5em minmax(0, 1fr) 16.5em; }
+  #menu:not([data-tab="play"]) { grid-template-columns: 5.9em 24em minmax(0, 1fr) 16.5em; }
   .chip { height: 2.9em; }
   .chip-gold { height: calc(2.9em / 1.12); }
   .chip-icon { width: 2.9em; }
@@ -301,14 +301,15 @@ button.chip:active { transform: translateY(1px); }
   .nav-tab { font-size: 0.92em; }
   .pane-title { font-size: 1.15em; padding: 0.3em 0.6em; }
   .pane-scroll { padding: 0.45em; }
-  .btn-play { font-size: 2em; padding: 0.3em 0.4em 0.35em; }
+  .btn-play { font-size: 2em; padding: 0.26em 0.4em 0.3em; }
   #play-options { padding: 0.45em; gap: 0.4em; }
   .sec-title { margin: 0.55em 0 0.3em; }
   .map-tile { min-height: 2.25em; }
   .mode-row { padding: 0.25em 0.45em; }
   .mode-ico { width: 1.8em; height: 1.8em; }
+  .mode-row:not(.on) .mode-text small { display: none; }
   #stage-plate { padding: 0.18em 0.6em; }
-  #menu #level-note { display: none; }
+  #menu #level-row.auto { display: none; }
 }
 
 /* upright phones and narrow windows: stacked, with the tabs along the bottom */
@@ -316,7 +317,7 @@ button.chip:active { transform: translateY(1px); }
   #menu, #menu:not([data-tab="play"]) { font-size: clamp(12.5px, 3.45vw, 22px); --gap: 0.5em;
     grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(7em, 1fr) minmax(0, auto) auto auto;
     grid-template-areas: "top" "stage" "panel" "dock" "nav"; }
-  #menu:not([data-tab="play"]) { grid-template-rows: auto 12em minmax(0, 1fr) auto auto; }
+  #menu:not([data-tab="play"]) { grid-template-rows: auto 14em minmax(0, 1fr) auto auto; }
   #lobby-top { flex-direction: column; align-items: stretch; gap: 0.4em; }
   .lobby-logo { display: flex; align-items: baseline; justify-content: center; gap: 0.6em; }
   .lobby-logo .logo { font-size: 1.9em; }
@@ -328,7 +329,7 @@ button.chip:active { transform: translateY(1px); }
   .chip-icon { width: 3em; }
   #btn-account { padding: 0 0.6em; }
   #lobby-nav { flex-direction: row; gap: 0.3em; }
-  .nav-tab { height: 3.9em; flex: 1 1 0; min-width: 0; font-size: 0.86em; padding: 0.15em 0.1em; }
+  .nav-tab { height: 4.3em; flex: 1 1 0; min-width: 0; font-size: 0.86em; padding: 0.15em 0.1em; }
   #menu .nav-tab .ico { width: 1.45em; height: 1.45em; }
   .nav-badge { top: 0.15em; right: 0.15em; font-size: 0.74em; }
   #menu[data-tab="play"] #lobby-panel { max-height: 30vh; }
@@ -343,7 +344,7 @@ button.chip:active { transform: translateY(1px); }
   #play-options { padding: 0.5em; gap: 0.4em; max-height: 34vh; }
   .sec-title { margin: 0.6em 0 0.3em; }
   .btn-play { font-size: 2.1em; padding: 0.28em 0.4em 0.32em; }
-  #menu #level-note { display: none; }
+  #menu #level-row.auto { display: none; }
   .map-list { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.3em; }
   .map-tile { flex-direction: column; justify-content: center; text-align: center; font-size: 0.78em; padding: 0.25em 0.15em; gap: 0.15em; min-height: 3.2em; }
   #stage-plate { padding: 0.15em 0.6em; }

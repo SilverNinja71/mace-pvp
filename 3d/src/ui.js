@@ -119,6 +119,7 @@ export class UI {
 
     start(opts) {
         this.lastStart = opts;
+        this.tryOn = null;
         this.closeAllPanels();
         $('results').classList.add('hidden');
         $('pause').classList.add('hidden');
@@ -432,6 +433,7 @@ export class UI {
             }));
         }
         $('level-note').classList.toggle('hidden', this.sel.mode !== 'quick');
+        $('level-row').classList.toggle('auto', this.sel.mode === 'quick');
         $('level-row').classList.toggle('hidden', !levels && this.sel.mode !== 'quick');
         const training = this.sel.mode === 'training';
         const maps = $('map-list');
@@ -457,10 +459,10 @@ export class UI {
     tile(listEl, { swatch, name, price, on, tried, lockNote, onClick, onHover }) {
         const b = document.createElement('button');
         b.className = 'tile' + (on ? ' on' : '') + (tried ? ' tried' : '') + (price || lockNote ? ' locked' : '');
-        b.innerHTML = `<span class="tile-sw">${swatch}</span><span class="tile-name">${esc(name)}</span>`
-            + (on ? `<span class="tile-tag tag-on">${icon('check')}</span>` : '')
+        b.innerHTML = `<span class="tile-sw">${swatch}</span><span class="tile-body"><span class="tile-name">${esc(name)}</span>`
             + (price ? `<span class="tile-tag tag-price">${coin}${price}</span>` : '')
-            + (lockNote ? `<span class="tile-tag tag-lock">${icon('lock')}${esc(lockNote)}</span>` : '');
+            + (lockNote ? `<span class="tile-tag tag-lock">${icon('lock')}${esc(lockNote)}</span>` : '')
+            + `</span>` + (on ? `<span class="tile-tag tag-on">${icon('check')}</span>` : '');
         b.addEventListener('click', () => { audio.unlock(); audio.play('click'); onClick(); });
         if (onHover) b.addEventListener('mouseenter', onHover);
         listEl.appendChild(b);

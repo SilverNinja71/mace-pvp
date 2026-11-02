@@ -1818,7 +1818,7 @@ TABLE.de = {
     "class.potion.desc": "Treffer: 35 % Chance auf Verlangsamung (3 s), 30 % auf Gift (4 s, 2,2 Schaden pro Sekunde), 8 % auf Blindheit (2 s).",
     "class.pyro.name": "Pyro",
     "class.pyro.desc": "Treffer haben 24 % Chance, Gegner für 5 s in Brand zu setzen: 2,5 Schaden pro Sekunde.",
-    "class.void.name": "Leerenwanderer",
+    "class.void.name": "Leeren­wanderer",
     "class.void.desc": "Alle 18-28 s teleportierst du dich hoch über einen zufälligen Gegner, bereit zum Schlag.",
     "class.buddha.name": "Buddha",
     "class.buddha.desc": "Drücke B, um zu wachsen oder wieder zu schrumpfen. Groß: 1,3x Schaden und ein einzelner höherer Sprung, aber doppelt so großer Körper. +15 Leben.",
@@ -1829,9 +1829,9 @@ TABLE.de = {
     "glow.verdant": "Immergrün",
     "glow.void": "Leere",
 
-    "map.colosseum": "Himmelskolosseum",
-    "map.spires": "Himmelsspitzen",
-    "map.ruins": "Himmelsruinen",
+    "map.colosseum": "Himmels­kolosseum",
+    "map.spires": "Himmels­spitzen",
+    "map.ruins": "Himmels­ruinen",
 
     "set.language": "Sprache",
     "set.sound": "Ton",
