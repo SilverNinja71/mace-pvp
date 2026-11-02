@@ -20,12 +20,12 @@ export function setCharacterQuality(q) { QUALITY = q; }
 export const SKINS = {
     steve:          { name: 'Skye',           skin: '#e8b48c', shirt: '#d8452e', pants: '#3f4656', hair: '#e8b53e', accent: '#2f6fb3', cap: '#1d2c55', eyes: '#2b5fae', leather: '#6b4630', gear: 'skye' },
     alex:           { name: 'Gale',           skin: '#f1c39a', shirt: '#eceee6', pants: '#2f7a58', hair: '#7fd3ff', accent: '#7b5cff', eyes: '#2e8b57', leather: '#5a4a68', gear: 'gale' },
-    noob:           { name: 'Sunbolt',        skin: '#e9b98f', shirt: '#ff8a1f', pants: '#34508f', hair: '#fff6df', accent: '#ffe9c0', eyes: '#3b2a1e', grin: true, gear: 'sunbolt' },
-    man_face:       { name: 'Dapper Duke',    skin: '#e8b48f', shirt: '#3a3a4a', pants: '#20202a', hair: '#1c1c22', accent: '#c9a227', eyes: '#222', moustache: true, gear: 'duke' },
+    noob:           { name: 'Sunbolt',        skin: '#e9b98f', shirt: '#ff8a1f', pants: '#34508f', hair: '#fff6df', accent: '#ffe9c0', eyes: '#3b2a1e', grin: true, gear: 'sunbolt', tan: '#e87a18' },
+    man_face:       { name: 'Dapper Duke',    skin: '#e8b48f', shirt: '#3a3a4a', pants: '#20202a', hair: '#1c1c22', accent: '#c9a227', eyes: '#222', moustache: true, gear: 'duke', tan: '#34343f' },
     creeper:        { name: 'Moss Golem',     skin: '#8a8f86', shirt: '#6b7a4f', pants: '#4d5844', hair: '#5f8a3a', accent: '#ffb300', eyes: '#ffb300', mossy: true, glowEyes: 3, leather: '#55604a', gear: 'golem', stone: true },
     enderman:       { name: 'Void Wraith',    skin: '#1d1f3d', shirt: '#17183a', pants: '#0e0f20', hair: '#1d1f3d', accent: '#3df5ff', eyes: '#3df5ff', visor: true, glowEyes: 5, leather: '#23244c', gear: 'wraith', stone: true },
     skeleton:       { name: 'Bone Knight',    skin: '#e9e5d6', shirt: '#7a6a55', pants: '#4a4038', hair: '#9aa3ad', accent: '#c0392b', eyes: '#c0392b', helmet: true, glowEyes: 1.5, leather: '#5a4c3c', gear: 'bone', stone: true },
-    zombie:         { name: 'Bog Brute',      skin: '#8a9a4a', shirt: '#6b4a2f', pants: '#2f2f38', hair: '#4a5a2a', accent: '#c9a227', eyes: '#ffef8a', glowEyes: 1.5, gear: 'brute', big: 1.12, stone: true },
+    zombie:         { name: 'Bog Brute',      skin: '#8a9a4a', shirt: '#6b4a2f', pants: '#2f2f38', hair: '#4a5a2a', accent: '#c9a227', eyes: '#ffef8a', glowEyes: 1.5, gear: 'brute', big: 1.12, stone: true, tan: '#5a4028' },
     diamond_knight: { name: 'Crystal Knight', skin: '#e0ac7e', shirt: '#7a5cd6', pants: '#3d2f7a', hair: '#b48cff', accent: '#e2c2ff', eyes: '#123', helmet: true, leather: '#b9a8ff', gear: 'crystal' }
 };
 
@@ -215,10 +215,10 @@ function makeSkinMaterials(id) {
     const g = female ? 'f' : 'm';
     const out = {};
     out.cloth = recolorPatch(litMat({ map: chartex(set + '_d', true), normalMap: chartex(set + '_n', false, [128, 128, 255]), roughnessMap: chartex(set + '_orm', false), metalnessMap: chartex(set + '_orm', false, [0, 200, 0]), roughness: 1, metalness: 1 }),
-        set === 'ranger' ? 1 : 2, s.shirt, s.pants, s.leather || s.accent, 0.4, 1, s.leather ? 1 : 0);
+        set === 'ranger' ? 1 : 2, s.shirt, s.pants, s.tan || s.leather || s.accent, 0.4, 1, s.leather ? 1 : 0);
     out.skin = recolorPatch(litMat({ map: chartex('arm_' + g + '_d', true), normalMap: chartex('arm_' + g + '_n', false, [128, 128, 255]), roughness: 0.62 }), 0, s.skin, null, null, 0.22, 1);
     out.head = recolorPatch(litMat({ map: chartex('head_' + g + '_d', true), normalMap: chartex('head_' + g + '_n', false, [128, 128, 255]), roughness: s.stone ? 0.8 : 0.55 }), 0, s.skin, null, null, 0.5, s.stone ? 1 : 0.8);
-    out.brow = recolorPatch(litMat({ map: chartex('hair1_d', true), roughness: 0.8 }), 0, s.hair, null, null, 0.25, 1);
+    out.brow = recolorPatch(litMat({ map: chartex('hair1_d', true), roughness: 0.8 }), 0, new THREE.Color(s.hair).multiplyScalar(0.45), null, null, 0.25, 1);
     const hairTex = (id === 'alex' || id === 'diamond_knight') ? 'hair2' : 'hair1';
     out.hair = recolorPatch(litMat({ map: chartex(hairTex + '_d', true), normalMap: chartex(hairTex + '_n', false, [128, 128, 255]), roughness: 0.62 }), 0, s.hair, null, null, hairTex === 'hair2' ? 0.28 : 0.2, 1);
     out.eye = recolorPatch(litMat({ map: chartex('eye_d', true), roughness: 0.22 }), 0, s.eyes, null, null, 0.3, s.glowEyes ? 1 : 0.55);
@@ -247,12 +247,7 @@ function buildHeadGear(s) {
     const h = new THREE.Group();
     const accent = plainMat(s.accent, 0.5, 0.2);
     switch (s.gear) {
-        case 'skye': {
-            const cap = plainMat(s.cap, 0.75);
-            addPiece(h, new THREE.SphereGeometry(0.138, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.5), cap, 0, 0.04, 0.012, 1.0, 0.92, 1.1);
-            addPiece(h, new THREE.CylinderGeometry(0.1, 0.12, 0.012, 16, 1, false, -Math.PI * 0.45, Math.PI * 0.9), cap, 0, 0.04, -0.09, 1, 1, 1.15, 0.2);
-            break;
-        }
+        case 'skye': addPiece(h, new THREE.TorusGeometry(0.098, 0.012, 6, 22), plainMat(s.cap, 0.8), 0, 0.05, 0.002, 0.92, 1.12, 0.6, R90); break;
         case 'sunbolt': addPiece(h, new THREE.TorusGeometry(0.098, 0.012, 6, 22), plainMat(0xffffff, 0.8), 0, 0.05, 0.002, 0.92, 1.12, 0.6, R90); break;
         case 'duke': {
             const black = plainMat(0x17171d, 0.42, 0.1);
@@ -279,7 +274,7 @@ function buildHeadGear(s) {
             break;
         }
         case 'crystal': {
-            const steel = plainMat(0xc9c3ee, 0.25, 0.95), cry = plainMat(s.accent, 0.2, 0, 2.6);
+            const steel = plainMat(0xc9c3ee, 0.25, 0.95), cry = plainMat(s.accent, 0.2, 0, 1.1);
             addPiece(h, new THREE.TorusGeometry(0.1, 0.014, 6, 20), steel, 0, 0.058, 0.002, 0.95, 1.12, 1, R90);
             for (let i = 0; i < 5; i++) { const a = (i - 2) * 0.55; addPiece(h, new THREE.OctahedronGeometry(0.032, 0), cry, Math.sin(a) * 0.1, 0.095 + (i === 2 ? 0.03 : 0), -Math.cos(a) * 0.11, 0.75, i === 2 ? 2 : 1.45, 0.75); }
             break;

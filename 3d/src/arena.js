@@ -395,7 +395,7 @@ export class Arena {
                 addGlow(glow, new THREE.CylinderGeometry(r * 1.0, r * 1.0, 0.1, 28), x, h - 1.08, z, 0x6fe7ff, GLOW);
             } else {
                 // jagged broken top with chunks on the ground
-                W.wall.addAt(new THREE.ConeGeometry(r * 0.72, 0.55, 7), x, h - 0.45, z, PAL.stone, 0.08, a * 3, 1, 1, 1, 0, 0);
+                W.wall.addAt(new THREE.IcosahedronGeometry(r * 0.86, 1), x, h - 0.72, z, PAL.stoneDark, 0.08, a * 3, 1, 0.24, 1);
                 W.wall.addAt(new THREE.DodecahedronGeometry(0.55, 0), x + Math.cos(a + 1.3) * 2.1, 0.3, z + Math.sin(a + 1.3) * 2.1, PAL.stone, 0.1, a);
                 W.wall.addAt(new THREE.DodecahedronGeometry(0.3, 0), x + Math.cos(a + 1.75) * 2.6, 0.17, z + Math.sin(a + 1.75) * 2.6, PAL.stoneDark, 0.1, a * 2);
                 this.contacts.push([x + Math.cos(a + 1.3) * 2.1, 0.016, z + Math.sin(a + 1.3) * 2.1, 1.1, 0.5]);
@@ -488,7 +488,7 @@ export class Arena {
             const h = 2.2 + (i % 2) * 1.6;
             ph.addCylinder(x, z, 1.2, 0, h, 'pillar');
             W.wall.addAt(flutedColumn(1.2, 1.12, h - 0.1, 12, 3, 0.7, i + 5), x, 0, z, PAL.stone, 0.05, a, 1, 1, 1, 0, 0, { uv: 'cyl', uRadius: 1.2, ao: { y0: 0, h: 1.2, min: 0.6 } });
-            W.wall.addAt(new THREE.ConeGeometry(0.8, 0.5, 6), x, h - 0.4, z, PAL.stone, 0.08, a * 2);
+            W.wall.addAt(new THREE.IcosahedronGeometry(1.03, 1), x, h - 0.72, z, PAL.stoneDark, 0.08, a * 2, 1, 0.24, 1);
             this.contacts.push([x, 0.015, z, 2.2, 0.6]);
         }
         // three high monoliths
