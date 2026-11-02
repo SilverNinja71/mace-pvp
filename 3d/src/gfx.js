@@ -97,11 +97,6 @@ export function glowMaterial() {
     return glowMat;
 }
 
-// (temporary) cel-shaded helpers until the new character lands
-let ramp = null;
-export function toonRamp() { if (ramp) return ramp; const data = new Uint8Array([90, 90, 90, 255, 175, 175, 175, 255, 255, 255, 255, 255]); ramp = new THREE.DataTexture(data, 3, 1, THREE.RGBAFormat); ramp.needsUpdate = true; return ramp; }
-export function toon(color, opts = {}) { return new THREE.MeshToonMaterial({ color, gradientMap: toonRamp(), ...opts }); }
-
 const _c = new THREE.Color();
 const _m = new THREE.Matrix4();
 const _n = new THREE.Matrix3();

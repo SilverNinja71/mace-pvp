@@ -12,7 +12,7 @@ import { Combat } from './combat.js';
 import { BotBrain } from './bot.js';
 import { FX } from './fx.js';
 import { CameraRig } from './camera.js';
-import { CharacterModel, ViewModel, SKINS, GLOWS } from './character.js';
+import { CharacterModel, ViewModel, SKINS, GLOWS, setCharacterQuality, preloadSkin } from './character.js';
 import { PostFX } from './post.js';
 import { installHeightHaze } from './gfx.js';
 import { audio } from './audio.js';
@@ -58,6 +58,8 @@ export class Game {
         const q = QUALITY[this.qualityName];
 
         installHeightHaze();
+        setCharacterQuality(this.qualityName);
+        preloadSkin(profile.skinId); // the first screen's fighter comes first
         // The HDR target does the antialiasing when post-processing is on, so the screen itself doesn't need it
         this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !q.post, powerPreference: 'high-performance', stencil: false });
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -105,6 +107,8 @@ export class Game {
         this.rig = new CameraRig(this.camera, this.physics);
         this.rig.mode = this.settings.view === 'third' ? 'third' : 'first';
         this.viewModel = new ViewModel(profile.skinId, profile.glowId);
+        this.arena.onEnv = (t) => { this.viewModel.scene.environment = t; };
+        this.viewModel.scene.environment = this.scene.environment;
         this.applySettings();
 
         this.fighters = [];
@@ -170,6 +174,7 @@ export class Game {
         if (this.arena) this.arena.dispose();
         this.arena = new Arena(this.scene, this.qualityName, layout, this.renderer);
         this.arena.onThunder = () => audio.play('thunder');
+        this.arena.onEnv = (t) => { this.viewModel.scene.environment = t; };
         this.arena.setPointScale(this.height * this.dpr || 600);
         this.physics = this.arena.physics;
         this.rig.physics = this.physics;
@@ -364,6 +369,7 @@ export class Game {
         this.look.yaw = me.yaw; this.look.pitch = me.pitch;
         if (this.viewModel) this.viewModel.dispose();
         this.viewModel = new ViewModel(profile.skinId, profile.glowId);
+        this.viewModel.scene.environment = this.scene.environment;
         this.viewModel.setAspect(this.width / this.height);
         this.state = 'intro';
         this.introT = opts.mode === 'training' ? 0.01 : 3;
@@ -1055,6 +1061,7 @@ export class Game {
                 m.root.rotation.set(k.t * k.spin, m.root.rotation.y + dt * 4, k.t * k.spin * 0.6);
                 m.body.scale.setScalar(Math.max(0.05, 1 - k.t * 1.4));
                 m.root.visible = true;
+                m.koPose(dt);
                 if (k.t > 0.55) {
                     const p = m.root.position;
                     this.fx.emit(p.x, p.y + 0.8, p.z, 18, SKINS[f.skinId] ? SKINS[f.skinId].shirt : '#888', 7, 0.16, 0.7, -14, 0.5);
