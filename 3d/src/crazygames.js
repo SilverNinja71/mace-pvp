@@ -26,6 +26,7 @@ class CrazyGames {
     }
 
     shouldLoad() {
+        if (window.SMA_PORTAL === 'none') return false; // the itch.io build has no portal at all
         if (window.SMA_ON_CRAZYGAMES) return true;
         let framed = false;
         try { framed = window.self !== window.top; } catch (e) { framed = true; }
@@ -92,6 +93,13 @@ class CrazyGames {
 
     happytime() { if (this.active) this.safe(() => this.sdk.game.happytime()); }
 
+    // The player's language from CrazyGames, like 'es-ES' (null when unknown)
+    locale() {
+        if (!this.active) return null;
+        const info = this.safe(() => this.sdk.user && this.sdk.user.systemInfo);
+        return (info && (info.locale || info.language)) || null;
+    }
+
     get adsAvailable() { return this.active && !!(this.sdk && this.sdk.ad); }
 
     // type: 'rewarded' | 'midgame'. Resolves true if the ad finished (rewarded: give the reward).
@@ -144,4 +152,78 @@ class CrazyGames {
     hideInvite() { if (this.active) this.safe(() => this.sdk.game.hideInviteButton()); }
 }
 
-export const crazyGames = new CrazyGames();
+// ---- Poki: the same small interface on top of the Poki SDK (loaded by the Poki build's page) ----
+class PokiPortal {
+    constructor() {
+        this.active = false;
+        this.gameplay = false;
+        this.wantGameplay = false;
+        this.adPlaying = false;
+        this.onPause = null;
+        this.ready = null;
+    }
+
+    init() {
+        if (this.ready) return this.ready;
+        this.ready = new Promise((resolve) => {
+            const sdk = window.PokiSDK;
+            if (!sdk) return resolve(false); // blocked by an ad blocker, or not on Poki: play without it
+            const timer = setTimeout(() => resolve(false), 6000);
+            Promise.resolve().then(() => sdk.init()).then(() => {
+                clearTimeout(timer);
+                this.active = true;
+                if (window.SMA_READY) this.loadingStop();
+                if (this.wantGameplay) this.setGameplay(true);
+                resolve(true);
+            }).catch((e) => { clearTimeout(timer); console.warn('Poki SDK init failed; playing without it.', e); resolve(false); });
+        });
+        return this.ready;
+    }
+
+    safe(fn) { try { return fn(); } catch (e) { console.warn('Poki SDK:', e); return undefined; } }
+    loadingStart() { /* Poki only needs to hear when loading has finished */ }
+    loadingStop() { if (this.active && !this.loadingDone) { this.loadingDone = true; this.safe(() => window.PokiSDK.gameLoadingFinished()); } }
+
+    setGameplay(on) {
+        this.wantGameplay = on;
+        if (!this.active || on === this.gameplay || this.adPlaying) return;
+        this.gameplay = on;
+        this.safe(() => on ? window.PokiSDK.gameplayStart() : window.PokiSDK.gameplayStop());
+    }
+
+    happytime() { /* no such call on Poki */ }
+    locale() { return null; }
+    get adsAvailable() { return this.active; }
+
+    // type: 'rewarded' | 'midgame'. Resolves true if the ad finished (rewarded: give the reward).
+    showAd(type) {
+        if (!this.active || this.adPlaying) return Promise.resolve(false);
+        const wasGameplay = this.gameplay;
+        const begin = () => {
+            this.adPlaying = true;
+            audio.setAdMuted(true);
+            if (this.onPause) this.onPause(true);
+        };
+        const end = (ok) => {
+            const was = this.adPlaying;
+            this.adPlaying = false;
+            audio.setAdMuted(false);
+            if (was && this.onPause) this.onPause(false);
+            if (wasGameplay && this.wantGameplay) this.setGameplay(true);
+            return ok;
+        };
+        // Poki wants gameplayStop before any break
+        if (this.gameplay) { this.gameplay = false; this.safe(() => window.PokiSDK.gameplayStop()); }
+        const call = type === 'rewarded' ? 'rewardedBreak' : 'commercialBreak';
+        return Promise.resolve().then(() => window.PokiSDK[call](begin))
+            .then((res) => end(type === 'rewarded' ? !!res : true))
+            .catch((e) => { console.warn('Poki ad error:', e); return end(false); });
+    }
+
+    inviteRoom() { return null; }
+    inviteLink() { return Promise.resolve(null); }
+    showInvite() {}
+    hideInvite() {}
+}
+
+export const crazyGames = window.SMA_PORTAL === 'poki' ? new PokiPortal() : new CrazyGames();

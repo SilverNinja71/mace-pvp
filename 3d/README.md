@@ -51,7 +51,7 @@ Each map comes at sunset, at night under the stars, or in a thunderstorm. New pl
 
 ## How it's built
 Plain ES modules in `src/`, with Three.js r160 bundled in `lib/three`. There's no build step for the web
-copy. `tools/build-crazygames.py` makes `dist/spear-mace-crazygames.zip` for the CrazyGames upload.
+copy. `tools/build-portals.py` makes the upload zips for CrazyGames, Poki and itch.io in `dist/`. See `store/SUBMIT.md`.
 
 | File | What it does |
 |---|---|
