@@ -13,6 +13,8 @@ import { BotBrain } from './bot.js';
 import { FX } from './fx.js';
 import { CameraRig } from './camera.js';
 import { CharacterModel, ViewModel, SKINS, GLOWS } from './character.js';
+import { PostFX } from './post.js';
+import { installHeightHaze } from './gfx.js';
 import { audio } from './audio.js';
 import { profile } from './profile.js';
 import { crazyGames } from './crazygames.js';
@@ -32,10 +34,12 @@ export const MODES = {
     online:   { bots: 0, kos: MATCH.duelKOs, time: MATCH.timeLimit }
 };
 
+// Low: no post-processing and no real shadows. Medium: fewer samples, a smaller shadow map that only shows the
+// arena (fighters get soft blob shadows). High: everything. Auto quality starts here and steps down at runtime.
 const QUALITY = {
-    high:   { shadows: 2048, maxDpr: 2,   antialias: true },
-    medium: { shadows: 1024, maxDpr: 1.5, antialias: true },
-    low:    { shadows: 0,    maxDpr: 1,   antialias: false }
+    high:   { shadows: 2048, dynamicShadows: true,  maxDpr: 2,   post: true,  samples: 4 },
+    medium: { shadows: 1024, dynamicShadows: false, maxDpr: 1.5, post: true,  samples: 2 },
+    low:    { shadows: 0,    dynamicShadows: false, maxDpr: 1,   post: false, samples: 0 }
 };
 
 const _v = new THREE.Vector3();
@@ -53,22 +57,29 @@ export class Game {
         this.qualityName = this.settings.quality === 'auto' ? (isMobile ? 'medium' : 'high') : this.settings.quality;
         const q = QUALITY[this.qualityName];
 
-        this.renderer = new THREE.WebGLRenderer({ canvas, antialias: q.antialias, powerPreference: 'high-performance', stencil: false });
+        installHeightHaze();
+        // The HDR target does the antialiasing when post-processing is on, so the screen itself doesn't need it
+        this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !q.post, powerPreference: 'high-performance', stencil: false });
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping; // only applies when drawing straight to the screen
+        this.renderer.toneMappingExposure = 1.0;
         this.renderer.autoClear = false;
         this.renderer.shadowMap.enabled = q.shadows > 0;
-        this.renderer.shadowMap.type = THREE.PCFShadowMap;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.maxDpr = Math.min(window.devicePixelRatio || 1, q.maxDpr);
         this.dpr = this.maxDpr;
         this.renderer.setPixelRatio(this.dpr);
+        this.post = q.post && !/[?&]nopost\b/.test(location.search) ? new PostFX(this.renderer, { samples: q.samples, bloom: true }) : null;
+        if (this.post && !this.post.supported) this.post = null;
+        this.dynamicShadows = q.dynamicShadows;
 
         this.scene = new THREE.Scene();
-        this.scene.fog = new THREE.Fog(0xd6e8fb, 80, 320);
-        this.camera = new THREE.PerspectiveCamera(70, 1, 0.05, 900);
+        this.scene.fog = new THREE.Fog(0xd6e8fb, 60, 320);
+        this.camera = new THREE.PerspectiveCamera(70, 1, 0.05, 1400);
         this.scene.add(this.camera);
-        this.hemi = new THREE.HemisphereLight(0xe4f2ff, 0x8f7f70, 1.25);
+        this.hemi = new THREE.HemisphereLight(0xe4f2ff, 0x8f7f70, 0.5);
         this.scene.add(this.hemi);
-        this.sun = new THREE.DirectionalLight(0xfff0d8, 2.4);
+        this.sun = new THREE.DirectionalLight(0xfff0d8, 3);
         this.sun.position.set(-38, 70, -30);
         this.sun.target.position.set(0, 0, 0);
         this.scene.add(this.sun, this.sun.target);
@@ -76,12 +87,16 @@ export class Game {
             this.sun.castShadow = true;
             this.sun.shadow.mapSize.set(q.shadows, q.shadows);
             const c = this.sun.shadow.camera;
-            c.left = -56; c.right = 56; c.top = 56; c.bottom = -56; c.near = 20; c.far = 190;
-            this.sun.shadow.bias = -0.0006;
-            this.sun.shadow.normalBias = 0.05;
+            c.left = -60; c.right = 60; c.top = 60; c.bottom = -60; c.near = 10; c.far = 220;
+            // enough bias that the stone doesn't shadow itself (the old shimmer on the pillars), small enough that nothing floats
+            this.sun.shadow.bias = -0.0005;
+            this.sun.shadow.normalBias = 0.08;
+            this.sun.shadow.radius = q.shadows >= 2048 ? 3 : 2;
+            // Medium draws the shadow map once per arena; High redraws it each frame so fighters cast too
+            this.sun.shadow.autoUpdate = !!q.dynamicShadows;
         }
 
-        this.arena = new Arena(this.scene, this.qualityName);
+        this.arena = new Arena(this.scene, this.qualityName, 'colosseum', this.renderer);
         this.arena.setTheme('sunset', this.scene, this.hemi, this.sun);
         this.arena.onThunder = () => audio.play('thunder');
         this.physics = this.arena.physics;
@@ -153,11 +168,12 @@ export class Game {
     useLayout(layout) {
         if (this.arena && this.arena.layout === layout) return;
         if (this.arena) this.arena.dispose();
-        this.arena = new Arena(this.scene, this.qualityName, layout);
+        this.arena = new Arena(this.scene, this.qualityName, layout, this.renderer);
         this.arena.onThunder = () => audio.play('thunder');
         this.arena.setPointScale(this.height * this.dpr || 600);
         this.physics = this.arena.physics;
         this.rig.physics = this.physics;
+        if (this.sun.castShadow) this.sun.shadow.needsUpdate = true;
     }
 
     applySettings() {
@@ -183,11 +199,47 @@ export class Game {
         const w = window.innerWidth, h = window.innerHeight;
         this.width = w; this.height = h;
         this.renderer.setSize(w, h, false);
+        if (this.post) this.post.setSize(w * this.dpr, h * this.dpr);
         this.camera.aspect = w / h;
         this.rig.setAspect(w / h);
         this.camera.updateProjectionMatrix();
         this.viewModel.setAspect(w / h);
         this.arena.setPointScale(h * this.dpr);
+    }
+
+    // Draw one finished picture with any camera. Covers, videos and other tools use this too:
+    //   game.setRenderSize(1920, 1080, 1); game.renderView(myCamera);
+    // viewModel: also draw the first-person arms on top.
+    renderView(camera = this.camera, viewModel = false) {
+        const r = this.renderer;
+        if (this.post && this.post.enabled) {
+            this.post.begin();
+            r.render(this.scene, camera);
+            if (viewModel) { r.clearDepth(); r.render(this.viewModel.scene, this.viewModel.camera); }
+            this.post.finish();
+            if (this.post.isBlack(performance.now())) this.disablePost('black');
+        } else {
+            r.setRenderTarget(null);
+            r.clear();
+            r.render(this.scene, camera);
+            if (viewModel) { r.clearDepth(); r.render(this.viewModel.scene, this.viewModel.camera); }
+        }
+    }
+
+    // Change the size of the picture without touching the window (for tools). Undo with game.resize().
+    setRenderSize(w, h, dpr = 1) {
+        this.renderer.setPixelRatio(dpr);
+        this.renderer.setSize(w, h, false);
+        if (this.post) this.post.setSize(w * dpr, h * dpr);
+        this.arena.setPointScale(h * dpr);
+    }
+
+    // Stop using the HDR path, for good this session: it showed black, or we need the speed
+    disablePost(why) {
+        if (!this.post) return;
+        console.warn('Post-processing off:', why);
+        this.post.enabled = false;
+        this.renderer.setRenderTarget(null);
     }
 
     // ---------------- match setup ----------------
@@ -1018,7 +1070,7 @@ export class Game {
                 if (f.invisible) op = f === me ? 0.35 : 0.08 + Math.random() * 0.04;
                 if (f.spawnShield > 0 && Math.floor(f.spawnShield * 10) % 2 === 0) op = Math.min(op, 0.5);
                 m.setOpacity(op);
-                m.blob.visible = !this.renderer.shadowMap.enabled;
+                m.blob.visible = !(this.renderer.shadowMap.enabled && this.dynamicShadows);
                 m.animate(f, dt, this.time);
             }
             // dash trails
@@ -1052,13 +1104,7 @@ export class Game {
         }
         this.fx.update(dt, this.width, this.height);
 
-        const r = this.renderer;
-        r.clear();
-        r.render(this.scene, this.camera);
-        if (me && me.alive && this.rig.mode === 'first' && this.state !== 'menu') {
-            r.clearDepth();
-            r.render(this.viewModel.scene, this.viewModel.camera);
-        }
+        this.renderView(this.camera, !!(me && me.alive && this.rig.mode === 'first' && this.state !== 'menu'));
         if (this.state !== 'menu') this.ui.hud(this, dt);
     }
 
@@ -1069,21 +1115,24 @@ export class Game {
         if (this.frameEMA > 19.5) { this.slowT += dt; this.fastT = 0; }
         else if (this.frameEMA < 15.5) { this.fastT += dt; this.slowT = 0; }
         else { this.slowT = 0; this.fastT = 0; }
-        if (this.slowT > 2.5 && this.dpr <= 0.6 && this.renderer.shadowMap.enabled) {
-            // still too slow at the lowest resolution: drop the real shadows (blob shadows take over)
-            this.renderer.shadowMap.enabled = false;
-            this.sun.castShadow = false;
-            this.scene.traverse((n) => { if (n.material) for (const m of [].concat(n.material)) m.needsUpdate = true; });
+        const r = this.renderer;
+        const stepDpr = (d) => { this.dpr = Math.max(0.6, Math.min(this.maxDpr, this.dpr + d)); r.setPixelRatio(this.dpr); this.resize(); };
+        if (this.slowT > 1) {
             this.slowT = 0;
-        } else if (this.slowT > 1 && this.dpr > 0.6) {
-            this.dpr = Math.max(0.6, this.dpr - 0.15);
-            this.renderer.setPixelRatio(this.dpr);
-            this.resize();
-            this.slowT = 0;
+            // Steps, cheapest to notice first: a sharper-than-1 screen comes down to 1; fighters stop casting real shadows;
+            // resolution to 0.8; post-processing off; resolution to 0.6; then no real shadows at all.
+            if (this.dpr > 1) stepDpr(-0.15);
+            else if (this.sun.castShadow && this.sun.shadow.autoUpdate) { this.sun.shadow.autoUpdate = false; this.sun.shadow.needsUpdate = true; this.dynamicShadows = false; }
+            else if (this.dpr > 0.8) stepDpr(-0.1);
+            else if (this.post && this.post.enabled) this.disablePost('too slow');
+            else if (this.dpr > 0.6) stepDpr(-0.1);
+            else if (r.shadowMap.enabled) {
+                r.shadowMap.enabled = false;
+                this.sun.castShadow = false;
+                this.scene.traverse((n) => { if (n.material) for (const m of [].concat(n.material)) m.needsUpdate = true; });
+            }
         } else if (this.fastT > 4 && this.dpr < this.maxDpr) {
-            this.dpr = Math.min(this.maxDpr, this.dpr + 0.1);
-            this.renderer.setPixelRatio(this.dpr);
-            this.resize();
+            stepDpr(0.1);
             this.fastT = 0;
         }
     }
