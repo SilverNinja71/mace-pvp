@@ -129,11 +129,21 @@ const skinFiles = new Map();
 let animFile = null;
 const hideErr = (p) => { p.catch(() => {}); return p; };
 
+const loaded = {};        // files that have arrived, for building a fighter at once with no stand-in
+let loadedAnims = null;
+
 export function preloadSkin(id) {
     if (!SKINS[id]) id = 'steve';
-    if (!skinFiles.has(id)) skinFiles.set(id, hideErr(gltf.loadAsync(ASSETS + 'chars/' + id + '.glb')));
-    if (!animFile) animFile = hideErr(gltf.loadAsync(ASSETS + 'chars/anims.glb'));
+    if (!skinFiles.has(id)) skinFiles.set(id, hideErr(gltf.loadAsync(ASSETS + 'chars/' + id + '.glb').then((f) => { loaded[id] = f; return f; })));
+    if (!animFile) animFile = hideErr(gltf.loadAsync(ASSETS + 'chars/anims.glb').then((f) => { loadedAnims = f; return f; }));
     return Promise.all([skinFiles.get(id), animFile]);
+}
+
+// After the first screen is up, fetch the other fighters one at a time so matches start without waiting
+export function preloadAllSkins(first) {
+    const ids = Object.keys(SKINS).filter((k) => k !== first);
+    const next = () => { const id = ids.shift(); if (id) preloadSkin(id).then(next, next); };
+    preloadSkin(first).then(next, next);
 }
 
 // ---------- recolouring materials ----------
@@ -554,12 +564,16 @@ export class CharacterModel {
         this.glowId = glowId;
 
         const female = this.skinId === 'alex' || this.skinId === 'enderman' || this.skinId === 'diamond_knight';
-        this.rig = buildStandInRig(s, female);
+        const ready = loaded[this.skinId] && loadedAnims;
+        if (ready) this.rig = buildSkinnedRig(this.skinId, loaded[this.skinId], getClips(loadedAnims));
+        else {
+            this.rig = buildStandInRig(s, female);
+            // gear on the stand-in too, so it keeps its identity
+            const hg = buildHeadGear(s);
+            hg.position.set(0, 0.1, -0.005);
+            this.rig.head.add(hg);
+        }
         this.body.add(this.rig.root);
-        // gear on the stand-in too, so it keeps its identity
-        const hg = buildHeadGear(s);
-        hg.position.set(0, 0.1, -0.005);
-        this.rig.head.add(hg);
 
         // a band of team colour at the waist
         this.teamMat = litMat({ color: teamColor, roughness: 0.5 });
@@ -597,6 +611,7 @@ export class CharacterModel {
         this.ko = 0;
         this.disposed = false;
 
+        if (ready) { this.startClips(this.rig); return; }
         preloadSkin(this.skinId).then(([file, anims]) => {
             if (this.disposed) return;
             try { this.useRig(buildSkinnedRig(this.skinId, file, getClips(anims))); } catch (e) { console.warn('model failed, keeping the stand-in', e); }
@@ -645,6 +660,12 @@ export class CharacterModel {
         this.body.add(R.root);
         this.attachWeapons(R);
         this.placeSash(R);
+        this.startClips(R);
+        if (this.pendingOpacity !== undefined) { const o = this.pendingOpacity; this.pendingOpacity = undefined; this.setOpacity(o); }
+        if (this.onRig) this.onRig();
+    }
+
+    startClips(R) {
         const A = R.acts;
         if (A) {
             for (const [k, a] of Object.entries(A)) {
@@ -655,8 +676,6 @@ export class CharacterModel {
             A.idle.setEffectiveWeight(1);
             R.mixer.update(0);
         }
-        if (this.pendingOpacity !== undefined) { const o = this.pendingOpacity; this.pendingOpacity = undefined; this.setOpacity(o); }
-        if (this.onRig) this.onRig();
     }
 
     // White flash when hit, with a flinch
@@ -952,6 +971,7 @@ function blobTexture() {
 function disposeTree(root) {
     root.traverse((n) => {
         if (!n.isMesh) return;
+        if (n.isSkinnedMesh && n.skeleton) n.skeleton.dispose(); // each fighter has its own bone texture
         if (n.geometry && !n.isSkinnedMesh) n.geometry.dispose();
         for (const m of Array.isArray(n.material) ? n.material : [n.material]) if (m && !m.userData.shared) m.dispose();
     });
@@ -974,7 +994,8 @@ export class ViewModel {
         this.spear = buildSpear(0.4, glowId);
         this.mace = buildMace(0.38, glowId);
         const female = this.skinId === 'alex' || this.skinId === 'enderman' || this.skinId === 'diamond_knight';
-        this.setRig(buildStandInRig(s, female));
+        const ready = loaded[this.skinId];
+        this.setRig(ready ? buildSkinnedRig(this.skinId, ready, null) : buildStandInRig(s, female));
         this.bob = 0;
         this.swayX = 0; this.swayY = 0;
         this.kickR = 0; this.kickL = 0;
@@ -983,6 +1004,7 @@ export class ViewModel {
         this.dirS = new THREE.Vector3(-0.1, 0.4, -0.9).normalize();
         this.dirM = new THREE.Vector3(0.12, 0.8, -0.58).normalize();
         this.disposed = false;
+        if (ready) return;
         preloadSkin(this.skinId).then(([file]) => {
             if (this.disposed) return;
             try { const old = this.rig; this.holderS.remove(this.spear); this.holderM.remove(this.mace); this.root.remove(this.rigGroup); disposeTree(old.root); this.setRig(buildSkinnedRig(this.skinId, file, null)); } catch (e) { console.warn('first-person model failed', e); }

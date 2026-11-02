@@ -12,7 +12,7 @@ import { Combat } from './combat.js';
 import { BotBrain } from './bot.js';
 import { FX } from './fx.js';
 import { CameraRig } from './camera.js';
-import { CharacterModel, ViewModel, SKINS, GLOWS, setCharacterQuality, preloadSkin } from './character.js';
+import { CharacterModel, ViewModel, SKINS, GLOWS, setCharacterQuality, preloadSkin, preloadAllSkins } from './character.js';
 import { PostFX } from './post.js';
 import { installHeightHaze } from './gfx.js';
 import { audio } from './audio.js';
@@ -73,7 +73,8 @@ export class Game {
 
         installHeightHaze();
         setCharacterQuality(this.qualityName);
-        preloadSkin(profile.skinId); // the first screen's fighter comes first
+        // the first screen's fighter comes first; phones then fetch the rest only as a match needs them
+        if (isMobile) preloadSkin(profile.skinId); else preloadAllSkins(profile.skinId);
         // The HDR target does the antialiasing when post-processing is on, so the screen itself doesn't need it
         this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !q.post, powerPreference: 'high-performance', stencil: false });
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -152,9 +153,37 @@ export class Game {
 
         crazyGames.onPause = (p) => { this.adPause = p; if (p && this.state === 'play') this.pause(); };
         window.addEventListener('resize', () => this.resize());
+        canvas.addEventListener('webglcontextlost', (e) => e.preventDefault()); // lets the browser give the context back
+        canvas.addEventListener('webglcontextrestored', () => { if (this.post) { this.post.watch.pbo = null; this.post.watch.fence = null; } this.resize(); });
         this.resize();
         this.loop = this.loop.bind(this);
         requestAnimationFrame(this.loop);
+        // Build every effect's shader in the background now, so the first hit of the first match doesn't freeze the game.
+        // (Shaders differ by where they draw, so this has to happen with the HDR target bound.)
+        const warm = (scene, camera, lights) => {
+            const r = this.renderer;
+            if (this.post && this.post.enabled) r.setRenderTarget(this.post.rt);
+            let p = null;
+            try { p = r.compileAsync(scene, camera, lights); } catch (e) { /* older browsers just compile on first use */ }
+            r.setRenderTarget(null);
+            return p || Promise.resolve();
+        };
+        setTimeout(() => {
+            warm(this.scene, this.camera);
+            warm(this.viewModel.scene, this.viewModel.camera);
+        }, 200);
+        // and a loaded fighter, solid and see-through (spawn shield, Shadow class): both are different shaders too
+        preloadSkin(profile.skinId).then(() => {
+            const pose = { vel: { x: 0, y: 0, z: 0 }, onGround: true, dashT: 0, spearCd: 0, slamming: false, swingT: 0, parryT: 0, glide: false, pitch: 0, bigScale: 1, stunT: 0, alive: true };
+            const solid = new CharacterModel(profile.skinId, TEAM_COLORS[0], profile.glowId), ghost = new CharacterModel(profile.skinId, TEAM_COLORS[0], profile.glowId);
+            solid.animate(pose, 0.016, 0); ghost.animate(pose, 0.016, 0);
+            ghost.setOpacity(0.5);
+            const temp = new THREE.Scene();
+            temp.add(solid.root, ghost.root);
+            // kept for good: a shader is thrown away when the last material using it goes
+            this.warmModels = [solid, ghost];
+            warm(temp, this.camera, this.scene);
+        }).catch(() => {});
     }
 
     // The lobby's fighter on the podium: your look, or what you're trying on (showcaseLook)

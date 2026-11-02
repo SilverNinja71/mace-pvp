@@ -84,7 +84,7 @@ export class PostFX {
               c += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
               gl_FragColor = vec4(c, 1.0); }`,
         { t: { value: null }, tBloom: { value: null }, bloom: { value: opts.bloom ? 0.32 : 0 }, exposure: { value: 1.0 }, vignette: { value: 0.22 }, saturation: { value: 1.12 } });
-        this.watch = { last: 0, bad: 0, n: 0, px: new Uint8Array(4) };
+        this.watch = { last: 0, bad: 0, n: 0, px: null, pbo: null, fence: null };
     }
 
     setSize(wPx, hPx) {
@@ -138,23 +138,40 @@ export class PostFX {
         r.autoClear = was;
     }
 
-    // Checks the finished frame now and then. True when it has been black twice in a row:
-    // the sky alone is never black, so the HDR path isn't working on this GPU.
+    // Checks the finished frame now and then, through a buffer that never makes the CPU wait for the GPU.
+    // True when it has been black twice in a row: the sky alone is never black, so the HDR path isn't working here.
     isBlack(now) {
         const W = this.watch;
-        const gap = W.n < 6 ? 1000 : 6000;
-        if (now - W.last < gap) return false;
-        W.last = now; W.n++;
         const gl = this.r.getContext();
         if (gl.isContextLost()) return false;
-        const w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
-        let lit = 0;
-        for (const [fx, fy] of [[0.5, 0.5], [0.2, 0.25], [0.8, 0.25], [0.2, 0.8], [0.8, 0.8]]) {
-            gl.readPixels((fx * w) | 0, (fy * h) | 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, W.px);
-            if (W.px[0] + W.px[1] + W.px[2] > 8) lit++;
+        if (W.fence) {
+            // the read from an earlier frame: is it ready yet?
+            const st = gl.clientWaitSync(W.fence, 0, 0);
+            if (st !== gl.ALREADY_SIGNALED && st !== gl.CONDITION_SATISFIED) return false;
+            gl.deleteSync(W.fence);
+            W.fence = null;
+            gl.bindBuffer(gl.PIXEL_PACK_BUFFER, W.pbo);
+            gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, W.px);
+            gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+            let lit = 0;
+            for (let i = 0; i < 5; i++) if (W.px[i * 4] + W.px[i * 4 + 1] + W.px[i * 4 + 2] > 8) lit++;
+            W.bad = lit ? 0 : W.bad + 1;
+            return W.bad >= 2;
         }
-        W.bad = lit ? 0 : W.bad + 1;
-        return W.bad >= 2;
+        if (now - W.last < (W.n < 6 ? 1000 : 6000)) return false;
+        W.last = now; W.n++;
+        if (!W.pbo) {
+            W.pbo = gl.createBuffer();
+            W.px = new Uint8Array(20);
+            gl.bindBuffer(gl.PIXEL_PACK_BUFFER, W.pbo);
+            gl.bufferData(gl.PIXEL_PACK_BUFFER, 20, gl.STREAM_READ);
+        } else gl.bindBuffer(gl.PIXEL_PACK_BUFFER, W.pbo);
+        const w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
+        const pts = [[0.5, 0.5], [0.2, 0.25], [0.8, 0.25], [0.2, 0.8], [0.8, 0.8]];
+        for (let i = 0; i < 5; i++) gl.readPixels((pts[i][0] * w) | 0, (pts[i][1] * h) | 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, i * 4);
+        gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+        W.fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+        return false;
     }
 
     dispose() {
