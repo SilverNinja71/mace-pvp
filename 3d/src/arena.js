@@ -674,6 +674,12 @@ export class Arena {
                     float u = atan(d.z, d.x) / (2.0 * PI) + 0.5 + skyOff;
                     float v = asin(clamp(max(h, 0.002), 0.0, 1.0)) / (PI * 0.5);
                     vec3 s = textureLod(tSky, vec2(u, v), 0.0).rgb;
+                    // at and below the horizon one row of the photo would stretch into vertical streaks: average it sideways
+                    if (h < 0.04) {
+                      vec3 w = vec3(0.0);
+                      for (int i = -4; i <= 4; i++) w += textureLod(tSky, vec2(u + float(i) * 0.011, max(v, 0.016)), 0.0).rgb;
+                      s = mix(w / 9.0, s, smoothstep(0.012, 0.04, h));
+                    }
                     // the photo is 8 bits: a little noise before decoding breaks up its contour steps
                     float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
                     s = clamp(s + (ign - 0.5) * 2.0 / 255.0, 0.0, 0.995);

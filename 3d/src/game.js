@@ -119,6 +119,7 @@ export class Game {
         this.physics = this.arena.physics;
         this.combat = new Combat(this);
         this.fx = new FX(this.scene, this.camera, document.getElementById('fx-layer'));
+        this.fx.floorAt = (x, y, z) => this.physics.groundAt(x, z, 0.3, y + 0.3);
         this.rig = new CameraRig(this.camera, this.physics);
         this.rig.mode = this.settings.view === 'third' ? 'third' : 'first';
         this.viewModel = new ViewModel(profile.skinId, profile.glowId);

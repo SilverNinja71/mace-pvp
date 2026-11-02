@@ -263,7 +263,8 @@ export class FX {
             const a = Math.random() * Math.PI * 2, s = speed * (0.25 + Math.random() * 0.35);
             this.puff(x + Math.cos(a) * 0.6, y + 0.2, z + Math.sin(a) * 0.6, Math.cos(a) * s, 0.5 + Math.random() * 1.2, Math.sin(a) * s, 0.5 + size * 3, 0.5 + Math.random() * 0.5, col);
         }
-        if (n >= 14) this.crack(x, y, z, 1.6 + n * 0.05);
+        // a slam that hits someone in mid-air has no floor to crack
+        if (n >= 14 && (!this.floorAt || Math.abs(this.floorAt(x, y, z) - y) < 0.25)) this.crack(x, y, z, 1.6 + n * 0.05);
     }
 
     puff(x, y, z, vx, vy, vz, size, life, col) {
