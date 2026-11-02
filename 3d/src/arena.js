@@ -860,7 +860,7 @@ export class Arena {
     // Light and sky for each time of day. exposure scales the photo sky; lit/shade colour the clouds; horizon, top and mid are the painted fallback sky.
     static THEMES = {
         sunset: { top: 0x2a4f9c, mid: 0x7b8fc4, horizon: 0xffb98a, bottom: 0xa9a2bc, fog: 0xc2a6a6, fogFar: 340, hs: 0xcfdcff, hg: 0x8a6a58, sun: 0xffc98f, sunI: 3.0, hemiI: 0.22, stars: false, sunC: 0xffd9a8, sunSize: 1, exposure: 0.42, lit: 0xffe4d0, shade: 0x6f6e98, sea: 0xa9a2bc, cloudTint: 0xffc9a8, cloudAmt: 0.2, sunDir: [-0.62, 0.46, -0.64], env: 1.55, skySat: 1.28 },
-        night:  { top: 0x070b24, mid: 0x1b2a5c, horizon: 0x4a4a8a, bottom: 0x1a2148, fog: 0x232a58, fogFar: 280, hs: 0x8fa6ff, hg: 0x2a2440, sun: 0xaec2ff, sunI: 1.5, hemiI: 0.42, stars: true, sunC: 0xdfe8ff, sunSize: 0.35, exposure: 0.16, lit: 0x5c6aa8, shade: 0x1c2148, sea: 0x232a58, cloudTint: 0x39427a, cloudAmt: 0.12, sunDir: [-0.5, 0.72, -0.48], env: 5.0, skySat: 1.2, skyTint: [0.42, 0.62, 1.5] },
+        night:  { top: 0x070b24, mid: 0x1b2a5c, horizon: 0x4a4a8a, bottom: 0x1a2148, fog: 0x232a58, fogFar: 280, hs: 0x8fa6ff, hg: 0x2a2440, sun: 0xaec2ff, sunI: 1.5, hemiI: 0.42, stars: true, sunC: 0xdfe8ff, sunSize: 0.35, exposure: 0.16, lit: 0x5c6aa8, shade: 0x1c2148, sea: 0x232a58, cloudTint: 0x39427a, cloudAmt: 0.12, sunDir: [-0.5, 0.72, -0.48], env: 1.9, skySat: 1.2, skyTint: [0.42, 0.62, 1.5] },
         storm:  { top: 0x2b3240, mid: 0x4f5a6e, horizon: 0x8a94a6, bottom: 0x4c5463, fog: 0x69738a, fogFar: 230, hs: 0xc8d2e6, hg: 0x5a5560, sun: 0xdde4f0, sunI: 1.25, hemiI: 0.6, stars: false, sunC: 0x9aa4b4, sunSize: 0, exposure: 0.28, lit: 0x7c8698, shade: 0x2c3340, sea: 0x4a5364, cloudTint: 0x3a4250, cloudAmt: 0.55, sunDir: [-0.5, 0.7, -0.5], env: 1.5, skySat: 1.0 }
     };
 
@@ -902,15 +902,21 @@ export class Arena {
         this.refreshEnv();
     }
 
+    // Fetch the other skies ahead of time, so a night or storm match doesn't open on the painted sky
+    preloadSkies() {
+        for (const name in Arena.THEMES) if (!Arena.skyTextures[name]) Arena.skyTextures[name] = this.skyTexture(name);
+    }
+
+    skyTexture(name) {
+        const tex = lateTexture(ASSETS + 'world/sky_' + name + '.jpg', { onload: (tx) => { tx.ready = true; Arena.skyListeners.forEach((f) => f()); } });
+        tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping;
+        tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
+        return tex;
+    }
+
     useSkyImage(name) {
         const u = this.skyMat.uniforms;
-        let tex = Arena.skyTextures[name];
-        if (!tex) {
-            tex = lateTexture(ASSETS + 'world/sky_' + name + '.jpg', { onload: (tx) => { tx.ready = true; Arena.skyListeners.forEach((f) => f()); } });
-            tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping;
-            tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
-            Arena.skyTextures[name] = tex;
-        }
+        const tex = Arena.skyTextures[name] || (Arena.skyTextures[name] = this.skyTexture(name));
         u.tSky.value = tex;
         u.hasSky.value = tex.ready ? 1 : 0;
     }

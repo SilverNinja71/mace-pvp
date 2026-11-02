@@ -170,6 +170,7 @@ export class Game {
             return p || Promise.resolve();
         };
         setTimeout(() => {
+            this.arena.preloadSkies();
             warm(this.scene, this.camera);
             warm(this.viewModel.scene, this.viewModel.camera);
         }, 200);
