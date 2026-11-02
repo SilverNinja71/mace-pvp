@@ -95,6 +95,7 @@ kbd { display: inline-block; padding: 0.05em 0.45em; margin: 0 0.15em; border-ra
 @media (max-width: 640px) { .ach-list { grid-template-columns: 1fr 1fr; } }
 
 /* ---------- panels ---------- */
+#panel-settings { z-index: 34; } /* can open on top of the pause menu */
 .panel { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(8, 14, 34, 0.45); }
 .panel-card { background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 1.2em; padding: 1.2em 1.5em; width: min(40em, 94vw);
   max-height: 94vh; overflow: auto; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); text-align: center;

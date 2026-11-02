@@ -57,7 +57,7 @@ copy. `tools/build-portals.py` makes the upload zips for CrazyGames, Poki and it
 |---|---|
 | `config.js` | Every tuning number: gravity -28 m/s², coyote time 0.12 s, spear, mace, parry, match rules, the 8 classes, bot levels |
 | `physics.js` | Fast collision against cylinders and boxes, step-up, raycasts |
-| `arena.js` | Both maps (colosseum and ruins), islands, jump pads, geyser, sky, clouds, dust, sunset/night/storm themes |
+| `arena.js` | All three maps (colosseum, ruins and spires), islands, jump pads, geyser, sky, clouds, dust, sunset/night/storm themes |
 | `fighter.js` | Movement and abilities for players, bots and online friends alike |
 | `combat.js` | Spear pierce and crits, slam damage from fall height with bounce, shockwave, parry, clash, status effects |
 | `bot.js` | Bot AI: jump pads, aimed dashes, geyser climbs, slam dodging, parries, getting back from the void |
