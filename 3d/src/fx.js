@@ -52,7 +52,9 @@ export class FX {
                   c.xy += d * position.y * len + n * position.x * iCol.a * 0.55;
                   gl_Position = projectionMatrix * c; }`,
             fragmentShader: `varying vec2 vUv; varying vec4 vC;
-                void main(){ vec2 q = (vUv - 0.5) * 2.0; float a = max(0.0, 1.0 - dot(q, q)); gl_FragColor = vec4(vC.rgb * a * a * 3.0, 1.0); }`
+                void main(){ vec2 q = (vUv - 0.5) * 2.0; float a = max(0.0, 1.0 - dot(q, q)); gl_FragColor = vec4(vC.rgb * a * a * 3.0, 1.0);
+                  #include <colorspace_fragment>
+                }`
         }));
         this.pMesh.frustumCulled = false;
         this.pMesh.renderOrder = 6;
@@ -93,7 +95,9 @@ export class FX {
             vertexShader: `attribute vec4 dPos; attribute vec4 dCol; varying vec2 vUv; varying vec4 vC;
                 void main(){ vUv = uv; vC = dCol; vec4 c = viewMatrix * vec4(dPos.xyz, 1.0); c.xy += position.xy * dPos.w; gl_Position = projectionMatrix * c; }`,
             fragmentShader: `uniform sampler2D map; varying vec2 vUv; varying vec4 vC;
-                void main(){ float a = texture2D(map, vUv).a; gl_FragColor = vec4(vC.rgb, a * vC.a); }`
+                void main(){ float a = texture2D(map, vUv).a; gl_FragColor = vec4(vC.rgb, a * vC.a);
+                  #include <colorspace_fragment>
+                }`
         }));
         this.dMesh.frustumCulled = false;
         this.dMesh.renderOrder = 4;

@@ -42,7 +42,9 @@ export { GLOWS };
 function glowStyle(id) { return GLOWS[id] || GLOWS.sun; }
 export function weaponColors(glowId) {
     const G = glowStyle(glowId);
-    return { metal: G.metal, shaft: G.shaft, tip: G.tip, halo: G.halo, rune: G.rune };
+    // the shaft is wood or painted, darker than the shop swatch once it's in real light
+    const shaft = new THREE.Color(G.shaft).multiplyScalar(0.55).getHex(THREE.LinearSRGBColorSpace);
+    return { metal: G.metal, shaft, tip: G.tip, halo: G.halo, rune: G.rune };
 }
 // The two colours of a fighter's streak: its bought trail, or its weapon's glow
 export function trailStyle(trailId, glowId) {
@@ -802,7 +804,7 @@ export class CharacterModel {
         // stun wobble
         this.body.rotation.z = stun;
         // spear tip glows during dashes
-        this.spear.userData.glow.material.opacity = f.dashT > 0 ? 0.8 : 0.18;
+        this.spear.userData.glow.material.opacity = f.dashT > 0 ? 0.42 : 0.18;
         if (this.flashT > 0 || this.flashOn) {
             this.flashT = Math.max(0, this.flashT - dt);
             const k = this.flashT / 0.14 * 0.85;
@@ -969,15 +971,15 @@ export class ViewModel {
         this.root = new THREE.Group();
         this.camera.add(this.root);
         this.scene.add(this.camera);
-        this.spear = buildSpear(0.46, glowId);
-        this.mace = buildMace(0.5, glowId);
+        this.spear = buildSpear(0.4, glowId);
+        this.mace = buildMace(0.38, glowId);
         const female = this.skinId === 'alex' || this.skinId === 'enderman' || this.skinId === 'diamond_knight';
         this.setRig(buildStandInRig(s, female));
         this.bob = 0;
         this.swayX = 0; this.swayY = 0;
         this.kickR = 0; this.kickL = 0;
-        this.handS = new THREE.Vector3(0.25, -0.22, -0.46);
-        this.handM = new THREE.Vector3(-0.27, -0.24, -0.46);
+        this.handS = new THREE.Vector3(0.24, -0.19, -0.5);
+        this.handM = new THREE.Vector3(-0.25, -0.2, -0.5);
         this.dirS = new THREE.Vector3(-0.1, 0.4, -0.9).normalize();
         this.dirM = new THREE.Vector3(0.12, 0.8, -0.58).normalize();
         this.disposed = false;
@@ -1029,8 +1031,8 @@ export class ViewModel {
         this.root.position.set(bx + this.swayX, by + this.swayY + fall, 0);
 
         // targets in camera space: x right, y up, -z forward
-        let sx = 0.25, sy = -0.22, sz = -0.46, dsx = -0.14, dsy = 0.5, dsz = -0.85;
-        let mx = -0.27, my = -0.24, mz = -0.46, dmx = 0.2, dmy = 0.88, dmz = -0.42;
+        let sx = 0.24, sy = -0.19, sz = -0.5, dsx = -0.14, dsy = 0.5, dsz = -0.85;
+        let mx = -0.25, my = -0.2, mz = -0.5, dmx = 0.2, dmy = 0.88, dmz = -0.42;
         let rate = 14;
         const thrust = f.dashT > 0;
         if (thrust) { sx = 0.1; sy = -0.13; sz = -0.72; dsx = -0.015; dsy = 0.04; dsz = -1; rate = 34; }
@@ -1067,6 +1069,6 @@ export class ViewModel {
         solveArm(R.arms.l, _hM, POLE_L, 1);
         aimGrip(R, 'r', this.dirS, 1);
         aimGrip(R, 'l', this.dirM, 1);
-        this.spear.userData.glow.material.opacity = thrust ? 0.8 : 0.18;
+        this.spear.userData.glow.material.opacity = thrust ? 0.42 : 0.18;
     }
 }

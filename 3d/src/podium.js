@@ -75,9 +75,9 @@ export function buildPodium(glowColor, trail) {
         group.add(m);
         return m;
     };
-    const stone = new THREE.MeshLambertMaterial({ color: 0x34478a, flatShading: true });
-    const stoneTop = new THREE.MeshLambertMaterial({ color: 0x5068c4, flatShading: true });
-    const gold = new THREE.MeshLambertMaterial({ color: 0xffc23a, emissive: 0x7a4a00, flatShading: true });
+    const stone = new THREE.MeshStandardMaterial({ color: 0x4a60b0, roughness: 0.55, metalness: 0.15 });
+    const stoneTop = new THREE.MeshStandardMaterial({ color: 0x6c84dc, roughness: 0.5, metalness: 0.15 });
+    const gold = new THREE.MeshStandardMaterial({ color: 0xffc23a, roughness: 0.34, metalness: 0.95, emissive: 0x3a2200 });
     add(new THREE.CylinderGeometry(1.32, 1.5, 0.24, 16), stone, -H + 0.12);
     add(new THREE.CylinderGeometry(1.06, 1.24, 0.3, 16), stone, -H + 0.39);
     add(new THREE.CylinderGeometry(1.1, 1.1, 0.05, 16), gold, -0.055);

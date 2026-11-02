@@ -237,8 +237,9 @@ export class Arena {
         const trees = ['CommonTree_1', 'CommonTree_2', 'Pine_1'];
         (this.treeSpots || []).forEach((t, i) => {
             const big = t.s > 1;
+            if (big && low) return; // far away, and the most expensive thing on Low
             put(trees[i % trees.length], t.x, t.y - 0.05, t.z, (big ? 0.95 : 0.46) * (0.9 + rnd() * 0.25));
-            if (!big) { put('Bush_Common_Flowers', t.x + 1.4, t.y, t.z + 0.6, 0.55); put('Fern_1', t.x - 1.1, t.y, t.z + 0.9, 0.7); }
+            if (!big) { put('Bush_Common_Flowers', t.x + 1.4, t.y, t.z + 0.6, 0.42); put('Fern_1', t.x - 1.1, t.y, t.z + 0.9, 0.5); }
         });
         if (!low) {
             for (const isl of this.islands) {
@@ -252,8 +253,8 @@ export class Arena {
                 const dense = this.quality === 'high' ? 1 : 0.5;
                 scatter('Grass_Common_Tall', Math.round(26 * dense), 0.42);
                 scatter('Grass_Common_Short', Math.round(60 * dense), 0.5);
-                scatter('Flower_3_Group', 7, 0.55);
-                scatter('Flower_4_Group', 7, 0.55);
+                scatter('Flower_3_Group', 7, 0.3);
+                scatter('Flower_4_Group', 7, 0.3);
                 scatter('Rock_Medium_1', 3, 0.34);
                 scatter('Rock_Medium_2', 2, 0.26);
                 scatter('Fern_1', 5, 0.55);
@@ -625,7 +626,6 @@ export class Arena {
             side: THREE.BackSide,
             depthWrite: false,
             fog: false,
-            toneMapped: false,
             uniforms: {
                 top: { value: new THREE.Color(0x2f7fe0) },
                 mid: { value: new THREE.Color(0x8ecbff) },
@@ -636,6 +636,7 @@ export class Arena {
                 hasSky: { value: 0 },
                 exposure: { value: 1 },
                 skySat: { value: 1 },
+                skyTint: { value: new THREE.Color(1, 1, 1) },
                 skyOff: { value: 0 },
                 sunDir: { value: new THREE.Vector3(0, 1, 0) },
                 sunColor: { value: new THREE.Color(0xffffff) },
@@ -646,7 +647,7 @@ export class Arena {
             },
             vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position = p.xyww; }',
             fragmentShader: `uniform vec3 top; uniform vec3 mid; uniform vec3 horizon; uniform vec3 bottom; uniform sampler2D tSky; uniform sampler2D tNoise;
-                uniform float hasSky; uniform float exposure; uniform float skySat; uniform float skyOff; uniform vec3 sunDir; uniform vec3 sunColor; uniform float sunSize;
+                uniform float hasSky; uniform float exposure; uniform float skySat; uniform vec3 skyTint; uniform float skyOff; uniform vec3 sunDir; uniform vec3 sunColor; uniform float sunSize;
                 uniform vec3 cloudTint; uniform float cloudAmt; uniform float time; varying vec3 vP;
                 const float PI = 3.14159265;
                 void main(){
@@ -660,7 +661,7 @@ export class Arena {
                     vec3 s = textureLod(tSky, vec2(u, v), 0.0).rgb;
                     s = pow(s, vec3(2.2));
                     s = s / max(vec3(1.0) - s, vec3(0.04));
-                    c = s * exposure;
+                    c = s * exposure * skyTint;
                     c = max(mix(vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))), c, skySat), vec3(0.0));
                     c = c / (1.0 + max(max(c.r, c.g), c.b) * 0.12);
                     c = min(c, vec3(6.0));
@@ -677,7 +678,10 @@ export class Arena {
                   // the sun: a hot core (it blooms) and a wide glow
                   float a = max(dot(d, sunDir), 0.0);
                   c += sunColor * (pow(a, 900.0) * 18.0 * sunSize + pow(a, 90.0) * 0.5 * sunSize + pow(a, 10.0) * 0.1 * sunSize) * (1.0 - hasSky * 0.9);
-                  gl_FragColor = vec4(c, 1.0); }`
+                  gl_FragColor = vec4(c, 1.0);
+                  #include <tonemapping_fragment>
+                  #include <colorspace_fragment>
+                }`
         });
         this.skyMat = m;
         this.sky = new THREE.Mesh(g, m);
@@ -706,7 +710,7 @@ export class Arena {
             lit: { value: new THREE.Color(0xffffff) }, shade: { value: new THREE.Color(0x8899aa) }, fade: { value: new THREE.Color(0xc6dcf5) }
         };
         const sea = (y, scale, speed, alpha) => new THREE.Mesh(lg, new THREE.ShaderMaterial({
-            transparent: true, depthWrite: false, fog: false, toneMapped: false,
+            transparent: true, depthWrite: false, fog: false,
             uniforms: { ...seaUniforms, scale: { value: scale }, speed: { value: speed }, alpha: { value: alpha } },
             vertexShader: 'varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
             fragmentShader: `uniform sampler2D tNoise; uniform float time; uniform vec3 lit; uniform vec3 shade; uniform vec3 fade; uniform float scale; uniform float speed; uniform float alpha; varying vec3 vW;
@@ -719,7 +723,10 @@ export class Arena {
                   float n2 = texture2D(tNoise, p + vec2(0.012, 0.009) + time * speed * vec2(1.0, 0.4)).r;
                   vec3 c = mix(shade, lit, clamp(0.55 + (n - n2) * 5.0 + (n - 0.5) * 1.2, 0.0, 1.0));
                   c = mix(c, fade, smoothstep(120.0, 560.0, d));
-                  gl_FragColor = vec4(c, a * alpha * (1.0 - smoothstep(460.0, 615.0, d))); }`
+                  gl_FragColor = vec4(c, a * alpha * (1.0 - smoothstep(460.0, 615.0, d)));
+                  #include <tonemapping_fragment>
+                  #include <colorspace_fragment>
+                }`
         }));
         const s1 = sea(-58, 0.0016, 0.0016, 1.0), s2 = sea(-44, 0.0029, 0.0028, 0.72);
         s1.position.y = -58; s2.position.y = -44;
@@ -736,7 +743,7 @@ export class Arena {
         let seed = 7;
         const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
         const mesh = new THREE.InstancedMesh(quad, new THREE.ShaderMaterial({
-            transparent: true, depthWrite: false, fog: false, toneMapped: false,
+            transparent: true, depthWrite: false, fog: false,
             uniforms: { map: { value: puffTexture() }, lit: seaUniforms.lit, shade: seaUniforms.shade, fade: seaUniforms.fade, fadeFar: { value: 420 } },
             vertexShader: `attribute float puff; varying vec2 vUv; varying float vP; varying float vF; uniform float fadeFar;
                 void main(){
@@ -753,7 +760,10 @@ export class Arena {
                   float up = clamp(1.1 - vUv.y * 0.0 - (1.0 - vUv.y) * 1.15 + vP * 0.35, 0.0, 1.0);
                   vec3 c = mix(shade, lit, up);
                   c = mix(c, fade, vF * 0.85);
-                  gl_FragColor = vec4(c, min(1.0, a * 1.15) * 0.93); }`
+                  gl_FragColor = vec4(c, min(1.0, a * 1.15) * 0.93);
+                  #include <tonemapping_fragment>
+                  #include <colorspace_fragment>
+                }`
         }), count);
         const mt = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3();
         let idx = 0;
@@ -809,7 +819,9 @@ export class Arena {
                   vA = 0.35 + 0.35 * sin(time * 1.3 + seed * 5.0);
                   gl_PointSize = scale * 0.09 / -mv.z; gl_Position = projectionMatrix * mv; }`,
             fragmentShader: `uniform sampler2D map; varying float vA;
-                void main(){ vec4 t = texture2D(map, gl_PointCoord); gl_FragColor = vec4(vec3(1.0, 0.95, 0.8) * t.a * vA, 1.0); }`
+                void main(){ vec4 t = texture2D(map, gl_PointCoord); gl_FragColor = vec4(vec3(1.0, 0.95, 0.8) * t.a * vA, 1.0);
+                  #include <colorspace_fragment>
+                }`
         });
         this.dust = new THREE.Points(g, m);
         this.dust.frustumCulled = false;
@@ -820,7 +832,7 @@ export class Arena {
     // Light and sky for each time of day. exposure scales the photo sky; lit/shade colour the clouds; horizon, top and mid are the painted fallback sky.
     static THEMES = {
         sunset: { top: 0x2a4f9c, mid: 0x7b8fc4, horizon: 0xffb98a, bottom: 0xd7a48c, fog: 0xdda58a, fogFar: 340, hs: 0xcfdcff, hg: 0x8a6a58, sun: 0xffc98f, sunI: 3.0, hemiI: 0.22, stars: false, sunC: 0xffd9a8, sunSize: 1, exposure: 0.5, lit: 0xffe0c4, shade: 0x8d6f86, sea: 0xd9a58c, cloudTint: 0xffc9a8, cloudAmt: 0.2, sunDir: [-0.62, 0.46, -0.64], env: 0.8, skySat: 1.18 },
-        night:  { top: 0x070b24, mid: 0x1b2a5c, horizon: 0x4a4a8a, bottom: 0x1a2148, fog: 0x232a58, fogFar: 280, hs: 0x8fa6ff, hg: 0x2a2440, sun: 0xaec2ff, sunI: 1.5, hemiI: 0.42, stars: true, sunC: 0xdfe8ff, sunSize: 0.35, exposure: 0.16, lit: 0x5c6aa8, shade: 0x1c2148, sea: 0x232a58, cloudTint: 0x39427a, cloudAmt: 0.12, sunDir: [-0.5, 0.72, -0.48], env: 5.0, skySat: 1.2 },
+        night:  { top: 0x070b24, mid: 0x1b2a5c, horizon: 0x4a4a8a, bottom: 0x1a2148, fog: 0x232a58, fogFar: 280, hs: 0x8fa6ff, hg: 0x2a2440, sun: 0xaec2ff, sunI: 1.5, hemiI: 0.42, stars: true, sunC: 0xdfe8ff, sunSize: 0.35, exposure: 0.16, lit: 0x5c6aa8, shade: 0x1c2148, sea: 0x232a58, cloudTint: 0x39427a, cloudAmt: 0.12, sunDir: [-0.5, 0.72, -0.48], env: 5.0, skySat: 1.2, skyTint: [0.42, 0.62, 1.5] },
         storm:  { top: 0x2b3240, mid: 0x4f5a6e, horizon: 0x8a94a6, bottom: 0x4c5463, fog: 0x69738a, fogFar: 230, hs: 0xc8d2e6, hg: 0x5a5560, sun: 0xdde4f0, sunI: 1.25, hemiI: 0.6, stars: false, sunC: 0x9aa4b4, sunSize: 0, exposure: 0.28, lit: 0x7c8698, shade: 0x2c3340, sea: 0x4a5364, cloudTint: 0x3a4250, cloudAmt: 0.55, sunDir: [-0.5, 0.7, -0.5], env: 1.5, skySat: 1.0 }
     };
 
@@ -835,7 +847,8 @@ export class Arena {
         const u = this.skyMat.uniforms;
         u.top.value.set(t.top); u.mid.value.set(t.mid); u.horizon.value.set(t.horizon); u.bottom.value.set(t.bottom);
         scene.fog.color.set(t.fog); scene.fog.far = t.fogFar; scene.fog.near = 60;
-        hemi.color.set(t.hs); hemi.groundColor.set(t.hg); hemi.intensity = t.hemiI;
+        const hemiI = t.hemiI * (this.quality === 'low' ? 4.5 : 1); // Low has no sky reflections to fill the shade
+        hemi.color.set(t.hs); hemi.groundColor.set(t.hg); hemi.intensity = hemiI;
         sun.color.set(t.sun); sun.intensity = t.sunI;
         // the light comes from where the sun is in the sky
         const d = u.sunDir.value.set(t.sunDir[0], t.sunDir[1], t.sunDir[2]).normalize();
@@ -845,12 +858,13 @@ export class Arena {
         u.sunSize.value = t.sunSize;
         u.exposure.value = t.exposure;
         u.skySat.value = t.skySat || 1;
+        if (t.skyTint) u.skyTint.value.setRGB(t.skyTint[0], t.skyTint[1], t.skyTint[2]); else u.skyTint.value.setRGB(1, 1, 1);
         u.cloudTint.value.set(t.cloudTint);
         u.cloudAmt.value = this.quality === 'low' ? 0 : t.cloudAmt;
         // turn the panorama so its sun lines up with the light
         u.skyOff.value = Arena.skyInfo[name] - (Math.atan2(d.z, d.x) / (2 * Math.PI) + 0.5);
         this.seaUniforms.lit.value.set(t.lit); this.seaUniforms.shade.value.set(t.shade); this.seaUniforms.fade.value.set(t.sea);
-        this.baseHemi = t.hemiI;
+        this.baseHemi = hemiI;
         this.stars.visible = t.stars;
         this.flashT = 0;
         this.nextFlash = 4 + Math.random() * 6;
