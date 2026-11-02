@@ -81,6 +81,7 @@ kbd { display: inline-block; padding: 0.05em 0.45em; margin: 0 0.15em; border-ra
   max-height: 94vh; overflow: auto; touch-action: pan-y; text-align: center;
   box-shadow: 0 1em 3em rgba(0,0,0,0.35); display: flex; flex-direction: column; gap: 0.7em; align-items: stretch; }
 .panel-card.wide { width: min(52em, 96vw); }
+.panel-card > .panel-close { position: sticky; bottom: -0.3em; z-index: 1; flex: none; }
 .panel-card h2 { font-family: var(--title); font-size: 2.1em; margin: 0; letter-spacing: 0.03em; }
 .panel-card h4 { margin: 0.6em 0 0.4em; color: var(--muted); font-weight: 600; text-align: left; }
 .desc { color: var(--muted); margin: 0.2em 0; font-size: 0.92em; line-height: 1.4; }
@@ -328,6 +329,7 @@ button.chip:active { transform: translateY(1px); }
   .chip-player { flex: 1; min-width: 0; max-width: none; }
   .chip-icon { width: 3em; }
   #btn-account { padding: 0 0.6em; }
+  #btn-account:not(.can-login) #account-label { display: none; } /* room for your name; the icon says it */
   #lobby-nav { flex-direction: row; gap: 0.3em; }
   .nav-tab { height: 4.3em; flex: 1 1 0; min-width: 0; font-size: 0.86em; padding: 0.15em 0.1em; }
   #menu .nav-tab .ico { width: 1.45em; height: 1.45em; }

@@ -42,9 +42,9 @@ const QUALITY = {
 
 // Where the lobby's podium stands on each map, and which way the camera looks from there (radians: 0 = toward -z)
 const LOBBY_SPOTS = {
-    colosseum: { x: -9, z: 4, az: Math.PI / 3 },
-    spires:    { x: -9, z: 4, az: Math.PI / 3 },
-    ruins:     { x: -9, z: 4, az: Math.PI / 3 }
+    colosseum: { x: -10, z: -3, az: Math.PI * 5 / 9 },
+    spires:    { x: -6,  z: 3,  az: Math.PI / 9 },
+    ruins:     { x: -15, z: -3, az: Math.PI * 5 / 9 }
 };
 const LOBBY_DIST = 8;        // metres from camera to fighter
 const LOBBY_MAX_TAN = 0.84; // the widest the lens gets (80 degrees); after that the camera backs off
@@ -161,7 +161,7 @@ export class Game {
     // Turn the fighter (the lobby's drag). dx in pixels
     turnShowcase(dx) {
         this.showYaw = (this.showYaw || 0) + dx * 0.0085;
-        this.showSpin = dx * 0.5;
+        this.showSpin = Math.max(-3, Math.min(3, dx * 0.12));
     }
 
     // Show a map behind the podium

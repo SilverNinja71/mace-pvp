@@ -279,6 +279,8 @@ export class UI {
         const acc = account.state();
         const canLogIn = !acc.name && acc.kind !== 'local';
         $('account-label').textContent = t(canLogIn ? 'acct.login' : 'acct.account');
+        $('btn-account').classList.toggle('can-login', canLogIn);
+        $('btn-account').setAttribute('aria-label', t(canLogIn ? 'acct.login' : 'acct.account'));
         const list = missions.list();
         $('quest-badge').textContent = `${list.filter(m => m.done).length}/${list.length}`;
         $('howto-dot').classList.toggle('hidden', profile.tutorialDone);
