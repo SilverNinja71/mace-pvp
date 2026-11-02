@@ -32,12 +32,10 @@ export async function recordPreview(game, w, h, seconds = 18) {
     game.rig.mode = 'third';
     const r = game.renderer;
     const dpr = r.getPixelRatio();
-    r.setPixelRatio(1);
-    r.setSize(w, h, false);
+    game.setRenderSize(w, h, 1);
     game.camera.aspect = w / h;
     game.rig.setAspect(w / h);
     game.camera.updateProjectionMatrix();
-    game.arena.setPointScale(h);
     me.invulnT = 3;
 
     const rec = document.createElement('canvas');
@@ -100,8 +98,7 @@ export async function recordPreview(game, w, h, seconds = 18) {
         const hit = game.physics.raycast(look.x, look.y, look.z, dir.x, dir.y, dir.z, full);
         cam.position.copy(look).addScaledVector(dir, Math.max(1.5, Math.min(full, hit - 0.4)));
         cam.lookAt(look);
-        r.clear();
-        r.render(game.scene, cam);
+        game.renderView(cam);
         ctx.drawImage(r.domElement, 0, 0, w, h);
         // a soft fade from the cover into gameplay
         if (t < 1.3) { ctx.globalAlpha = 1 - (t - 0.8) / 0.5; ctx.drawImage(coverImg, 0, 0, w, h); ctx.globalAlpha = 1; }

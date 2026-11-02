@@ -460,6 +460,42 @@ def build_skies():
     json.dump(info, open(os.path.join(d, 'skies.json'), 'w'))
 
 
+NATURE = ['CommonTree_1', 'CommonTree_2', 'Pine_1', 'Bush_Common_Flowers', 'Grass_Common_Tall', 'Grass_Common_Short', 'Flower_3_Group', 'Flower_4_Group', 'Fern_1', 'Rock_Medium_1', 'Rock_Medium_2']
+
+
+def build_nature():
+    d = os.path.join(OUT, 'world'); os.makedirs(d, exist_ok=True)
+    w = GlbWriter()
+    w.j['materials'] = []; w.j['meshes'] = []; mats = {}
+    roots = []
+    for name in NATURE:
+        g = Gltf(g1('nature/x/glTF/' + name + '.gltf'))
+        prims = []
+        for m in g.j['meshes']:
+            for pr in m['primitives']:
+                a = pr['attributes']
+                p = Part()
+                p.pos = g.acc(a['POSITION']); p.nor = g.acc(a['NORMAL']); p.uv = g.acc(a['TEXCOORD_0'])
+                p.idx = [x[0] for x in g.acc(pr['indices'])]
+                mn = g.j['materials'][pr['material']]['name']
+                if mn not in mats:
+                    mats[mn] = len(w.j['materials']); w.j['materials'].append({'name': mn})
+                prims.append(add_prim(w, p, mats[mn], skinned=False))
+        w.j['meshes'].append({'name': name, 'primitives': prims})
+        src = next(n for n in g.j['nodes'] if 'mesh' in n)
+        node = {'name': name, 'mesh': len(w.j['meshes']) - 1}
+        for k in ('scale', 'rotation'):
+            if k in src: node[k] = src[k]
+        w.j['nodes'].append(node); roots.append(len(w.j['nodes']) - 1)
+    w.j['scenes'] = [{'nodes': roots}]; w.j['scene'] = 0
+    print('nature.glb %.0f KB, materials %s' % (w.write(os.path.join(d, 'nature.glb')) / 1024, list(mats)))
+    T = 'nature/x/glTF/'
+    for src, dst, s in [('Leaves_NormalTree_C.png', 'n_leaves_tree.png', 512), ('Leaf_Pine_C.png', 'n_leaves_pine.png', 256), ('Leaves.png', 'n_leaves.png', 256), ('Grass.png', 'n_grass.png', 256), ('Flowers.png', 'n_flowers.png', 256)]:
+        subprocess.run(['sips', '-s', 'format', 'png', '-Z', str(s), g1(T + src), '--out', os.path.join(d, dst)], capture_output=True, check=True)
+    for src, dst, s in [('Bark_NormalTree.png', 'n_bark.jpg', 256), ('Rocks_Diffuse.png', 'n_rocks.jpg', 256)]:
+        sips(g1(T + src), os.path.join(d, dst), s, 75)
+
+
 if __name__ == '__main__':
     for step in sys.argv[2:]:
-        {'chars': build_chars, 'anims': build_anims, 'textures': build_textures, 'skies': build_skies}[step]()
+        {'chars': build_chars, 'anims': build_anims, 'textures': build_textures, 'skies': build_skies, 'nature': build_nature}[step]()

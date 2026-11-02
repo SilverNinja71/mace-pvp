@@ -58,17 +58,17 @@ def build(name, cfg):
     shutil.rmtree(out, ignore_errors=True)
     os.makedirs(out)
     skip = shutil.ignore_patterns() if cfg['peerjs'] else shutil.ignore_patterns('peerjs')
-    for d in ('src', 'lib', 'fonts'):
+    for d in ('src', 'lib', 'fonts', 'assets'):
         shutil.copytree(os.path.join(GAME, d), os.path.join(out, d), ignore=skip)
-    for f in ('style.css', 'favicon.svg'):
+    for f in ('style.css', 'favicon.svg', 'CREDITS.md'):
         shutil.copy(os.path.join(GAME, f), os.path.join(out, f))
     open(os.path.join(out, 'index.html'), 'w', encoding='utf-8').write(html)
 
     bad = []
     for d, _, files in os.walk(out):
         for f in files:
-            if not f.endswith(('.html', '.js', '.css')) or f in ('three.module.min.js', 'peerjs.min.js'):
-                continue
+            if not f.endswith(('.html', '.js', '.css')) or f in ('three.module.min.js', 'peerjs.min.js') or os.sep + 'addons' + os.sep in d + os.sep:
+                continue  # (library files only mention addresses in comments and specs)
             text = open(os.path.join(d, f), encoding='utf-8').read()
             for u in re.findall(r'https?://[^\s"\'<>)`]+', text):
                 if not u.startswith(ALLOWED):

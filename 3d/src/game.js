@@ -166,6 +166,7 @@ export class Game {
         const a = this.menuT;
         s.model.root.rotation.y = Math.atan2(-Math.cos(a), -Math.sin(a)) + (f.dashT ? -0.6 : 0); // forward (-sin, -cos) toward the camera
         s.model.animate(f, dt, this.time);
+        this.fx.trail('showcase', s.model, f);
     }
 
     // Build the arena for a layout (if it isn't the one already built)
@@ -253,6 +254,7 @@ export class Game {
         const f = new Fighter({ id: i, team: i, ...opts });
         this.fighters.push(f);
         f.glowId = opts.glowId || 'sun';
+        f.trailId = opts.trailId || f.trailId || 'glow';
         const model = new CharacterModel(f.skinId, TEAM_COLORS[i % TEAM_COLORS.length], f.glowId);
         this.scene.add(model.root);
         this.models.push(model);
@@ -1079,8 +1081,9 @@ export class Game {
                 m.setOpacity(op);
                 m.blob.visible = !(this.renderer.shadowMap.enabled && this.dynamicShadows);
                 m.animate(f, dt, this.time);
+                this.fx.trail(f.id, m, f);
             }
-            // dash trails
+            // dash sparkle
             if (f.alive && f.dashT > 0) {
                 this.fx.emit(x, y + f.height * 0.6, z, 2, '#fff3b0', 0.8, 0.07, 0.25, 0, 0);
             }

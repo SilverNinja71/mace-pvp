@@ -63,6 +63,8 @@ const WORLD = {
 let worldQuality = null, worldMats = null;
 
 // One set of materials for all maps, so changing map never reloads images
+export function worldMaterialQuality() { return worldQuality; }
+
 export function worldMaterial(name, quality) {
     if (worldQuality !== quality) {
         if (worldMats) for (const k in worldMats) { worldMats[k].userData.owned = false; }

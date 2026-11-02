@@ -8,7 +8,7 @@
 // ==========================================
 
 import * as THREE from 'three';
-import { CharacterModel } from '../src/character.js';
+import { CharacterModel, preloadSkin } from '../src/character.js';
 
 const SIZES = {
     landscape: { w: 1920, h: 1080, cam: [7.5, 2.2, 9.5], look: [-1.6, 3.6, 1.5], fov: 42, title: 'left' },
@@ -27,11 +27,14 @@ function stage(game) {
     const hero = new CharacterModel('steve', '#4aa3ff', 'sun');
     hero.root.position.set(-0.4, 4.6, 2.2);
     hero.root.rotation.set(-0.35, -2.25, 0.12, 'YXZ'); // face the camera, leaning into the slam
-    pose(hero, { vel: { x: 0, y: -20, z: 0 }, onGround: false, dashT: 0, spearCd: 0, slamming: true, swingT: 0, parryT: 0, glide: false, pitch: 0.5, bigScale: 1, stunT: 0 });
+    const heroPose = { vel: { x: 0, y: -20, z: 0 }, onGround: false, dashT: 0, spearCd: 0, slamming: true, swingT: 0, parryT: 0, glide: false, pitch: 0.5, bigScale: 1, stunT: 0 };
+    pose(hero, heroPose);
     const rival = new CharacterModel('noob', '#ff5a4a', 'ember');
     rival.root.position.set(0.9, 0, 0.6);
     rival.root.rotation.set(-0.12, 2.6, 0.08);
-    pose(rival, { vel: { x: 3, y: 0, z: 0 }, onGround: true, dashT: 0.1, spearCd: 0, slamming: false, swingT: 0, parryT: 0, glide: false, pitch: 0.35, bigScale: 1, stunT: 0.2 });
+    const rivalPose = { vel: { x: 3, y: 0, z: 0 }, onGround: true, dashT: 0.1, spearCd: 0, slamming: false, swingT: 0, parryT: 0, glide: false, pitch: 0.35, bigScale: 1, stunT: 0.2 };
+    pose(rival, rivalPose);
+    stage.repose = () => { pose(hero, heroPose); pose(rival, rivalPose); };
     game.scene.add(hero.root, rival.root);
     // shockwave and debris under the rival
     const fx = game.fx;
@@ -78,24 +81,22 @@ function drawTitle(ctx, w, h, where) {
 // Returns { landscape, portrait, square } as PNG data URLs
 export async function renderCovers(game) {
     await document.fonts.load("100px 'Lilita One'");
+    await preloadSkin('steve'); await preloadSkin('noob');
     const r = game.renderer;
-    const oldSize = new THREE.Vector2();
-    r.getSize(oldSize);
     const oldDpr = r.getPixelRatio();
     const unstage = stage(game);
+    await new Promise((res) => { const c = new MessageChannel(); c.port1.onmessage = res; c.port2.postMessage(0); }); // let the models swap in
+    if (stage.repose) stage.repose();
     const cam = new THREE.PerspectiveCamera(45, 1, 0.05, 900);
     const out = {};
     for (const [name, s] of Object.entries(SIZES)) {
-        r.setPixelRatio(1);
-        r.setSize(s.w, s.h, false);
+        game.setRenderSize(s.w, s.h, 1);
         cam.aspect = s.w / s.h;
         cam.fov = s.fov;
         cam.position.set(...s.cam);
         cam.lookAt(...s.look);
         cam.updateProjectionMatrix();
-        game.arena.setPointScale(s.h);
-        r.clear();
-        r.render(game.scene, cam);
+        game.renderView(cam);
         const c = document.createElement('canvas');
         c.width = s.w; c.height = s.h;
         const ctx = c.getContext('2d');
@@ -112,7 +113,6 @@ export async function renderCovers(game) {
     }
     unstage();
     r.setPixelRatio(oldDpr);
-    r.setSize(oldSize.x, oldSize.y, false);
     game.resize();
     return out;
 }

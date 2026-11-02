@@ -10,7 +10,8 @@
 import * as THREE from 'three';
 import { PhysicsWorld } from './physics.js';
 import { PHYS } from './config.js';
-import { GeoBatch, worldMaterial, glowMaterial, rockMass, rockCone, flutedColumn, chamferBox, glowTexture, softDiscTexture, puffTexture, cloudNoiseTexture, lateTexture, ASSETS } from './gfx.js';
+import { GLTFLoader } from '../lib/three/addons/loaders/GLTFLoader.js';
+import { worldMaterialQuality, GeoBatch, worldMaterial, glowMaterial, rockMass, rockCone, flutedColumn, chamferBox, glowTexture, softDiscTexture, puffTexture, cloudNoiseTexture, lateTexture, ASSETS } from './gfx.js';
 
 export const CENTER_R = 24;
 export const PILLAR_RING = 17;
@@ -38,6 +39,51 @@ const PAL = {
 };
 const GLOW = 2.6; // glowing parts are brighter than white so the bloom catches them
 const R90 = Math.PI / 2;
+
+// ---------- nature models (one file, shared by all arenas) ----------
+const natureTime = { value: 0 };
+let naturePromise = null;
+function loadNature() {
+    if (naturePromise) return naturePromise;
+    naturePromise = new GLTFLoader().loadAsync(ASSETS + 'world/nature.glb').then((gltf) => {
+        const Q = worldMaterialQuality();
+        const low = Q === 'low';
+        const mats = {};
+        const make = (name) => {
+            if (mats[name]) return mats[name];
+            const leafy = /Leaves|Grass|Flowers|Pine/.test(name);
+            const file = { Bark_NormalTree: 'n_bark', Leaves_NormalTree: 'n_leaves_tree', Leaves_Pine: 'n_leaves_pine', Leaves: 'n_leaves', Grass: 'n_grass', Flowers: 'n_flowers', Rocks: 'n_rocks' }[name] || 'n_rocks';
+            const ext = leafy ? '.png' : '.jpg';
+            const map = lateTexture(ASSETS + 'world/' + file + ext, { srgb: true, flipY: false, aniso: 2 });
+            const opts = { map, side: leafy ? THREE.DoubleSide : THREE.FrontSide, alphaTest: leafy ? 0.4 : 0 };
+            const m = low ? new THREE.MeshLambertMaterial(opts) : new THREE.MeshStandardMaterial({ ...opts, roughness: leafy ? 0.75 : 0.95, envMapIntensity: 0.7 });
+            m.userData.shared = true;
+            if (leafy && !low) {
+                // grass and leaves move a little in the wind
+                m.onBeforeCompile = (s) => {
+                    s.uniforms.uWind = natureTime;
+                    s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nuniform float uWind;')
+                        .replace('#include <begin_vertex>', `#include <begin_vertex>
+                        #ifdef USE_INSTANCING
+                        { float ph = instanceMatrix[3].x * 0.7 + instanceMatrix[3].z * 0.9; float k = position.y * 0.03;
+                          transformed.x += sin(uWind * 1.7 + ph) * k; transformed.z += cos(uWind * 1.3 + ph) * k * 0.7; }
+                        #endif`);
+                };
+                m.customProgramCacheKey = () => 'wind1';
+            }
+            mats[name] = m;
+            return m;
+        };
+        const species = {};
+        gltf.scene.traverse((o) => {
+            if (!o.isMesh) return;
+            const nm = o.parent && o.parent !== gltf.scene && o.parent.name ? o.parent.name : o.name.replace(/_\d+$/, '');
+            (species[nm] = species[nm] || []).push({ geometry: o.geometry, material: make(o.material.name) });
+        });
+        return { species };
+    }).catch((e) => { console.warn('nature models failed, keeping simple trees', e && e.message); return null; });
+    return naturePromise;
+}
 
 function addGlow(batch, geometry, x, y, z, color, k = GLOW, rotY = 0, sx = 1, sy = 1, sz = 1, rotX = 0, rotZ = 0) {
     batch.addAt(geometry, x, y, z, color, 0, rotY, sx, sy, sz, rotX, rotZ, { bright: k });
@@ -168,11 +214,68 @@ export class Arena {
         glowMesh.matrixAutoUpdate = false;
         this.group.add(glowMesh);
 
+        // the stand-in trees are the 'plain' batch; real trees replace them when the nature models arrive
+        this.codeTrees = this.solidMeshes.find((m) => m.material === worldMaterial('plain', quality));
+        loadNature().then((N) => { if (!this.disposed && N) this.plantNature(N); }).catch((e) => console.warn('nature models', e && e.message));
+
         this.buildContacts();
         this.buildGeyserFX();
         this.buildSky();
         this.buildClouds();
         this.buildDust(quality === 'low' ? 120 : 320);
+    }
+
+    // Trees, bushes, grass and flowers from the nature models. Purely decoration: nothing here collides.
+    plantNature(N) {
+        const low = this.quality === 'low';
+        let seed = 77;
+        const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+        const spots = {};                // species -> [matrix...]
+        const put = (name, x, y, z, s, yaw = rnd() * 6.28) => {
+            (spots[name] = spots[name] || []).push(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(s, s * (0.9 + rnd() * 0.25), s)));
+        };
+        const trees = ['CommonTree_1', 'CommonTree_2', 'Pine_1'];
+        (this.treeSpots || []).forEach((t, i) => {
+            const big = t.s > 1;
+            put(trees[i % trees.length], t.x, t.y - 0.05, t.z, (big ? 0.95 : 0.46) * (0.9 + rnd() * 0.25));
+            if (!big) { put('Bush_Common_Flowers', t.x + 1.4, t.y, t.z + 0.6, 0.55); put('Fern_1', t.x - 1.1, t.y, t.z + 0.9, 0.7); }
+        });
+        if (!low) {
+            for (const isl of this.islands) {
+                const R = ISLAND_R - 0.6;
+                const scatter = (name, n, size) => {
+                    for (let i = 0; i < n; i++) {
+                        const a = rnd() * 6.28, d = Math.sqrt(rnd()) * R;
+                        put(name, isl.x + Math.cos(a) * d, isl.y - 0.02, isl.z + Math.sin(a) * d, size * (0.7 + rnd() * 0.6));
+                    }
+                };
+                const dense = this.quality === 'high' ? 1 : 0.5;
+                scatter('Grass_Common_Tall', Math.round(26 * dense), 0.42);
+                scatter('Grass_Common_Short', Math.round(60 * dense), 0.5);
+                scatter('Flower_3_Group', 7, 0.55);
+                scatter('Flower_4_Group', 7, 0.55);
+                scatter('Rock_Medium_1', 3, 0.34);
+                scatter('Rock_Medium_2', 2, 0.26);
+                scatter('Fern_1', 5, 0.55);
+            }
+        }
+        for (const name in spots) {
+            const proto = N.species[name];
+            if (!proto) continue;
+            for (const part of proto) {
+                const mesh = new THREE.InstancedMesh(part.geometry, part.material, spots[name].length);
+                spots[name].forEach((m, i) => mesh.setMatrixAt(i, m));
+                mesh.instanceMatrix.needsUpdate = true;
+                mesh.computeBoundingSphere();
+                mesh.frustumCulled = true;
+                mesh.castShadow = !low && (name.includes('Tree') || name.includes('Pine') || name.includes('Bush'));
+                mesh.receiveShadow = !low;
+                mesh.userData.natureShared = true;
+                this.group.add(mesh);
+            }
+        }
+        if (this.codeTrees) this.codeTrees.visible = false;
+        if (this.onPlanted) this.onPlanted();
     }
 
     // Soft dark discs where things meet the ground: fake ambient occlusion, cheap on every device
@@ -190,7 +293,7 @@ export class Arena {
             vertexShader: `attribute float dark; varying vec2 vUv; varying float vD;
                 void main(){ vUv = uv; vD = dark; gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0); }`,
             fragmentShader: `uniform sampler2D map; varying vec2 vUv; varying float vD;
-                void main(){ gl_FragColor = vec4(0.03, 0.025, 0.05, texture2D(map, vUv).r * vD); }`
+                void main(){ gl_FragColor = vec4(0.03, 0.025, 0.05, texture2D(map, vUv).a * vD); }`
         });
         const mesh = new THREE.InstancedMesh(g, m, n);
         const mt = new THREE.Matrix4();
@@ -452,6 +555,7 @@ export class Arena {
     // A tree from smooth shapes, shown when the nature models aren't there
     addTree(x, y, z, seed, s = 1) {
         const W = this.world;
+        (this.treeSpots = this.treeSpots || []).push({ x, y, z, seed, s });
         W.plain.addAt(new THREE.CylinderGeometry(0.14 * s, 0.28 * s, 2.4 * s, 8, 2), x, y + 1.2 * s, z, PAL.trunk, 0.08, seed, 1, 1, 1, 0.04, 0.03);
         for (let k = 0; k < 5; k++) {
             const a = seed * 2.1 + k * 1.3, d = k ? 0.7 * s : 0;
@@ -644,7 +748,7 @@ export class Arena {
                   gl_Position = projectionMatrix * c; }`,
             fragmentShader: `uniform sampler2D map; uniform vec3 lit; uniform vec3 shade; uniform vec3 fade; varying vec2 vUv; varying float vP; varying float vF;
                 void main(){
-                  float a = texture2D(map, vUv).r;
+                  float a = texture2D(map, vUv).a;
                   if (a < 0.01) discard;
                   float up = clamp(1.1 - vUv.y * 0.0 - (1.0 - vUv.y) * 1.15 + vP * 0.35, 0.0, 1.0);
                   vec3 c = mix(shade, lit, up);
@@ -716,8 +820,8 @@ export class Arena {
     // Light and sky for each time of day. exposure scales the photo sky; lit/shade colour the clouds; horizon, top and mid are the painted fallback sky.
     static THEMES = {
         sunset: { top: 0x2a4f9c, mid: 0x7b8fc4, horizon: 0xffb98a, bottom: 0xd7a48c, fog: 0xdda58a, fogFar: 340, hs: 0xcfdcff, hg: 0x8a6a58, sun: 0xffc98f, sunI: 3.0, hemiI: 0.22, stars: false, sunC: 0xffd9a8, sunSize: 1, exposure: 0.5, lit: 0xffe0c4, shade: 0x8d6f86, sea: 0xd9a58c, cloudTint: 0xffc9a8, cloudAmt: 0.2, sunDir: [-0.62, 0.46, -0.64], env: 0.8, skySat: 1.18 },
-        night:  { top: 0x070b24, mid: 0x1b2a5c, horizon: 0x4a4a8a, bottom: 0x1a2148, fog: 0x232a58, fogFar: 280, hs: 0x8fa6ff, hg: 0x2a2440, sun: 0xaec2ff, sunI: 1.5, hemiI: 0.42, stars: true, sunC: 0xdfe8ff, sunSize: 0.35, exposure: 6.5, lit: 0x5c6aa8, shade: 0x1c2148, sea: 0x232a58, cloudTint: 0x39427a, cloudAmt: 0.12, sunDir: [-0.5, 0.72, -0.48], env: 3.2, skySat: 1.2 },
-        storm:  { top: 0x2b3240, mid: 0x4f5a6e, horizon: 0x8a94a6, bottom: 0x4c5463, fog: 0x69738a, fogFar: 230, hs: 0xc8d2e6, hg: 0x5a5560, sun: 0xdde4f0, sunI: 1.25, hemiI: 0.6, stars: false, sunC: 0x9aa4b4, sunSize: 0, exposure: 0.55, lit: 0x9aa4b6, shade: 0x3a4250, sea: 0x5a6476, cloudTint: 0x4a5262, cloudAmt: 0.55, sunDir: [-0.5, 0.7, -0.5], env: 1.1, skySat: 1.1 }
+        night:  { top: 0x070b24, mid: 0x1b2a5c, horizon: 0x4a4a8a, bottom: 0x1a2148, fog: 0x232a58, fogFar: 280, hs: 0x8fa6ff, hg: 0x2a2440, sun: 0xaec2ff, sunI: 1.5, hemiI: 0.42, stars: true, sunC: 0xdfe8ff, sunSize: 0.35, exposure: 0.16, lit: 0x5c6aa8, shade: 0x1c2148, sea: 0x232a58, cloudTint: 0x39427a, cloudAmt: 0.12, sunDir: [-0.5, 0.72, -0.48], env: 5.0, skySat: 1.2 },
+        storm:  { top: 0x2b3240, mid: 0x4f5a6e, horizon: 0x8a94a6, bottom: 0x4c5463, fog: 0x69738a, fogFar: 230, hs: 0xc8d2e6, hg: 0x5a5560, sun: 0xdde4f0, sunI: 1.25, hemiI: 0.6, stars: false, sunC: 0x9aa4b4, sunSize: 0, exposure: 0.28, lit: 0x7c8698, shade: 0x2c3340, sea: 0x4a5364, cloudTint: 0x3a4250, cloudAmt: 0.55, sunDir: [-0.5, 0.7, -0.5], env: 1.5, skySat: 1.0 }
     };
 
     // The sky images are shared by all arenas and only downloaded when first needed
@@ -797,11 +901,13 @@ export class Arena {
 
     // Remove everything this arena added to the scene
     dispose() {
+        this.disposed = true;
         if (this.skyListener) Arena.skyListeners.delete(this.skyListener);
         for (const o of [this.group, this.sky, this.clouds, this.dust]) {
             if (!o) continue;
             this.scene.remove(o);
             o.traverse((n) => {
+                if (n.userData.natureShared) { n.dispose(); return; } // shared geometry, only the instance data is ours
                 if (n.geometry) n.geometry.dispose();
                 // materials made for this arena (shared world materials and cached textures stay)
                 for (const mm of [].concat(n.material || [])) if (!mm.userData.shared) mm.dispose();
@@ -817,6 +923,7 @@ export class Arena {
 
     update(dt) {
         this.time += dt;
+        natureTime.value = this.time;
         if (this.geyserTex) this.geyserTex.offset.y -= dt * 1.6;
         if (this.geyserMesh) this.geyserMesh.rotation.y += dt * 1.4;
         if (this.dustMat) this.dustMat.uniforms.time.value = this.time;
