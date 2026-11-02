@@ -423,7 +423,7 @@ def write_png(path, w, h, rgb_rows):
     open(path, 'wb').write(b'\x89PNG\r\n\x1a\n' + ch(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)) + ch(b'IDAT', zlib.compress(bytes(raw), 1)) + ch(b'IEND', b''))
 
 
-SKIES = {'sunset': 'belfast_sunset_puresky', 'night': 'qwantani_night_puresky', 'storm': 'overcast_soil_puresky'}
+SKIES = {'sunset': 'kloppenheim_06_puresky', 'night': 'qwantani_night_puresky', 'storm': 'overcast_soil_puresky'}
 
 
 def build_skies():

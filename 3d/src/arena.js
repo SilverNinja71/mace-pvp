@@ -831,14 +831,14 @@ export class Arena {
 
     // Light and sky for each time of day. exposure scales the photo sky; lit/shade colour the clouds; horizon, top and mid are the painted fallback sky.
     static THEMES = {
-        sunset: { top: 0x2a4f9c, mid: 0x7b8fc4, horizon: 0xffb98a, bottom: 0xd7a48c, fog: 0xdda58a, fogFar: 340, hs: 0xcfdcff, hg: 0x8a6a58, sun: 0xffc98f, sunI: 3.0, hemiI: 0.22, stars: false, sunC: 0xffd9a8, sunSize: 1, exposure: 0.5, lit: 0xffe0c4, shade: 0x8d6f86, sea: 0xd9a58c, cloudTint: 0xffc9a8, cloudAmt: 0.2, sunDir: [-0.62, 0.46, -0.64], env: 0.8, skySat: 1.18 },
+        sunset: { top: 0x2a4f9c, mid: 0x7b8fc4, horizon: 0xffb98a, bottom: 0xc9b0b4, fog: 0xd8b4a8, fogFar: 340, hs: 0xcfdcff, hg: 0x8a6a58, sun: 0xffc98f, sunI: 3.0, hemiI: 0.22, stars: false, sunC: 0xffd9a8, sunSize: 1, exposure: 0.85, lit: 0xfff0e0, shade: 0x8d80a0, sea: 0xcfb6b8, cloudTint: 0xffc9a8, cloudAmt: 0.2, sunDir: [-0.62, 0.46, -0.64], env: 0.75, skySat: 1.12 },
         night:  { top: 0x070b24, mid: 0x1b2a5c, horizon: 0x4a4a8a, bottom: 0x1a2148, fog: 0x232a58, fogFar: 280, hs: 0x8fa6ff, hg: 0x2a2440, sun: 0xaec2ff, sunI: 1.5, hemiI: 0.42, stars: true, sunC: 0xdfe8ff, sunSize: 0.35, exposure: 0.16, lit: 0x5c6aa8, shade: 0x1c2148, sea: 0x232a58, cloudTint: 0x39427a, cloudAmt: 0.12, sunDir: [-0.5, 0.72, -0.48], env: 5.0, skySat: 1.2, skyTint: [0.42, 0.62, 1.5] },
         storm:  { top: 0x2b3240, mid: 0x4f5a6e, horizon: 0x8a94a6, bottom: 0x4c5463, fog: 0x69738a, fogFar: 230, hs: 0xc8d2e6, hg: 0x5a5560, sun: 0xdde4f0, sunI: 1.25, hemiI: 0.6, stars: false, sunC: 0x9aa4b4, sunSize: 0, exposure: 0.28, lit: 0x7c8698, shade: 0x2c3340, sea: 0x4a5364, cloudTint: 0x3a4250, cloudAmt: 0.55, sunDir: [-0.5, 0.7, -0.5], env: 1.5, skySat: 1.0 }
     };
 
     // The sky images are shared by all arenas and only downloaded when first needed
     static skyTextures = {};
-    static skyInfo = { sunset: 0.6044921875, night: 0.78271484375, storm: 0.466796875 }; // where each photo's sun or moon sits, across the panorama
+    static skyInfo = { sunset: 0.61279296875, night: 0.78271484375, storm: 0.466796875 }; // where each photo's sun or moon sits, across the panorama
 
     setTheme(name, scene, hemi, sun) {
         const t = Arena.THEMES[name] || Arena.THEMES.sunset;

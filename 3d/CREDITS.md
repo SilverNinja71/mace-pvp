@@ -17,7 +17,7 @@ Credit isn't required; it's given here with thanks. The files were shrunk and me
 | Rock Face 03, Poly Haven | island rock | https://polyhaven.com/a/rock_face_03 | CC0 |
 | Aerial Grass Rock, Poly Haven | island turf | https://polyhaven.com/a/aerial_grass_rock | CC0 |
 | Slate Floor 02, Poly Haven | obsidian monoliths | https://polyhaven.com/a/slate_floor_02 | CC0 |
-| Belfast Sunset (Pure Sky), Poly Haven | sunset sky | https://polyhaven.com/a/belfast_sunset_puresky | CC0 |
+| Kloppenheim 06 (Pure Sky), Poly Haven | sunset sky | https://polyhaven.com/a/kloppenheim_06_puresky | CC0 |
 | Qwantani Night (Pure Sky), Poly Haven | night sky | https://polyhaven.com/a/qwantani_night_puresky | CC0 |
 | Overcast Soil (Pure Sky), Poly Haven | storm sky | https://polyhaven.com/a/overcast_soil_puresky | CC0 |
 

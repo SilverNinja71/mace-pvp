@@ -57,6 +57,8 @@ Each map comes at sunset, at night under the stars, or in a thunderstorm. New pl
 `tools/covers.js` and `tools/preview-video.js` remake them from the game in the browser.
 
 ## How it's built
+Art in `assets/` is CC0 (see `CREDITS.md`) and was shrunk from the free packs by `tools/build-art.py`. To draw a picture from a tool: `game.setRenderSize(w, h, 1); game.renderView(camera);`, then `game.resize()` when done.
+
 Plain ES modules in `src/`, with Three.js r160 bundled in `lib/three`. There's no build step for the web
 copy. `tools/build-portals.py` makes the upload zips for CrazyGames, Poki and itch.io in `dist/`. See `store/SUBMIT.md`.
 
@@ -64,7 +66,7 @@ copy. `tools/build-portals.py` makes the upload zips for CrazyGames, Poki and it
 |---|---|
 | `config.js` | Every tuning number: gravity -28 m/s², coyote time 0.12 s, spear, mace, parry, match rules, the 8 classes, bot levels |
 | `physics.js` | Fast collision against cylinders and boxes, step-up, raycasts |
-| `arena.js` | All three maps (colosseum, ruins and spires), islands, jump pads, geyser, sky, clouds, dust, sunset/night/storm themes |
+| `arena.js` | All three maps (colosseum, ruins and spires), islands, jump pads, geyser, photo skies, cloud sea, trees and grass, sunset/night/storm themes |
 | `fighter.js` | Movement and abilities for players, bots and online friends alike |
 | `combat.js` | Spear pierce and crits, slam damage from fall height with bounce, shockwave, parry, clash, status effects |
 | `bot.js` | Bot AI: jump pads, aimed dashes, geyser climbs, slam dodging, parries, getting back from the void |
@@ -74,7 +76,8 @@ copy. `tools/build-portals.py` makes the upload zips for CrazyGames, Poki and it
 | `cosmetics.js` | Weapon skins, glows and trails. `GLOWS` has every glow on every skin, and a fighter's `glowId` is a key in it |
 | `account.js` | Who is playing: a CrazyGames account, a shared account, or a guest |
 | `i18n.js` | Every word the player sees, in English, Spanish, Brazilian Portuguese, French, German, Russian, Turkish, Polish and Indonesian. `node tools/check-i18n.mjs` checks that every language has every key |
-| `character.js` | Low-poly fighters with pixel faces, the procedural spear and mace, first-person arms |
+| `character.js` | Rigged fighters from `assets/chars` with recoloured outfits and hats, a code-built stand-in until they load, blended animation with arm solving, the spear and mace, first-person arms |
+| `post.js`, `gfx.js` | The HDR picture pipeline (bloom, filmic tone curve, black-screen fallback); world materials, sculpted shapes, soft textures |
 | `fx.js`, `audio.js`, `camera.js`, `input.js` | Effects, procedural sound and music, cameras, keyboard/mouse/gamepad/touch |
 | `profile.js` | The shared `spear_mace_user_profile` save (same gold, XP and stats as the 2D game) |
 | `crazygames.js` | CrazyGames SDK v3: gameplay start/stop, happytime, midgame and rewarded ads, invite links |

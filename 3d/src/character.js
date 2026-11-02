@@ -52,7 +52,7 @@ export function trailStyle(trailId, glowId) {
     return { a: t[0], b: t[1] };
 }
 
-const weaponLit = () => wm('wlit', () => (QUALITY === 'low' ? new THREE.MeshLambertMaterial({ vertexColors: true }) : new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.7, roughness: 0.42, envMapIntensity: 0.85 })));
+const weaponLit = () => wm('wlit', () => (QUALITY === 'low' ? new THREE.MeshLambertMaterial({ vertexColors: true }) : new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.65, roughness: 0.46, envMapIntensity: 0.62 })));
 const weaponGlow = () => wm('wglow', () => new THREE.MeshBasicMaterial({ vertexColors: true }));
 const R90 = Math.PI / 2;
 
@@ -991,16 +991,16 @@ export class ViewModel {
         this.root = new THREE.Group();
         this.camera.add(this.root);
         this.scene.add(this.camera);
-        this.spear = buildSpear(0.4, glowId);
-        this.mace = buildMace(0.38, glowId);
+        this.spear = buildSpear(0.38, glowId);
+        this.mace = buildMace(0.3, glowId);
         const female = this.skinId === 'alex' || this.skinId === 'enderman' || this.skinId === 'diamond_knight';
         const ready = loaded[this.skinId];
         this.setRig(ready ? buildSkinnedRig(this.skinId, ready, null) : buildStandInRig(s, female));
         this.bob = 0;
         this.swayX = 0; this.swayY = 0;
         this.kickR = 0; this.kickL = 0;
-        this.handS = new THREE.Vector3(0.24, -0.19, -0.5);
-        this.handM = new THREE.Vector3(-0.25, -0.2, -0.5);
+        this.handS = new THREE.Vector3(0.24, -0.16, -0.52);
+        this.handM = new THREE.Vector3(-0.25, -0.17, -0.52);
         this.dirS = new THREE.Vector3(-0.1, 0.4, -0.9).normalize();
         this.dirM = new THREE.Vector3(0.12, 0.8, -0.58).normalize();
         this.disposed = false;
@@ -1053,8 +1053,8 @@ export class ViewModel {
         this.root.position.set(bx + this.swayX, by + this.swayY + fall, 0);
 
         // targets in camera space: x right, y up, -z forward
-        let sx = 0.24, sy = -0.19, sz = -0.5, dsx = -0.14, dsy = 0.5, dsz = -0.85;
-        let mx = -0.25, my = -0.2, mz = -0.5, dmx = 0.2, dmy = 0.88, dmz = -0.42;
+        let sx = 0.24, sy = -0.16, sz = -0.52, dsx = -0.14, dsy = 0.5, dsz = -0.85;
+        let mx = -0.25, my = -0.17, mz = -0.52, dmx = 0.2, dmy = 0.88, dmz = -0.42;
         let rate = 14;
         const thrust = f.dashT > 0;
         if (thrust) { sx = 0.1; sy = -0.13; sz = -0.72; dsx = -0.015; dsy = 0.04; dsz = -1; rate = 34; }
