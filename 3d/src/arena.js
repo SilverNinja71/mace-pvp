@@ -86,7 +86,7 @@ function loadNature() {
 }
 
 function addGlow(batch, geometry, x, y, z, color, k = GLOW, rotY = 0, sx = 1, sy = 1, sz = 1, rotX = 0, rotZ = 0) {
-    batch.addAt(geometry, x, y, z, color, 0, rotY, sx, sy, sz, rotX, rotZ, { bright: k });
+    batch.addAt(geometry, x, y, z, color, 0, rotY, sx, sy, sz, rotX, rotZ, { bright: k, facet: geometry.type === 'OctahedronGeometry' ? 0.62 : 0 });
 }
 
 export class Arena {
@@ -157,7 +157,7 @@ export class Arena {
             for (let k = 0; k < 3; k++) {
                 const ka = a + 2.1 + k * 0.5;
                 const kx = cx + Math.cos(ka) * 6.3, kz = cz + Math.sin(ka) * 6.3;
-                addGlow(glow, new THREE.OctahedronGeometry(0.45 + k * 0.12, 0), kx, y + 0.5 + k * 0.1, kz, k === 1 ? 0x46d8f0 : 0x6cb4f0, 1.25, ka, 0.7, 1.8, 0.7);
+                addGlow(glow, new THREE.OctahedronGeometry(0.45 + k * 0.12, 1), kx, y + 0.5 + k * 0.1, kz, k === 1 ? 0x46d8f0 : 0x6cb4f0, 1.25, ka, 0.7, 1.8, 0.7);
                 W.rock.addAt(new THREE.DodecahedronGeometry(0.55 + k * 0.1, 0), kx, y + 0.05, kz, PAL.rockDark, 0.1, ka, 1.1, 0.55, 1.1);
                 this.contacts.push([kx, y + 0.016, kz, 1.25, 0.5]);
             }
@@ -440,7 +440,7 @@ export class Arena {
         this.floorRing(W.flag, 0.1, R - 0.8, 0, PAL.tileA, 0.42, 112);
         for (let i = 0; i < 26; i++) {
             const a = i * 2.39, d = 8 + (i * 5.3) % 12;
-            W.pave.addAt(chamferBox(1.6 + (i % 3) * 0.5, 0.03, 1.2 + (i % 2) * 0.6, 0.012), Math.cos(a) * d, 0.012, Math.sin(a) * d, i % 2 ? PAL.tileC : PAL.stoneDark, 0.05, a);
+            W.pave.addAt(new THREE.PlaneGeometry(1.6 + (i % 3) * 0.5, 1.2 + (i % 2) * 0.6).rotateX(-R90), Math.cos(a) * d, 0.006, Math.sin(a) * d, i % 2 ? PAL.tileC : PAL.stoneDark, 0.05, a);
         }
         this.floorRing(W.block, R - 0.8, R, 0.003, PAL.stoneDark, 0.4, 112);
         // the raised dais, with stairs on four sides

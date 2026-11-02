@@ -157,6 +157,7 @@ export class GeoBatch {
                 n0.copy(b).sub(a).cross(_v.copy(c).sub(a));
                 const ax = Math.abs(n0.x), ay = Math.abs(n0.y), az = Math.abs(n0.z);
                 let wrap = null;
+                const facet = O.facet ? 1 - O.facet * Math.random() : 1; // crystals: each face its own brightness
                 if (O.uv === 'cyl' || O.uv === 'polar') {
                     // keep one triangle on the same side of the atan2 seam
                     const t0 = Math.atan2(a.z - cz, a.x - cx), t1 = Math.atan2(b.z - cz, b.x - cx), t2 = Math.atan2(c.z - cz, c.x - cx);
@@ -182,7 +183,7 @@ export class GeoBatch {
                     else if (ax >= az) { u0 = q.z * s; v0 = q.y * s; }
                     else { u0 = q.x * s; v0 = q.y * s; }
                     uvs[o * 2] = u0; uvs[o * 2 + 1] = v0;
-                    let d = 1;
+                    let d = facet;
                     if (ao) {
                         if (ao.h) d *= ao.min + (1 - ao.min) * smooth01((q.y - ao.y0) / ao.h);
                         if (ao.top) d *= ao.min + (1 - ao.min) * smooth01((ao.top - q.y) / (ao.hTop || 2));
