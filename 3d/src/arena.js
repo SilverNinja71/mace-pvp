@@ -156,7 +156,7 @@ export class Arena {
             // a tree on the tier and crystals on the island
             this.addTree(ux + Math.cos(a + 1.6) * 1.2, y + 3, uz + Math.sin(a + 1.6) * 1.2, i);
             for (let k = 0; k < 3; k++) {
-                const ka = a + 2.1 + k * 0.5;
+                const ka = a + 1.05 + k * 0.5; // (well to the side of the jump pad)
                 const kx = cx + Math.cos(ka) * 6.3, kz = cz + Math.sin(ka) * 6.3;
                 addGlow(glow, new THREE.OctahedronGeometry(0.45 + k * 0.12, 1), kx, y + 0.5 + k * 0.1, kz, k === 1 ? 0x46d8f0 : 0x6cb4f0, 1.25, ka, 0.7, 1.8, 0.7);
                 W.rock.addAt(new THREE.DodecahedronGeometry(0.55 + k * 0.1, 0), kx, y + 0.05, kz, PAL.rockDark, 0.1, ka, 1.1, 0.55, 1.1);
@@ -316,7 +316,7 @@ export class Arena {
     // A round floor made of rings of tiles that follow the circle
     floorRing(batch, r0, r1, y, color, tilesPerMeter = 0.5, seg = 72, sectors = 0, color2 = 0) {
         const uTiles = Math.max(4, Math.round(Math.PI * (r0 + r1) * tilesPerMeter));
-        const bright = batch === this.world.tile ? 2.1 : batch === this.world.flag ? 1.4 : 1;
+        const bright = batch === this.world.tile ? 2.1 : batch === this.world.pave ? 1.9 : batch === this.world.flag ? 1.4 : 1;
         if (!sectors) {
             const g = new THREE.RingGeometry(r0, r1, seg, 3);
             g.rotateX(-R90);

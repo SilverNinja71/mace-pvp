@@ -58,12 +58,16 @@ export async function recordPreview(game, w, h, seconds = 18) {
         if ((name === 'hit' || name === 'shockwave' || name === 'dash' || name === 'slamStart') && a && a.alive && focusT > 2.2) { focus = a; focusT = 0; }
         return emitBefore(name, a, ...rest);
     };
+    // whoever is closest to a rival: that's where the fight is
     const pickFocus = () => {
         let best = null, bd = Infinity;
         for (const f of game.fighters) {
             if (!f.alive || f.pos.y < -3) continue;
-            const d = Math.hypot(f.pos.x, f.pos.z);
-            if (d < bd) { bd = d; best = f; }
+            for (const o of game.fighters) {
+                if (o === f || !o.alive || o.pos.y < -3) continue;
+                const d = Math.hypot(f.pos.x - o.pos.x, f.pos.y - o.pos.y, f.pos.z - o.pos.z) + Math.hypot(f.pos.x, f.pos.z) * 0.15;
+                if (d < bd) { bd = d; best = f; }
+            }
         }
         return best;
     };
@@ -83,19 +87,20 @@ export async function recordPreview(game, w, h, seconds = 18) {
         if (game.state === 'over') break;
         game.frame(now);
         focusT += 0.033;
-        if (!focus || !focus.alive || focus.pos.y < -3) { focus = pickFocus(); focusT = 0; }
+        if (!focus || !focus.alive || focus.pos.y < -3 || focusT > 3.5) { focus = pickFocus(); focusT = 0; }
         if (focus) {
             orbit += 0.006;
             const fx = focus.pos.x, fy = Math.max(0, focus.pos.y), fz = focus.pos.z;
             const want = new THREE.Vector3(fx + Math.cos(orbit) * 6.4, fy + 2.5, fz + Math.sin(orbit) * 6.4);
-            camPos.lerp(want, 0.06);
-            look.lerp(new THREE.Vector3(fx, fy + 1.3, fz), 0.12);
+            camPos.lerp(want, 0.11);
+            look.lerp(new THREE.Vector3(fx, fy + 1.1, fz), 0.24);
         }
         // don't film through pillars: stop short of anything between the fighter and the camera
         const dir = camPos.clone().sub(look);
         const full = dir.length();
         dir.normalize();
         const hit = game.physics.raycast(look.x, look.y, look.z, dir.x, dir.y, dir.z, full);
+        if (hit < full - 0.3) orbit += 0.09; // something's in the way: swing round until the view is clear
         cam.position.copy(look).addScaledVector(dir, Math.max(1.5, Math.min(full, hit - 0.4)));
         cam.lookAt(look);
         game.renderView(cam);

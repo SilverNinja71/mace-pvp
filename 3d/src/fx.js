@@ -350,7 +350,7 @@ export class FX {
         best.life = best.max = life;
         best.r0 = r0; best.r1 = r1;
         best.mesh.position.set(x, y, z);
-        best.mesh.material.color.set(color).multiplyScalar(2.2);
+        best.mesh.material.color.set(color).multiplyScalar(1.5);
         best.mesh.rotation.set(vertical ? Math.PI / 2 + pitch : 0, yaw, 0, 'YXZ');
         best.mesh.visible = true;
     }

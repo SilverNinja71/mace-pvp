@@ -355,12 +355,14 @@ export function glowTexture() {
 let ringTex = null;
 export function ringTexture() {
     if (ringTex) return ringTex;
-    ringTex = canvasTexture(128, 128, (ctx, w) => {
+    ringTex = canvasTexture(256, 256, (ctx, w) => {
+        // a thin bright edge with a faint wash behind it, not a thick band
         const g = ctx.createRadialGradient(w / 2, w / 2, w * 0.28, w / 2, w / 2, w / 2);
         g.addColorStop(0, 'rgba(255,255,255,0)');
-        g.addColorStop(0.55, 'rgba(255,255,255,0.15)');
-        g.addColorStop(0.8, 'rgba(255,255,255,1)');
-        g.addColorStop(0.9, 'rgba(255,255,255,0.6)');
+        g.addColorStop(0.6, 'rgba(255,255,255,0.03)');
+        g.addColorStop(0.86, 'rgba(255,255,255,0.22)');
+        g.addColorStop(0.94, 'rgba(255,255,255,1)');
+        g.addColorStop(0.97, 'rgba(255,255,255,0.45)');
         g.addColorStop(1, 'rgba(255,255,255,0)');
         ctx.fillStyle = g;
         ctx.fillRect(0, 0, w, w);
