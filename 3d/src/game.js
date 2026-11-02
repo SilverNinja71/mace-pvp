@@ -18,16 +18,18 @@ import { profile } from './profile.js';
 import { crazyGames } from './crazygames.js';
 import { missions } from './missions.js';
 import { achievements } from './achievements.js';
+import { t, tn } from './i18n.js';
 
+// Mode names are in i18n.js (mode.<id>)
 export const MODES = {
-    quick:    { name: 'Quick Play', bots: 1, kos: MATCH.duelKOs, time: MATCH.timeLimit },
-    duel:     { name: 'Duel',       bots: 1, kos: MATCH.duelKOs, time: MATCH.timeLimit },
-    brawl:    { name: 'Brawl',      bots: 3, kos: MATCH.brawlKOs, time: MATCH.timeLimit + 60 },
-    gauntlet: { name: 'Gauntlet',   bots: 0, kos: 0, time: 0 },
-    hill:     { name: 'King of the Hill', bots: 3, kos: 0, time: MATCH.timeLimit, hill: 45 },
-    stand:    { name: 'Last Stand', bots: 3, kos: 0, time: 0, lives: 2 },
-    training: { name: 'Training',   bots: 1, kos: 0, time: 0 },
-    online:   { name: 'Online',     bots: 0, kos: MATCH.duelKOs, time: MATCH.timeLimit }
+    quick:    { bots: 1, kos: MATCH.duelKOs, time: MATCH.timeLimit },
+    duel:     { bots: 1, kos: MATCH.duelKOs, time: MATCH.timeLimit },
+    brawl:    { bots: 3, kos: MATCH.brawlKOs, time: MATCH.timeLimit + 60 },
+    gauntlet: { bots: 0, kos: 0, time: 0 },
+    hill:     { bots: 3, kos: 0, time: MATCH.timeLimit, hill: 45 },
+    stand:    { bots: 3, kos: 0, time: 0, lives: 2 },
+    training: { bots: 1, kos: 0, time: 0 },
+    online:   { bots: 0, kos: MATCH.duelKOs, time: MATCH.timeLimit }
 };
 
 const QUALITY = {
@@ -285,7 +287,7 @@ export class Game {
         } else me = this.makeFighter(0, { name: profile.name, isLocal: true, classId: profile.classId, skinId: profile.skinId, glowId: profile.glowId });
         this.local = me;
         if (opts.mode === 'training') {
-            const d = this.makeFighter(1, { name: 'Training Dummy', isBot: true, botLevel: 'dummy', classId: 'normal', skinId: 'skeleton', dmgMult: 0.5 });
+            const d = this.makeFighter(1, { name: t('fighter.dummy'), isBot: true, botLevel: 'dummy', classId: 'normal', skinId: 'skeleton', dmgMult: 0.5 });
             d.maxHp = 200;
         } else if (opts.mode === 'gauntlet') {
             for (let i = 1; i <= 3; i++) this.makeFighter(i, this.randomBotOpts('easy'));
@@ -322,10 +324,10 @@ export class Game {
         audio.setIntensity(opts.mode === 'training' ? 0 : 1);
         this.arena.setTheme(this.matchTheme, this.scene, this.hemi, this.sun);
         // the map's name, and how to win this mode
-        const goal = { quick: `First to ${this.modeDef.kos} knockouts`, duel: `First to ${this.modeDef.kos} knockouts`, brawl: `First to ${this.modeDef.kos} knockouts`,
-            online: `First to ${this.modeDef.kos} knockouts`, hill: `Hold the glowing zone · first to ${this.modeDef.hill}`, stand: '2 lives each · last one standing',
-            gauntlet: 'One life · survive the waves', training: 'Practice your moves' }[this.mode] || '';
-        this.ui.banner(this.arena.name, goal, '#bfe8ff', 2.8);
+        const firstTo = t('goal.kos', { n: this.modeDef.kos });
+        const goal = { quick: firstTo, duel: firstTo, brawl: firstTo, online: firstTo, hill: t('goal.hill', { n: this.modeDef.hill }), stand: t('goal.stand'),
+            gauntlet: t('goal.gauntlet'), training: t('goal.training') }[this.mode] || '';
+        this.ui.banner(t('map.' + this.arena.layout), goal, '#bfe8ff', 2.8);
         this.timeScale = 1;
     }
 
@@ -354,7 +356,7 @@ export class Game {
         this.waveT = 0;
         this.ui.buildTags(this);
         if (!first) {
-            this.ui.banner(`WAVE ${n}`, `${count} ${BOT_LEVELS[level].name} bot${count > 1 ? 's' : ''}`, '#ffd54a', 2);
+            this.ui.banner(t('wave.title', { n }), tn('wave.bots', count, { level: t('bot.' + level) }), '#ffd54a', 2);
             audio.play('score');
         }
     }
@@ -460,7 +462,7 @@ export class Game {
                 audio.play('shock', a === this.local ? null : a.pos, b);
                 this.shakeNear(a.pos, 6 + b * 14, 0.25 + b * 0.25);
                 if (a === this.local) this.input.rumble(0.35 + b * 0.6, 200 + b * 200);
-                if (a === this.local && b > 0.6) this.ui.banner('', 'MEGA SLAM', '#ffb43a', 0.9, true);
+                if (a === this.local && b > 0.6) this.ui.banner('', t('fx.megaSlam'), '#ffb43a', 0.9, true);
                 break;
             }
             case 'hit': {
@@ -470,8 +472,8 @@ export class Game {
                 fx.emit(b.pos.x, y, b.pos.z, e ? 22 : 12, e ? '#ffd54a' : '#fff5d8', e ? 9 : 6, e ? 0.13 : 0.1, 0.45, -12, 0.3);
                 fx.emit(b.pos.x, y, b.pos.z, 6, SKINS[b.skinId] ? SKINS[b.skinId].shirt : '#ff5555', 4, 0.12, 0.5, -16, 0.4);
                 fx.text(b.pos.x, b.pos.y + b.height + 0.4, b.pos.z, String(c), e ? '#ffcf3a' : (d === 'slam' || d === 'shock' ? '#ffa04a' : '#ffffff'), e || c >= 40);
-                if (e) fx.text(b.pos.x, b.pos.y + b.height + 1.1, b.pos.z, d === 'spearCrit' ? 'CRITICAL!' : 'CRUSHED!', col, true);
-                if (f2) { fx.bolt(b.pos.x, b.pos.y, b.pos.z); audio.play('bolt', b.pos); fx.text(b.pos.x, b.pos.y + b.height + 1.8, b.pos.z, 'LIGHTNING!', '#fff36e', true); }
+                if (e) fx.text(b.pos.x, b.pos.y + b.height + 1.1, b.pos.z, t(d === 'spearCrit' ? 'fx.critical' : 'fx.crushed'), col, true);
+                if (f2) { fx.bolt(b.pos.x, b.pos.y, b.pos.z); audio.play('bolt', b.pos); fx.text(b.pos.x, b.pos.y + b.height + 1.8, b.pos.z, t('fx.lightning'), '#fff36e', true); }
                 audio.play(e ? 'crit' : 'hit', localInvolved ? null : b.pos, Math.min(1, c / 60));
                 if (this.models[b.id]) this.models[b.id].flash();
                 if (a === this.local) { this.ui.hitmarker(e); if (e || c >= 40) this.fx.shake(e ? 9 : 6, 0.25); }
@@ -491,7 +493,7 @@ export class Game {
                 fx.ring(x, y, z, 0.3, 2.6, 0.35, '#ffffff', true, this.look.yaw);
                 fx.ring(x, y, z, 0.2, 1.6, 0.3, name === 'parry' ? '#9ff0ff' : '#fff1a8', true, this.look.yaw + 1.2);
                 fx.emit(x, y, z, 20, '#ffffff', 9, 0.09, 0.4, -8, 0);
-                fx.text(x, y + 0.6, z, name === 'parry' ? 'PARRY!' : 'CLASH!', name === 'parry' ? '#bff6ff' : '#fff1a8', true);
+                fx.text(x, y + 0.6, z, t(name === 'parry' ? 'fx.parry' : 'fx.clash'), name === 'parry' ? '#bff6ff' : '#fff1a8', true);
                 audio.play(name, localInvolved ? null : { x, y, z });
                 if (localInvolved) this.fx.shake(10, 0.3); else this.shakeNear({ x, y, z }, 6, 0.2);
                 if (this.tutorial) this.tutorial.event(name, a, b);
@@ -514,7 +516,7 @@ export class Game {
                 audio.play('land', a === this.local ? null : a.pos, Math.min(1, b / 30));
                 break;
             case 'status':
-                fx.text(a.pos.x, a.pos.y + a.height + 0.9, a.pos.z, b, c, false);
+                fx.text(a.pos.x, a.pos.y + a.height + 0.9, a.pos.z, t('fx.' + b), c, false); // b is an id: online, each player reads it in their language
                 audio.play('status', a.pos);
                 break;
             case 'dot':
@@ -525,13 +527,13 @@ export class Game {
             case 'reveal':
             case 'grow':
                 fx.emit(a.pos.x, a.pos.y + 1, a.pos.z, 16, CLASSES[a.classId].color, 4, 0.1, 0.5, 0, 0);
-                if (a === this.local && name === 'vanish') this.ui.banner('', 'INVISIBLE', '#a99bff', 0.9, true);
+                if (a === this.local && name === 'vanish') this.ui.banner('', t('fx.invisible'), '#a99bff', 0.9, true);
                 break;
             case 'blinkOut':
             case 'blinkIn':
                 fx.emit(a.pos.x, a.pos.y + 1, a.pos.z, 22, '#b05cff', 6, 0.11, 0.5, 0, 0);
                 if (name === 'blinkIn') { fx.ring(a.pos.x, a.pos.y + 1, a.pos.z, 0.2, 2.5, 0.4, '#d2a8ff', true, this.look.yaw); audio.play('blink', a.pos); }
-                if (a === this.local && name === 'blinkIn') { this.look.pitch = -0.9; this.ui.banner('', 'VOID BLINK: SLAM!', '#d2a8ff', 1, true); }
+                if (a === this.local && name === 'blinkIn') { this.look.pitch = -0.9; this.ui.banner('', t('fx.voidBlink'), '#d2a8ff', 1, true); }
                 break;
         }
         if (this.tutorial && a === this.local && TUTORIAL_MOVES.has(name)) this.tutorial.event(name, a, b);
@@ -586,6 +588,7 @@ export class Game {
         let killer = (f.lastHitBy && f.lastHitBy !== f && (this.time - f.lastHitTime < HIT.koCreditTime || f.airborneSinceHit)) ? f.lastHitBy : null;
         if (!killer && this.fighters.length === 2 && this.mode !== 'training') killer = this.fighters[f.id === 0 ? 1 : 0];
         if (killer) { killer.kos++; killer.stats.kos++; if (cause === 'void') killer.stats.voidKos++; }
+        // these words are ids too (sent online as they are); the kill feed shows them through the table
         const causeText = cause === 'void' ? 'VOID' : (cause === 'slam' || cause === 'shock') ? 'SLAM' : cause === 'swing' ? 'MACE' : cause === 'dot' ? 'BURN' : 'SPEAR';
         this.koEffects(f, killer, causeText);
         if (this.remote && this.remote.isHost) this.remote.relayKO(f, killer, causeText);
@@ -606,8 +609,8 @@ export class Game {
             f.respawnT = Infinity;
             f.out = true;
             f.outAt = this.time;
-            if (f === this.local) this.ui.banner('ELIMINATED', 'Out of lives', '#ff6b5a', 1.6);
-            else this.ui.banner('', `${f.name} is out!`, '#ffd54a', 1.2, true);
+            if (f === this.local) this.ui.banner(t('ko.eliminated'), t('ko.outOfLives'), '#ff6b5a', 1.6);
+            else this.ui.banner('', t('ko.isOut', { name: f.name }), '#ffd54a', 1.2, true);
             const left = this.fighters.filter(o => !o.out);
             if (left.length <= 1 || f === this.local) { this.endMatch(); return; }
         }
@@ -651,11 +654,11 @@ export class Game {
             // knockout streaks: several KOs close together
             this.streak = (this.time - (this.lastKoTime || -99) < 9) ? (this.streak || 1) + 1 : 1;
             this.lastKoTime = this.time;
-            const call = ['', '', 'DOUBLE KO!', 'TRIPLE KO!', 'UNSTOPPABLE!'][Math.min(4, this.streak)];
-            this.ui.banner(call || (causeText === 'VOID' ? 'VOID KNOCKOUT!' : 'KNOCKOUT!'), `${f.name}${call && causeText === 'VOID' ? ' · into the void' : ''}`, call ? '#ff9f1c' : '#ffd54a', 1.4);
+            const call = ['', '', t('ko.double'), t('ko.triple'), t('ko.unstoppable')][Math.min(4, this.streak)];
+            this.ui.banner(call || t(causeText === 'VOID' ? 'ko.voidKnockout' : 'ko.knockout'), `${f.name}${call && causeText === 'VOID' ? ' · ' + t('ko.intoVoidSub') : ''}`, call ? '#ff9f1c' : '#ffd54a', 1.4);
             if (call) audio.play('win');
         }
-        else if (f === this.local) this.ui.banner(causeText === 'VOID' ? 'INTO THE VOID' : 'KNOCKED OUT', killer ? `by ${killer.name}` : '', '#ff6b5a', 1.6);
+        else if (f === this.local) this.ui.banner(t(causeText === 'VOID' ? 'ko.intoVoid' : 'ko.knockedOut'), killer ? t('ko.by', { name: killer.name }) : '', '#ff6b5a', 1.6);
         if (this.tutorial) this.tutorial.event('ko', killer, f);
     }
 
@@ -680,7 +683,7 @@ export class Game {
             f.deaths--; f.stats.deaths--;
         }
         this.respawn(f);
-        this.ui.banner('REVIVED!', 'Full health', '#6dffb0', 1.4);
+        this.ui.banner(t('ko.revived'), t('ko.fullHealth'), '#6dffb0', 1.4);
     }
 
     respawn(f) {
@@ -758,7 +761,7 @@ export class Game {
         if (owner && !guest) {
             const before = Math.floor(owner.hill);
             owner.hill += dt;
-            if (Math.floor(owner.hill) !== before && owner === this.local && Math.floor(owner.hill) % 10 === 0) this.ui.banner('', `${Math.floor(owner.hill)} POINTS`, '#ffd54a', 0.8, true);
+            if (Math.floor(owner.hill) !== before && owner === this.local && Math.floor(owner.hill) % 10 === 0) this.ui.banner('', t('ko.points', { n: Math.floor(owner.hill) }), '#ffd54a', 0.8, true);
             if (owner.hill >= this.modeDef.hill) return this.endMatch();
         }
         if (!guest && this.suddenDeath && !this.tied()) this.endMatch();
@@ -813,7 +816,7 @@ export class Game {
         this.endT = this.settings.reducedMotion ? 0.8 : 1.6;
         this.timeScale = this.settings.reducedMotion ? 1 : 0.25;
         this.ui.offerRevive(false);
-        this.ui.banner(results.win ? 'VICTORY!' : 'DEFEAT', results.win ? 'You win the match' : `${results.ranked[0].name} wins`, results.win ? '#ffd54a' : '#ff6b5a', 2);
+        this.ui.banner(t(results.win ? 'res.victory' : 'res.defeat'), results.win ? t('match.youWin') : t('match.wins', { name: results.ranked[0].name }), results.win ? '#ffd54a' : '#ff6b5a', 2);
     }
 
     gauntletOver() {
@@ -876,7 +879,7 @@ export class Game {
             }
             if (this.introT <= 0) {
                 this.state = 'play';
-                if (this.mode !== 'training') { this.ui.countdown('GO!'); audio.play('go'); }
+                if (this.mode !== 'training') { this.ui.countdown(t('fx.go')); audio.play('go'); }
             }
         }
 
@@ -963,7 +966,7 @@ export class Game {
             if (!this.suddenDeath && this.matchT >= def.time) {
                 if (this.tied()) {
                     this.suddenDeath = true;
-                    this.ui.banner(this.mode === 'hill' ? 'OVERTIME' : 'SUDDEN DEATH', this.mode === 'hill' ? 'Next point wins' : 'Next knockout wins', '#ff6b5a', 2);
+                    this.ui.banner(t(this.mode === 'hill' ? 'timer.overtime' : 'timer.suddenDeath'), t(this.mode === 'hill' ? 'match.nextPoint' : 'match.nextKo'), '#ff6b5a', 2);
                 } else this.endMatch();
             }
         }

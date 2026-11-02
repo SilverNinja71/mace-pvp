@@ -63,6 +63,7 @@ copy. `tools/build-portals.py` makes the upload zips for CrazyGames, Poki and it
 | `bot.js` | Bot AI: jump pads, aimed dashes, geyser climbs, slam dodging, parries, getting back from the void |
 | `game.js` | The fixed 120 Hz loop with interpolation, modes, knockouts, respawns, the camera, effects and sounds for each event |
 | `ui.js`, `tutorial.js`, `missions.js` | Menus, HUD, results, the tutorial, daily missions |
+| `i18n.js` | Every word the player sees, in English, Spanish, Brazilian Portuguese, French, German, Russian, Turkish, Polish and Indonesian. `node tools/check-i18n.mjs` checks that every language has every key |
 | `character.js` | Low-poly fighters with pixel faces, the procedural spear and mace, first-person arms |
 | `fx.js`, `audio.js`, `camera.js`, `input.js` | Effects, procedural sound and music, cameras, keyboard/mouse/gamepad/touch |
 | `profile.js` | The shared `spear_mace_user_profile` save (same gold, XP and stats as the 2D game) |

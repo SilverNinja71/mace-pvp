@@ -99,7 +99,7 @@ class Profile {
             const before = p.level;
             p.level = next; p.gold += ups * 200;
             // classes this level-up unlocked, for the results screen
-            this.newClasses = Object.keys(CLASS_LEVEL).filter(id => CLASS_LEVEL[id] > before && CLASS_LEVEL[id] <= next).map(id => CLASSES[id].name);
+            this.newClasses = Object.keys(CLASS_LEVEL).filter(id => CLASS_LEVEL[id] > before && CLASS_LEVEL[id] <= next);
         }
         return ups;
     }

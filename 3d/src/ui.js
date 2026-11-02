@@ -12,12 +12,13 @@ import { crazyGames } from './crazygames.js';
 import { Tutorial } from './tutorial.js';
 import { missions } from './missions.js';
 import { ACHIEVEMENTS, achievements } from './achievements.js';
+import { t, tn, keyHtml, applyDom, LANGS, getLang, setSavedLang } from './i18n.js';
 
 // Skin prices in gold, the same as the 2D game's shop
 const SKIN_COST = { steve: 0, alex: 0, noob: 200, man_face: 400, creeper: 500, enderman: 600, skeleton: 500, zombie: 400, diamond_knight: 800 };
 
 const $ = (id) => document.getElementById(id);
-const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 export class UI {
     constructor() {
@@ -65,7 +66,7 @@ export class UI {
                 const connected = r && r.peer && (r.isHost || (r.hostConn && r.hostConn.open));
                 g.quitToMenu(connected);
                 if (r) {
-                    if (!connected) { $('room-info').classList.add('hidden'); $('online-status').textContent = 'The room closed. Make a new room, or join a friend\'s.'; }
+                    if (!connected) { $('room-info').classList.add('hidden'); this.onlineStatus('online.roomClosed'); }
                     this.openPanel('online');
                 }
                 return;
@@ -79,12 +80,12 @@ export class UI {
             const r = this.lastReward;
             if (!r || r.doubled) return;
             crazyGames.showAd('rewarded').then((ok) => {
-                if (!ok) { this.toast("The ad couldn't play this time."); return; }
+                if (!ok) { this.toast(t('toast.adFailed')); return; }
                 r.doubled = true;
                 profile.data.gold += r.gold;
                 profile.save();
                 $('res-double').classList.add('hidden');
-                this.toast(`+${r.gold} bonus gold!`);
+                this.toast(t('toast.bonusGold', { n: r.gold }));
                 this.refreshProfile();
             });
         });
@@ -136,7 +137,13 @@ export class UI {
         const g = this.game;
         if (g.mode === 'gauntlet') {
             const r = g.finishGauntlet();
-            if (r) this.toast(`+${r.gold} gold · +${r.xp} XP${r.best ? ' · new best!' : ''}${r.missions && r.missions.length ? ` · mission done: +${r.missions[0].gold} gold` : ''}${r.ach && r.ach.length ? ` · 🏅 ${r.ach.map(a => a.name).join(', ')}` : ''}`);
+            if (r) {
+                const parts = [t('res.gold', { n: r.gold }), t('res.xp', { n: r.xp })];
+                if (r.best) parts.push(t('toast.newBest'));
+                if (r.missions && r.missions.length) parts.push(t('toast.missionDone', { n: r.missions[0].gold }));
+                if (r.ach && r.ach.length) parts.push('🏅 ' + r.ach.map(a => t('ach.' + a.id + '.name')).join(', '));
+                this.toast(parts.join(' · '));
+            }
         }
         $('results').classList.add('hidden');
         crazyGames.showAd('midgame').then(() => next());
@@ -145,7 +152,7 @@ export class UI {
     watchRevive() {
         crazyGames.showAd('rewarded').then((ok) => {
             if (ok) this.game.revive();
-            else this.toast("The ad couldn't play, so no revive this time.");
+            else this.toast(t('toast.adNoRevive'));
         });
     }
 
@@ -153,57 +160,70 @@ export class UI {
     bindOnline(room) {
         this.room = room;
         const g = this.game;
-        const status = (t) => { $('online-status').textContent = t || ''; };
+        const status = (key, vars) => this.onlineStatus(key, vars);
         room.onStatus = status;
         room.onLobby = (list, isHost) => {
             $('room-info').classList.remove('hidden');
             $('room-code').textContent = room.code;
             $('room-link').value = room.inviteLink();
-            $('room-players').innerHTML = list.map((n, i) => `${i === 0 ? '👑 ' : ''}${esc(n)}`).join(' · ') + (list.length < 2 ? ' — waiting for a friend…' : '');
+            this.lobbyList = list;
+            this.renderRoomPlayers();
             $('btn-room-start').classList.toggle('hidden', !isHost);
             $('room-mode').classList.toggle('hidden', !isHost);
             $('btn-room-start').disabled = list.length < 2;
-            if (!isHost) status('Connected! Waiting for the host to start the match.');
+            if (!isHost) status('online.connected');
         };
         room.onClosed = (reason, wasPlaying) => {
             if (wasPlaying && g.state !== 'menu' && g.state !== 'over') { g.quitToMenu(); }
             $('room-info').classList.add('hidden');
-            if (reason) { this.toast(reason); status(reason); }
+            if (reason) { this.toast(t(reason)); status(reason); }
         };
         $('btn-host').addEventListener('click', () => {
             audio.unlock(); audio.play('click');
-            status('Making a room…');
+            status('online.making');
             room.host((code) => {
-                status('Room ready! Send your friend the link or the code.');
+                status('online.ready');
                 crazyGames.showInvite(code);
             });
         });
         const join = () => {
             const code = $('room-input').value.trim().toUpperCase();
-            if (code.length < 4) { status('Type the room code your friend sent you.'); return; }
-            status('Joining ' + code + '…');
-            room.join(code, () => status('Connected! Waiting for the host to start the match.'));
+            if (code.length < 4) { status('online.typeCode'); return; }
+            status('online.joining', { code });
+            room.join(code, () => status('online.connected'));
         };
         $('btn-join').addEventListener('click', () => { audio.unlock(); audio.play('click'); join(); });
         $('room-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') join(); });
         $('btn-copy').addEventListener('click', () => {
-            const t = $('room-link');
-            t.select();
-            const done = () => this.toast('Invite link copied!');
-            if (navigator.clipboard) navigator.clipboard.writeText(t.value).then(done, () => { document.execCommand('copy'); done(); });
+            const link = $('room-link');
+            link.select();
+            const done = () => this.toast(t('online.copied'));
+            if (navigator.clipboard) navigator.clipboard.writeText(link.value).then(done, () => { document.execCommand('copy'); done(); });
             else { document.execCommand('copy'); done(); }
         });
         this.roomMode = 'ko';
         this.seg($('room-mode'), 'v', (v) => { this.roomMode = v; });
-        $('btn-room-start').addEventListener('click', () => { audio.play('click'); if (!room.startMatch(this.roomMode)) status('Wait for a friend to join first.'); });
-        $('online-back').addEventListener('click', () => { if (!room.inMatch) { room.leave(true); $('room-info').classList.add('hidden'); status(''); } });
+        $('btn-room-start').addEventListener('click', () => { audio.play('click'); if (!room.startMatch(this.roomMode)) status('online.waitFriend'); });
+        $('online-back').addEventListener('click', () => { if (!room.inMatch) { room.leave(true); $('room-info').classList.add('hidden'); this.lobbyList = null; status(null); } });
+    }
+
+    // The message under the room buttons: kept as a key so it can follow a language change
+    onlineStatus(key, vars) {
+        this.statusMsg = key ? { key, vars } : null;
+        $('online-status').textContent = key ? t(key, vars) : '';
+    }
+
+    renderRoomPlayers() {
+        const list = this.lobbyList;
+        if (!list) return;
+        $('room-players').innerHTML = list.map((n, i) => `${i === 0 ? '👑 ' : ''}${esc(n)}`).join(' · ') + (list.length < 2 ? ' — ' + esc(t('online.waiting')) : '');
     }
 
     joinFromLink(code) {
         this.openPanel('online');
         $('room-input').value = code;
-        $('online-status').textContent = 'Joining ' + code + '…';
-        this.room.join(code, () => { $('online-status').textContent = 'Connected! Waiting for the host to start the match.'; });
+        this.onlineStatus('online.joining', { code });
+        this.room.join(code, () => this.onlineStatus('online.connected'));
     }
 
     // ---------------- panels ----------------
@@ -212,7 +232,7 @@ export class UI {
         if (!el) return;
         if (name === 'fighter') this.renderFighter();
         if (name === 'settings') this.renderSettings();
-        if (name === 'modes') $('gauntlet-best').textContent = profile.data.arena3d.gauntletBest || 0;
+        if (name === 'modes') this.renderGauntletBest();
         el.classList.remove('hidden');
         this.panelStack.push(el);
     }
@@ -223,6 +243,11 @@ export class UI {
     }
     closeAllPanels() {
         while (this.panelStack.length) this.panelStack.pop().classList.add('hidden');
+    }
+
+    renderGauntletBest() {
+        const n = profile.data.arena3d.gauntletBest || 0;
+        $('gauntlet-best').innerHTML = tn('modes.best', n, { n: `<b>${n}</b>` });
     }
 
     showMenu() {
@@ -242,24 +267,23 @@ export class UI {
         const p = profile.data;
         if (this.game && this.game.state === 'menu' && (!this.game.showcase || this.shownSkin !== p.skinId)) { this.shownSkin = p.skinId; this.game.refreshShowcase(); }
         $('pc-name').textContent = p.username || 'Fighter';
-        $('pc-level').textContent = 'Lv ' + p.level;
+        $('pc-level').textContent = t('profile.level', { n: p.level });
         $('pc-xp').style.width = (profile.levelProgress() * 100).toFixed(0) + '%';
         $('pc-gold').textContent = p.gold;
-        $('pc-wins').textContent = p.stats.wins;
+        $('pc-wins').innerHTML = tn('profile.wins', p.stats.wins, { n: `<b>${p.stats.wins}</b>` });
         const rp = p.arenaRP || 0;
-        const tier = rp >= 2000 ? 'Obsidian' : rp >= 1500 ? 'Diamond' : rp >= 1000 ? 'Gold' : rp >= 500 ? 'Silver' : 'Bronze';
-        $('pc-rp').textContent = `${rp} (${tier})`;
-        const c = CLASSES[profile.classId];
-        $('pc-class').textContent = `${c.name} · ${(SKINS[p.skinId] || SKINS.steve).name}`;
-        $('missions-card').innerHTML = '<h5>DAILY MISSIONS</h5>' + missions.list().map(m =>
-            `<div class="mi${m.done ? ' done' : ''}"><span>${m.done ? '✓ ' : ''}${esc(m.text)}</span><b>${m.done ? 'done' : `${m.progress}/${m.goal} · 🪙${m.gold}`}</b></div>`).join('');
+        const tier = rp >= 2000 ? 'obsidian' : rp >= 1500 ? 'diamond' : rp >= 1000 ? 'gold' : rp >= 500 ? 'silver' : 'bronze';
+        $('pc-rp').textContent = `${rp} (${t('tier.' + tier)})`;
+        $('pc-class').textContent = `${t('class.' + profile.classId + '.name')} · ${(SKINS[p.skinId] || SKINS.steve).name}`;
+        $('missions-card').innerHTML = `<h5>${esc(t('missions.title'))}</h5>` + missions.list().map(m =>
+            `<div class="mi${m.done ? ' done' : ''}"><span>${m.done ? '✓ ' : ''}${esc(t('mission.' + m.id))}</span><b>${m.done ? esc(t('missions.done')) : `${m.progress}/${m.goal} · 🪙${m.gold}`}</b></div>`).join('');
     }
 
     bindFighter() {
         $('name-save').addEventListener('click', () => {
             const ok = profile.setName($('name-input').value);
-            $('name-msg').textContent = ok ? 'Saved!' : (window.GameAccounts && window.GameAccounts.current && window.GameAccounts.current()
-                ? 'Your name is your account name.' : '2-16 letters, numbers, spaces or _.');
+            $('name-msg').textContent = t(ok ? 'fighter.saved' : (window.GameAccounts && window.GameAccounts.current && window.GameAccounts.current()
+                ? 'fighter.nameAccount' : 'fighter.nameRule'));
             this.refreshProfile();
         });
     }
@@ -270,18 +294,20 @@ export class UI {
         cl.innerHTML = '';
         for (const id in CLASSES) {
             const c = CLASSES[id];
+            const className = t('class.' + id + '.name');
+            const classDesc = t('class.' + id + '.desc');
             const b = document.createElement('button');
             const open = profile.classUnlocked(id);
             b.className = 'pick' + (profile.classId === id ? ' on' : '') + (open ? '' : ' locked');
-            b.innerHTML = `<i style="background:${c.color}"></i>${esc(c.name)}${open ? '' : ` <small>🔒 Lv ${CLASS_LEVEL[id]}</small>`}`;
+            b.innerHTML = `<i style="background:${c.color}"></i>${esc(className)}${open ? '' : ` <small>🔒 ${esc(t('profile.level', { n: CLASS_LEVEL[id] }))}</small>`}`;
             b.addEventListener('click', () => {
-                if (!open) { this.toast(`${c.name} unlocks at level ${CLASS_LEVEL[id]}. Play matches to level up!`); return; }
+                if (!open) { this.toast(t('fighter.classLocked', { name: className, n: CLASS_LEVEL[id] })); return; }
                 profile.setClass(id); audio.play('click'); this.renderFighter();
             });
-            b.addEventListener('mouseenter', () => { $('class-desc').textContent = c.desc + (open ? '' : ` (Unlocks at level ${CLASS_LEVEL[id]}.)`); });
+            b.addEventListener('mouseenter', () => { $('class-desc').textContent = classDesc + (open ? '' : ' ' + t('fighter.unlocksAt', { n: CLASS_LEVEL[id] })); });
             cl.appendChild(b);
         }
-        $('class-desc').textContent = CLASSES[profile.classId].desc;
+        $('class-desc').textContent = t('class.' + profile.classId + '.desc');
         const sl = $('skin-list');
         sl.innerHTML = '';
         for (const id in SKINS) {
@@ -293,10 +319,10 @@ export class UI {
             b.addEventListener('click', () => {
                 if (!owned) {
                     const cost = SKIN_COST[id] || 0;
-                    if (p.gold < cost) { this.toast(`You need ${cost} gold. Win matches to earn more!`); return; }
+                    if (p.gold < cost) { this.toast(t('fighter.needGold', { n: cost })); return; }
                     p.gold -= cost;
                     p.unlockedSkins.push(id);
-                    this.toast(`Unlocked ${s.name}!`);
+                    this.toast(t('fighter.unlockedSkin', { name: s.name }));
                 }
                 profile.setSkin(id);
                 audio.play('click');
@@ -309,14 +335,15 @@ export class UI {
         gl.innerHTML = '';
         for (const id in GLOWS) {
             const G = GLOWS[id];
+            const glowName = t('glow.' + id);
             const owned = profile.glows.includes(id);
             const b = document.createElement('button');
             b.className = 'pick' + (profile.glowId === id ? ' on' : '') + (owned ? '' : ' locked');
-            b.innerHTML = `<i style="background:#${G.tip.toString(16).padStart(6, '0')};box-shadow:0 0 6px #${G.halo.toString(16).padStart(6, '0')}"></i>${esc(G.name)}${owned ? '' : ` <small>🪙${G.cost}</small>`}`;
+            b.innerHTML = `<i style="background:#${G.tip.toString(16).padStart(6, '0')};box-shadow:0 0 6px #${G.halo.toString(16).padStart(6, '0')}"></i>${esc(glowName)}${owned ? '' : ` <small>🪙${G.cost}</small>`}`;
             b.addEventListener('click', () => {
                 if (!owned) {
-                    if (!profile.buyGlow(id, G.cost)) { this.toast(`You need ${G.cost} gold. Win matches to earn more!`); return; }
-                    this.toast(`Unlocked the ${G.name} glow!`);
+                    if (!profile.buyGlow(id, G.cost)) { this.toast(t('fighter.needGold', { n: G.cost })); return; }
+                    this.toast(t('fighter.unlockedGlow', { name: glowName }));
                 } else profile.setGlow(id);
                 audio.play('click');
                 this.renderFighter();
@@ -328,13 +355,22 @@ export class UI {
         const al = $('ach-list');
         const earned = ACHIEVEMENTS.filter(a => achievements.has(a.id)).length;
         $('ach-count').textContent = `${earned} / ${ACHIEVEMENTS.length}`;
-        al.innerHTML = ACHIEVEMENTS.map(a => `<div class="ach-row${achievements.has(a.id) ? ' got' : ''}"><b>${achievements.has(a.id) ? '🏅' : '🔒'} ${esc(a.name)}</b><span>${esc(a.desc)} · 🪙${a.gold}</span></div>`).join('');
+        al.innerHTML = ACHIEVEMENTS.map(a => `<div class="ach-row${achievements.has(a.id) ? ' got' : ''}"><b>${achievements.has(a.id) ? '🏅' : '🔒'} ${esc(t('ach.' + a.id + '.name'))}</b><span>${esc(t('ach.' + a.id + '.desc'))} · 🪙${a.gold}</span></div>`).join('');
         $('name-input').value = p.username || '';
         $('name-msg').textContent = '';
     }
 
     bindSettings() {
         const g = this.game;
+        const lang = $('set-lang');
+        lang.innerHTML = LANGS.map(L => `<option value="${L.id}">${esc(L.name)}</option>`).join('');
+        lang.addEventListener('change', () => {
+            audio.play('click');
+            g.setSetting('lang', lang.value);
+            setSavedLang(lang.value);
+            lang.blur(); // so game keys can't change the language later
+            this.applyLanguage();
+        });
         $('set-sound').addEventListener('change', (e) => g.setSetting('sound', e.target.checked));
         $('set-music').addEventListener('change', (e) => g.setSetting('music', e.target.checked));
         for (const [id, key] of [['set-vol-master', 'volMaster'], ['set-vol-sfx', 'volSfx'], ['set-vol-music', 'volMusic']]) {
@@ -348,12 +384,13 @@ export class UI {
         this.seg($('set-view'), 'v', (v) => { g.setSetting('view', v); g.rig.mode = v; });
         this.seg($('set-quality'), 'v', (v) => {
             g.setSetting('quality', v);
-            $('quality-note').textContent = 'Graphics changes take effect the next time the game loads.';
+            $('quality-note').textContent = t('set.qualityNext');
         });
     }
 
     renderSettings() {
         const s = this.game.settings;
+        $('set-lang').value = getLang();
         $('set-sound').checked = s.sound;
         $('set-music').checked = s.music !== false;
         for (const [id, key] of [['set-vol-master', 'volMaster'], ['set-vol-sfx', 'volSfx'], ['set-vol-music', 'volMusic']]) {
@@ -365,7 +402,27 @@ export class UI {
         $('set-reduced').checked = s.reducedMotion;
         this.setSeg($('set-view'), 'v', this.game.rig.mode);
         this.setSeg($('set-quality'), 'v', s.quality);
-        $('quality-note').textContent = s.quality === 'auto' ? `Auto adjusts the resolution to keep the game smooth (now ${this.game.qualityName}).` : '';
+        $('quality-note').textContent = s.quality === 'auto' ? t('set.qualityAuto', { q: t('qualityNow.' + this.game.qualityName) }) : '';
+    }
+
+    // Everything on screen in the new language. Banners and toasts already showing, and the
+    // training dummy's name, wait for the next one.
+    applyLanguage() {
+        applyDom();
+        this.refreshProfile();
+        const open = (id) => !$(id).classList.contains('hidden');
+        if (open('panel-fighter')) this.renderFighter();
+        if (open('panel-settings')) this.renderSettings();
+        if (open('panel-modes')) this.renderGauntletBest();
+        if (this.statusMsg) this.onlineStatus(this.statusMsg.key, this.statusMsg.vars);
+        this.renderRoomPlayers();
+        const g = this.game;
+        if (g && g.local) {
+            this.cache = {}; // the HUD writes everything again on its next frame
+            this.buildTags(g);
+            if (this.hintsT > 0) this.renderHints();
+            if (g.tutorial) g.tutorial.showText(true);
+        }
     }
 
     // ---------------- match lifecycle ----------------
@@ -384,12 +441,15 @@ export class UI {
         this.hintsT = (!profile.tutorialDone && g.mode !== 'training') ? 28 : 0;
         const h = $('ctl-hints');
         if (this.hintsT) {
-            h.innerHTML = g.input.usingTouch
-                ? 'Left thumb: move · Right side: look<br>JUMP twice in the air · SPEAR dashes where you look<br>MACE in the air slams down: higher = harder'
-                : '<kbd>WASD</kbd> move · <kbd>Mouse</kbd> look<br><kbd>Space</kbd> jump, again in the air<br><kbd>L-Click</kbd> spear dash where you look<br><kbd>R-Click</kbd>/<kbd>Shift</kbd> in the air: mace slam<br><kbd>F</kbd> parry · <kbd>V</kbd> camera';
+            this.renderHints();
             h.classList.remove('hidden', 'fade');
         } else h.classList.add('hidden');
         this.speedLines(0);
+    }
+
+    renderHints() {
+        const lines = this.game.input.usingTouch ? ['touch1', 'touch2', 'touch3'] : ['keys1', 'keys2', 'keys3', 'keys4', 'keys5'];
+        $('ctl-hints').innerHTML = lines.map(k => keyHtml(t('hints.' + k))).join('<br>');
     }
 
     // Name tags over everyone else (rebuilt when Gauntlet brings new bots)
@@ -400,7 +460,7 @@ export class UI {
             if (f === g.local) return null;
             const el = document.createElement('div');
             el.className = 'tag';
-            el.innerHTML = `<div class="tn" style="color:${TEAM_COLORS[f.id % 4]}">${esc(f.name)}${f.botLevel && f.botLevel !== 'dummy' ? ` <small>${BOT_LEVELS[f.botLevel].name}</small>` : ''}</div><div class="tb"><i></i></div>`;
+            el.innerHTML = `<div class="tn" style="color:${TEAM_COLORS[f.id % 4]}">${esc(f.name)}${f.botLevel && f.botLevel !== 'dummy' ? ` <small>${esc(t('bot.' + f.botLevel))}</small>` : ''}</div><div class="tb"><i></i></div>`;
             tags.appendChild(el);
             return { el, bar: el.querySelector('i'), name: el.querySelector('.tn'), hp: -1, vis: true, f };
         });
@@ -423,34 +483,34 @@ export class UI {
         $('touch').classList.add('hidden');
         $('click-to-play').classList.add('hidden');
         this.speedLines(0);
-        const t = $('res-title');
+        const title = $('res-title');
         const rv = $('res-revive');
         if (d.gauntlet) {
-            t.textContent = 'RUN OVER';
-            t.className = 'lose';
-            $('res-sub').textContent = `You cleared ${d.waves} wave${d.waves === 1 ? '' : 's'}. Best: ${Math.max(d.best, d.waves)}.`;
+            title.textContent = t('res.runOver');
+            title.className = 'lose';
+            $('res-sub').textContent = tn('res.cleared', d.waves, { best: Math.max(d.best, d.waves) });
             $('res-table').innerHTML = this.statTable([d.local]);
-            $('res-rewards').innerHTML = `<span>🪙 +${d.waves * 25} gold</span><span>✦ +${d.waves * 30 + 10} XP</span>`;
+            $('res-rewards').innerHTML = `<span>🪙 ${esc(t('res.gold', { n: d.waves * 25 }))}</span><span>✦ ${esc(t('res.xp', { n: d.waves * 30 + 10 }))}</span>`;
             rv.classList.toggle('hidden', !d.canRevive);
             $('res-double').classList.add('hidden');
             $('res-train').classList.add('hidden');
         } else {
-            t.textContent = d.win ? 'VICTORY!' : 'DEFEAT';
-            t.className = d.win ? 'win' : 'lose';
-            $('res-sub').textContent = d.mode === 'training' ? '' : `${g.modeDef.name}${d.level && !g.remote ? ' · ' + (BOT_LEVELS[d.level] ? BOT_LEVELS[d.level].name : '') : ''}`;
+            title.textContent = t(d.win ? 'res.victory' : 'res.defeat');
+            title.className = d.win ? 'win' : 'lose';
+            $('res-sub').textContent = d.mode === 'training' ? '' : `${t('mode.' + g.mode)}${d.level && !g.remote ? ' · ' + (BOT_LEVELS[d.level] ? t('bot.' + d.level) : '') : ''}`;
             $('res-table').innerHTML = this.statTable(d.ranked) + this.highlight(d.local);
             const r = d.reward;
             this.lastReward = r;
             $('res-double').classList.toggle('hidden', !(r && r.gold > 0 && crazyGames.adsAvailable));
-            $('res-rewards').innerHTML = r ? `<span>🪙 +${r.gold} gold</span><span>✦ +${r.xp} XP</span>${r.rp ? `<span>⚔ ${r.rp > 0 ? '+' : ''}${r.rp} RP</span>` : ''}${r.levelUps ? `<span>⬆ Level ${profile.data.level}! +${r.levelUps * 200} gold</span>` : ''}` : '';
+            $('res-rewards').innerHTML = r ? `<span>🪙 ${esc(t('res.gold', { n: r.gold }))}</span><span>✦ ${esc(t('res.xp', { n: r.xp }))}</span>${r.rp ? `<span>⚔ ${r.rp > 0 ? '+' : ''}${r.rp} RP</span>` : ''}${r.levelUps ? `<span>⬆ ${esc(t('res.levelUp', { level: profile.data.level, n: r.levelUps * 200 }))}</span>` : ''}` : '';
             if (r && r.levelUps && profile.newClasses && profile.newClasses.length) {
-                $('res-rewards').innerHTML += `<span>🔓 New class: ${profile.newClasses.map(esc).join(', ')}</span>`;
+                $('res-rewards').innerHTML += `<span>🔓 ${esc(t('res.newClass', { names: profile.newClasses.map(id => t('class.' + id + '.name')).join(', ') }))}</span>`;
                 profile.newClasses = null;
             }
             $('res-train').classList.toggle('hidden', profile.tutorialDone || g.mode === 'training' || !!g.remote);
             rv.classList.add('hidden');
-            for (const m of d.missions || []) $('res-rewards').innerHTML += `<span>✓ Mission: ${esc(m.text)} +${m.gold} gold</span>`;
-            for (const a of d.ach || []) $('res-rewards').innerHTML += `<span class="ach">🏅 ${esc(a.name)}: ${esc(a.desc)} +${a.gold} gold</span>`;
+            for (const m of d.missions || []) $('res-rewards').innerHTML += `<span>✓ ${esc(t('res.mission', { text: t('mission.' + m.id), n: m.gold }))}</span>`;
+            for (const a of d.ach || []) $('res-rewards').innerHTML += `<span class="ach">🏅 ${esc(t('res.achLine', { name: t('ach.' + a.id + '.name'), desc: t('ach.' + a.id + '.desc'), n: a.gold }))}</span>`;
             if ((d.ach || []).length) audio.play('score');
         }
         $('results').classList.remove('hidden');
@@ -463,18 +523,19 @@ export class UI {
     highlight(me) {
         const s = me.stats;
         let text = '';
-        if (s.maxSlamDamage >= 60) text = `💥 Biggest slam: ${Math.round(s.maxSlamDamage)} damage`;
-        else if (s.kos >= 2) text = `⚔ ${s.kos} knockouts`;
-        else if (s.crits >= 2) text = `🎯 ${s.crits} critical spear hits`;
-        else if (s.parries >= 2) text = `🛡 ${s.parries} parries`;
-        else if (s.damageDealt >= 100) text = `🔥 ${Math.round(s.damageDealt)} damage dealt`;
-        return text ? `<div class="highlight">${text}</div>` : '';
+        if (s.maxSlamDamage >= 60) text = '💥 ' + t('hl.slam', { n: Math.round(s.maxSlamDamage) });
+        else if (s.kos >= 2) text = '⚔ ' + t('hl.kos', { n: s.kos });
+        else if (s.crits >= 2) text = '🎯 ' + t('hl.crits', { n: s.crits });
+        else if (s.parries >= 2) text = '🛡 ' + t('hl.parries', { n: s.parries });
+        else if (s.damageDealt >= 100) text = '🔥 ' + t('hl.damage', { n: Math.round(s.damageDealt) });
+        return text ? `<div class="highlight">${esc(text)}</div>` : '';
     }
 
     statTable(list) {
         const g = this.game;
         const hill = g.mode === 'hill';
-        let h = `<table class="scores"><tr><th>Fighter</th>${hill ? '<th>Hill</th>' : ''}<th>KOs</th><th>Falls</th><th>Damage</th><th>Slams</th><th>Spear hits</th><th>Best slam</th></tr>`;
+        const th = (k) => `<th>${esc(t('th.' + k))}</th>`;
+        let h = `<table class="scores"><tr>${th('fighter')}${hill ? th('hill') : ''}${th('kos')}${th('falls')}${th('damage')}${th('slams')}${th('spear')}${th('bestSlam')}</tr>`;
         list.forEach((f, rank) => {
             const medal = list.length > 1 ? ['🥇', '🥈', '🥉'][rank] || '' : '';
             h += `<tr class="${f === g.local ? 'me' : ''}${rank === 0 && list.length > 1 ? ' first' : ''}"><td>${medal ? `<span class="medal">${medal}</span>` : ''}<span class="swatch" style="background:${TEAM_COLORS[f.id % 4]}"></span>${esc(f.name)}</td>${hill ? `<td>${Math.floor(f.hill || 0)}</td>` : ''}<td>${f.kos}</td><td>${f.deaths}</td><td>${Math.round(f.stats.damageDealt)}</td><td>${f.stats.slamsLanded}</td><td>${f.stats.dashesLanded}</td><td>${Math.round(f.stats.maxSlamDamage)}</td></tr>`;
@@ -510,7 +571,7 @@ export class UI {
         const g = this.game;
         el.className = 'kf' + (killer === g.local || victim === g.local ? ' mine' : '');
         const name = (f) => `<b style="color:${TEAM_COLORS[f.id % 4]}">${esc(f.name)}</b>`;
-        el.innerHTML = killer ? `${name(killer)}<span class="kc">${cause}</span>${name(victim)}` : `${name(victim)}<span class="kc">fell into the void</span>`;
+        el.innerHTML = killer ? `${name(killer)}<span class="kc">${esc(t('cause.' + String(cause).toLowerCase()))}</span>${name(victim)}` : `${name(victim)}<span class="kc">${esc(t('kf.fell'))}</span>`;
         kf.prepend(el);
         while (kf.children.length > 4) kf.lastChild.remove();
         setTimeout(() => el.remove(), 6000);
@@ -547,23 +608,23 @@ export class UI {
     }
 
     toast(text) {
-        const t = $('toast');
-        t.textContent = text;
-        t.classList.add('show');
+        const el = $('toast');
+        el.textContent = text;
+        el.classList.add('show');
         clearTimeout(this.toastTimer);
-        this.toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+        this.toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
     }
 
-    tutorialStep(i, n, title, keys, text) {
-        const t = $('tutorial');
-        t.classList.remove('hidden', 'pop');
-        void t.offsetWidth;
-        t.classList.add('pop');
-        $('tu-count').textContent = `Step ${i + 1} of ${n}`;
+    tutorialStep(i, n, title, keys, text, quiet = false) {
+        const card = $('tutorial');
+        card.classList.remove('hidden', 'pop');
+        void card.offsetWidth;
+        card.classList.add('pop');
+        $('tu-count').textContent = t('tu.step', { i: i + 1, n });
         $('tu-title').textContent = title;
         $('tu-keys').textContent = keys;
         $('tu-text').textContent = text;
-        if (i > 0) audio.play('score');
+        if (i > 0 && !quiet) audio.play('score');
     }
 
     tutorialDone() {
@@ -603,7 +664,7 @@ export class UI {
         const scheme = touch ? 'touch' : g.input.usingPad ? 'pad' : 'keys';
         if (this.cache.scheme !== scheme) {
             this.cache.scheme = scheme;
-            const L = { keys: ['LMB', 'RMB', 'F', 'SPC'], pad: ['RT', 'LT', 'LB', 'A'], touch: ['', '', '', ''] }[scheme];
+            const L = { keys: [t('key.lmb'), t('key.rmb'), 'F', t('key.spc')], pad: ['RT', 'LT', 'LB', 'A'], touch: ['', '', '', ''] }[scheme];
             ['ab-spear', 'ab-mace', 'ab-parry', 'ab-jump'].forEach((id, i) => { $(id).querySelector('.ab-key').textContent = L[i]; });
         }
 
@@ -615,18 +676,18 @@ export class UI {
         this.set('hpt', $('hp-text'), 'text', String(hp));
         this.set('hpl', $('hp-fill'), 'class:low', me.hp < me.maxHp * 0.3);
         this.set('hpn', $('hp-name'), 'text', me.name);
-        let cls = CLASSES[me.classId].name;
-        if (me.classId === 'shadow') cls += me.invisible ? ` · hidden ${Math.ceil(me.invisT)}s` : ` · vanish in ${Math.ceil(CLASSES.shadow.visibleTime - me.visibleT)}s`;
-        else if (me.classId === 'void') cls += ` · blink in ${Math.max(0, Math.ceil(me.voidT))}s`;
-        else if (me.classId === 'buddha') cls += me.big ? ' · BIG (B)' : ' · B to grow';
+        let cls = t('class.' + me.classId + '.name');
+        if (me.classId === 'shadow') cls += ' · ' + (me.invisible ? t('hud.hidden', { n: Math.ceil(me.invisT) }) : t('hud.vanishIn', { n: Math.ceil(CLASSES.shadow.visibleTime - me.visibleT) }));
+        else if (me.classId === 'void') cls += ' · ' + t('hud.blinkIn', { n: Math.max(0, Math.ceil(me.voidT)) });
+        else if (me.classId === 'buddha') cls += ' · ' + t(me.big ? 'hud.big' : 'hud.growHint');
         this.set('hpc', $('hp-class'), 'text', cls);
         let st = '';
-        if (me.slowT > 0) st += '<span style="color:#5aa0ff">SLOW</span>';
-        if (me.poisonT > 0) st += '<span style="color:#5ce65c">POISON</span>';
-        if (me.fireT > 0) st += '<span style="color:#ff7a2f">FIRE</span>';
-        if (me.blindT > 0) st += '<span>BLIND</span>';
-        if (me.stunT > 0) st += '<span style="color:#ffd54a">STUNNED</span>';
-        if (me.spawnShield > 0) st += '<span style="color:#6ff0ff">SHIELD</span>';
+        if (me.slowT > 0) st += `<span style="color:#5aa0ff">${t('st.slow')}</span>`;
+        if (me.poisonT > 0) st += `<span style="color:#5ce65c">${t('st.poison')}</span>`;
+        if (me.fireT > 0) st += `<span style="color:#ff7a2f">${t('st.fire')}</span>`;
+        if (me.blindT > 0) st += `<span>${t('st.blind')}</span>`;
+        if (me.stunT > 0) st += `<span style="color:#ffd54a">${t('st.stunned')}</span>`;
+        if (me.spawnShield > 0) st += `<span style="color:#6ff0ff">${t('st.shield')}</span>`;
         this.set('st', $('status-row'), 'html', st);
         this.set('vig', $('vignette'), 'opacity', me.alive && me.hp < 35 ? ((1 - me.hp / 35) * 0.9).toFixed(2) : '0');
         this.set('blind', $('blind'), 'opacity', me.blindT > 0 ? '0.92' : '0');
@@ -656,25 +717,25 @@ export class UI {
         let sc = '';
         if (g.mode === 'gauntlet') {
             const left = g.fighters.filter((f, i) => i > 0 && f.alive).length;
-            sc = `<div class="sc me" style="--c:#ffd54a"><span class="sc-n">WAVE</span><b>${g.wave}</b></div><div class="sc" style="--c:#ff5a4a"><span class="sc-n">Enemies</span><b>${left}</b></div>`;
+            sc = `<div class="sc me" style="--c:#ffd54a"><span class="sc-n sc-msg">${esc(t('sc.wave'))}</span><b>${g.wave}</b></div><div class="sc" style="--c:#ff5a4a"><span class="sc-n sc-msg">${esc(t('sc.enemies'))}</span><b>${left}</b></div>`;
         } else if (g.mode === 'training') {
-            sc = `<div class="sc me" style="--c:#6ff0ff"><span class="sc-n">TRAINING</span></div>`;
+            sc = `<div class="sc me" style="--c:#6ff0ff"><span class="sc-n sc-msg">${esc(t('sc.training'))}</span></div>`;
         } else {
             const stand = g.mode === 'stand';
             for (const f of g.fighters) sc += `<div class="sc${f === me ? ' me' : ''}" style="--c:${TEAM_COLORS[f.id % 4]};${f.out ? 'opacity:0.4' : ''}"><span class="sc-n">${esc(f.name)}</span><b>${stand ? (f.out ? '✖' : '♥'.repeat(g.modeDef.lives - f.deaths)) : g.score(f)}</b></div>`;
-            if (!stand) sc += `<div class="sc" style="--c:#fff"><span class="sc-n">to ${g.mode === 'hill' ? g.modeDef.hill : g.modeDef.kos}</span></div>`;
-            if (g.mode === 'hill') sc += `<div class="sc" style="--c:${g.hillZone && g.hillZone.contested ? '#ff5a4a' : '#ffd54a'}"><span class="sc-n">${g.inHill(me) ? (g.hillZone.contested ? 'CONTESTED!' : 'HOLDING THE HILL') : 'GET TO THE HILL'}</span></div>`;
+            if (!stand) sc += `<div class="sc" style="--c:#fff"><span class="sc-n sc-msg">${esc(t('sc.to', { n: g.mode === 'hill' ? g.modeDef.hill : g.modeDef.kos }))}</span></div>`;
+            if (g.mode === 'hill') sc += `<div class="sc" style="--c:${g.hillZone && g.hillZone.contested ? '#ff5a4a' : '#ffd54a'}"><span class="sc-n sc-msg">${esc(t(g.inHill(me) ? (g.hillZone.contested ? 'sc.contested' : 'sc.holding') : 'sc.getTo'))}</span></div>`;
         }
         this.set('sc', $('scorebar'), 'html', sc);
         if (g.modeDef.time) {
             const left = Math.max(0, g.modeDef.time - g.matchT);
-            const txt = g.suddenDeath ? (g.mode === 'hill' ? 'OVERTIME' : 'SUDDEN DEATH') : `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
+            const txt = g.suddenDeath ? t(g.mode === 'hill' ? 'timer.overtime' : 'timer.suddenDeath') : `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
             this.set('tm', $('timer'), 'text', txt);
             this.set('tmu', $('timer'), 'class:urgent', g.suddenDeath || left < 20);
         } else this.set('tm', $('timer'), 'text', '');
 
         // revive countdown
-        if (!$('revive').classList.contains('hidden')) this.set('rvt', $('rv-timer'), 'text', `Respawning in ${Math.max(0, Math.ceil(me.respawnT))}…`);
+        if (!$('revive').classList.contains('hidden')) this.set('rvt', $('rv-timer'), 'text', t('rv.respawning', { n: Math.max(0, Math.ceil(me.respawnT)) }));
 
         // scoreboard (hold Tab)
         this.set('sb', $('scoreboard'), 'class:hidden', !g.input.showScores);

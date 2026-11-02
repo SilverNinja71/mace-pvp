@@ -240,12 +240,12 @@ export class Combat {
         if (d.hp <= 0) return;
         if (a.classId === 'potion') {
             const c = CLASSES.potion;
-            if (Math.random() < c.slowChance) { d.slowT = c.slowTime; this.game.emit('status', d, 'SLOWED', '#5aa0ff'); }
-            if (Math.random() < c.poisonChance) { d.poisonT = c.poisonTime; d.dotSrc = a; this.game.emit('status', d, 'POISONED', '#5ce65c'); }
-            if (Math.random() < c.blindChance) { d.blindT = c.blindTime; this.game.emit('status', d, 'BLINDED', '#dddddd'); }
+            if (Math.random() < c.slowChance) { d.slowT = c.slowTime; this.game.emit('status', d, 'slowed', '#5aa0ff'); }
+            if (Math.random() < c.poisonChance) { d.poisonT = c.poisonTime; d.dotSrc = a; this.game.emit('status', d, 'poisoned', '#5ce65c'); }
+            if (Math.random() < c.blindChance) { d.blindT = c.blindTime; this.game.emit('status', d, 'blinded', '#dddddd'); }
         } else if (a.classId === 'pyro') {
             const c = CLASSES.pyro;
-            if (Math.random() < c.fireChance) { d.fireT = c.fireTime; d.dotSrc = a; this.game.emit('status', d, 'ON FIRE!', '#ff7a2f'); }
+            if (Math.random() < c.fireChance) { d.fireT = c.fireTime; d.dotSrc = a; this.game.emit('status', d, 'fire', '#ff7a2f'); }
         }
     }
 

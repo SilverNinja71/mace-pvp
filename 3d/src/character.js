@@ -62,11 +62,11 @@ function wm(key, make) {
 
 // Weapon glow styles (bought with gold): spear tip and mace rune colours
 export const GLOWS = {
-    sun:     { name: 'Sun Gold', tip: 0xffd54a, halo: 0xffe28a, rune: 0x5ff3ff, cost: 0 },
-    frost:   { name: 'Frost',    tip: 0x9ff4ff, halo: 0xc8fbff, rune: 0x9fd8ff, cost: 300 },
-    ember:   { name: 'Ember',    tip: 0xff7a2f, halo: 0xffb070, rune: 0xff9a3a, cost: 450 },
-    verdant: { name: 'Verdant',  tip: 0x6dff8e, halo: 0xb4ffc4, rune: 0x6dffb0, cost: 450 },
-    void:    { name: 'Void',     tip: 0xc77dff, halo: 0xe2c2ff, rune: 0xb48cff, cost: 700 }
+    sun:     { tip: 0xffd54a, halo: 0xffe28a, rune: 0x5ff3ff, cost: 0 },
+    frost:   { tip: 0x9ff4ff, halo: 0xc8fbff, rune: 0x9fd8ff, cost: 300 },
+    ember:   { tip: 0xff7a2f, halo: 0xffb070, rune: 0xff9a3a, cost: 450 },
+    verdant: { tip: 0x6dff8e, halo: 0xb4ffc4, rune: 0x6dffb0, cost: 450 },
+    void:    { tip: 0xc77dff, halo: 0xe2c2ff, rune: 0xb48cff, cost: 700 }
 };
 
 // Weapons are merged into a couple of meshes each (lit parts + glowing parts) to keep draw calls low

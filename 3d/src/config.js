@@ -81,44 +81,37 @@ export const MATCH = {
 };
 
 // The eight classes from the 2D game, reworked for 3D. Times are in seconds.
+// Names and descriptions are in i18n.js (class.<id>.name, class.<id>.desc).
 export const CLASSES = {
     normal: {
-        name: "Normal", color: "#9fb6c8", bonusHp: 10,
-        desc: "No special ability. Balanced and reliable: a little extra health."
+        color: "#9fb6c8", bonusHp: 10,
     },
     shadow: {
-        name: "Shadow", color: "#6c5ce7",
-        desc: "Every 16 s you vanish for 5 s: enemies can barely see you, you move 25% faster and hit 1.2x harder.",
+        color: "#6c5ce7",
         visibleTime: 16, invisTime: 5, speedMult: 1.25, damageMult: 1.2
     },
     lightning: {
-        name: "Lightning", color: "#ffd84a",
-        desc: "Mace slams stun longer, and every slam has a 25% chance to call down a bolt for +20 damage.",
+        color: "#ffd84a",
         stunBonus: 0.35, boltChance: 0.25, boltDamage: 20
     },
     energy: {
-        name: "Energy", color: "#3df5ff",
-        desc: "Two spear dashes in the air, a shorter dash cooldown and 1.05x dash damage.",
+        color: "#3df5ff",
         airCharges: 2, cooldown: 0.7, dashMult: 1.05
     },
     potion: {
-        name: "Potionmaster", color: "#5ce65c",
-        desc: "Hits: 35% chance to slow (3 s), 30% to poison (4 s, 2.2 damage a second), 8% to blind (2 s).",
+        color: "#5ce65c",
         slowChance: 0.35, slowTime: 3, poisonChance: 0.3, poisonTime: 4, poisonDps: 2.2, blindChance: 0.08, blindTime: 2
     },
     pyro: {
-        name: "Pyro", color: "#ff7a2f",
-        desc: "Hits have a 24% chance to set enemies on fire for 5 s: 2.5 damage a second.",
+        color: "#ff7a2f",
         fireChance: 0.24, fireTime: 5, fireDps: 2.5
     },
     void: {
-        name: "Void Walker", color: "#b05cff",
-        desc: "Every 18-28 s you blink high above a random enemy, ready to slam.",
+        color: "#b05cff",
         minDelay: 18, maxDelay: 28, height: 8
     },
     buddha: {
-        name: "Buddha", color: "#ffb347", bonusHp: 15,
-        desc: "Press B to grow big or shrink back. Big: 1.3x damage and a higher single jump, but a body twice as big. +15 health.",
+        color: "#ffb347", bonusHp: 15,
         bigScale: 1.8, damageMult: 1.3, jumpMult: 1.3
     }
 };
@@ -130,12 +123,12 @@ export const CLASS_LEVEL = { normal: 1, energy: 1, lightning: 2, pyro: 3, potion
 
 // Bot skill levels. react = seconds before a bot notices a change, aim = how well it leads
 // a dash (0-1), dodge/parry = chances to react to an attack aimed at it, interval = least
-// seconds between its attacks (the main difficulty knob).
+// seconds between its attacks (the main difficulty knob). Names are in i18n.js (bot.<id>).
 export const BOT_LEVELS = {
-    easy:   { name: "Easy",   react: 0.65, aim: 0.3,  dodge: 0.1,  parry: 0.0,  climb: 0.04, aggression: 0.35, speed: 0.74, damage: 0.7,  slamLead: 0.0,  interval: 2.6 },
-    normal: { name: "Normal", react: 0.35, aim: 0.6,  dodge: 0.3,  parry: 0.1,  climb: 0.3,  aggression: 0.6,  speed: 0.9,  damage: 0.95, slamLead: 0.5,  interval: 1.3 },
-    pro:    { name: "Pro",    react: 0.2,  aim: 0.85, dodge: 0.6,  parry: 0.3,  climb: 0.75, aggression: 0.85, speed: 1.0,  damage: 1.15, slamLead: 0.85, interval: 0.7 },
-    god:    { name: "God",    react: 0.12, aim: 0.97, dodge: 0.8,  parry: 0.5,  climb: 0.9,  aggression: 1.0,  speed: 1.06, damage: 1.3,  slamLead: 1.0,  interval: 0.35 }
+    easy:   { react: 0.65, aim: 0.3,  dodge: 0.1,  parry: 0.0,  climb: 0.04, aggression: 0.35, speed: 0.74, damage: 0.7,  slamLead: 0.0,  interval: 2.6 },
+    normal: { react: 0.35, aim: 0.6,  dodge: 0.3,  parry: 0.1,  climb: 0.3,  aggression: 0.6,  speed: 0.9,  damage: 0.95, slamLead: 0.5,  interval: 1.3 },
+    pro:    { react: 0.2,  aim: 0.85, dodge: 0.6,  parry: 0.3,  climb: 0.75, aggression: 0.85, speed: 1.0,  damage: 1.15, slamLead: 0.85, interval: 0.7 },
+    god:    { react: 0.12, aim: 0.97, dodge: 0.8,  parry: 0.5,  climb: 0.9,  aggression: 1.0,  speed: 1.06, damage: 1.3,  slamLead: 1.0,  interval: 0.35 }
 };
 
 export const BOT_NAMES = [

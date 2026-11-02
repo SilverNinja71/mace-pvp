@@ -23,11 +23,11 @@ const MONO_BOTTOM = 8.6, MONO_TOP = 11.6;
 export const GEYSER_R = 1.9;
 export const GEYSER_VEL = 29.5;
 
-// Island angles (radians), distances and heights for each layout
+// Island angles (radians), distances and heights for each layout (names are in i18n.js: map.<id>)
 export const LAYOUTS = {
-    colosseum: { name: 'Sky Colosseum', centerR: 24, angles: [0, Math.PI / 2, Math.PI, Math.PI * 1.5], dist: [40, 40, 40, 40], heights: [2, 6, 2, 9] },
-    spires:    { name: 'Sky Spires',    centerR: 18, angles: [0, Math.PI / 2, Math.PI, Math.PI * 1.5], dist: [34, 36, 34, 36], heights: [4, 1, 6, 2] },
-    ruins:     { name: 'Sky Ruins',     centerR: 21, angles: [Math.PI / 4, Math.PI * 0.75, Math.PI * 1.25, Math.PI * 1.75], dist: [37, 41, 37, 41], heights: [3, 8, 3, 1] }
+    colosseum: { centerR: 24, angles: [0, Math.PI / 2, Math.PI, Math.PI * 1.5], dist: [40, 40, 40, 40], heights: [2, 6, 2, 9] },
+    spires:    { centerR: 18, angles: [0, Math.PI / 2, Math.PI, Math.PI * 1.5], dist: [34, 36, 34, 36], heights: [4, 1, 6, 2] },
+    ruins:     { centerR: 21, angles: [Math.PI / 4, Math.PI * 0.75, Math.PI * 1.25, Math.PI * 1.75], dist: [37, 41, 37, 41], heights: [3, 8, 3, 1] }
 };
 
 const PAL = {
@@ -40,7 +40,6 @@ export class Arena {
     constructor(scene, quality, layout = 'colosseum') {
         this.scene = scene;
         this.layout = layout;
-        this.name = LAYOUTS[layout].name;
         this.centerR = LAYOUTS[layout].centerR;
         this.daisH = layout === 'ruins' ? 2.0 : 0;
         this.physics = new PhysicsWorld();

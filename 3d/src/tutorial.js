@@ -5,16 +5,10 @@
 
 import { BotBrain } from './bot.js';
 import { profile } from './profile.js';
+import { t } from './i18n.js';
 
-const STEPS = [
-    { id: 'move',  title: 'Move and look', keys: 'WASD to move · Mouse to look', touch: 'Left thumb moves · drag right side to look', text: 'Walk around a bit.' },
-    { id: 'jump',  title: 'Double jump',   keys: 'SPACE, then SPACE again in the air', touch: 'JUMP twice', text: 'Your second jump is a wind burst.' },
-    { id: 'spear', title: 'Spear thrust',  keys: 'LEFT CLICK', touch: 'SPEAR button', text: 'Dash where you look and spear the dummy. Hits at full reach are critical.' },
-    { id: 'geyser', title: 'Wind geyser',  keys: 'Walk onto the glowing centre', touch: 'Walk onto the glowing centre', text: 'Ride the geyser high into the air.' },
-    { id: 'slam',  title: 'Mace slam',     keys: 'RIGHT CLICK or SHIFT in the air', touch: 'MACE button in the air', text: 'Slam down on the dummy. The higher you fall, the harder it hits, and a hit bounces you back up.' },
-    { id: 'parry', title: 'Parry',         keys: 'F (or E, or middle click)', touch: 'PARRY button', text: 'The dummy fights back now. Parry its attack just before it lands.' },
-    { id: 'pad',   title: 'Jump pads',     keys: 'Step on a green pad at the edge', touch: 'Step on a green pad at the edge', text: 'Pads fling you between islands. Knock enemies off the edge into the void for a KO!' }
-];
+// The words for each step are in i18n.js (tu.<id>.title, .keys, .touch, .text)
+const STEPS = ['move', 'jump', 'spear', 'geyser', 'slam', 'parry', 'pad'].map((id) => ({ id }));
 
 export class Tutorial {
     constructor(game, ui) {
@@ -32,8 +26,7 @@ export class Tutorial {
     show() {
         const s = this.step;
         if (!s) return;
-        const touch = this.game.input.usingTouch;
-        this.ui.tutorialStep(this.i, STEPS.length, s.title, touch ? s.touch : s.keys, s.text);
+        this.showText();
         this.stepT = 0;
         if (s.id === 'parry') {
             // wake the dummy up: it attacks gently
@@ -45,9 +38,17 @@ export class Tutorial {
         }
     }
 
+    // The current step's words (again after a language change, without restarting the step)
+    showText(quiet = false) {
+        const s = this.step;
+        if (!s || this.done) return;
+        const p = 'tu.' + s.id + '.';
+        this.ui.tutorialStep(this.i, STEPS.length, t(p + 'title'), t(p + (this.game.input.usingTouch ? 'touch' : 'keys')), t(p + 'text'), quiet);
+    }
+
     next() {
         this.i++;
-        this.game.fx.text(this.game.local.pos.x, this.game.local.pos.y + 2.4, this.game.local.pos.z, 'NICE!', '#6dffb0', true);
+        this.game.fx.text(this.game.local.pos.x, this.game.local.pos.y + 2.4, this.game.local.pos.z, t('fx.nice'), '#6dffb0', true);
         if (this.i >= STEPS.length) return this.finish();
         this.show();
     }

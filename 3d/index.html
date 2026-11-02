@@ -43,29 +43,29 @@
   <div class="menu-left">
     <div class="logo"><span class="logo-a">SPEAR</span><span class="logo-dot">✦</span><span class="logo-b">MACE</span></div>
     <div class="logo-sub">SKY ARENA</div>
-    <button id="btn-play" class="btn btn-play"><span class="btn-icon">▶</span> PLAY<small>Quick duel vs a bot</small></button>
+    <button id="btn-play" class="btn btn-play"><span class="btn-icon">▶</span> <span data-i18n="menu.play">PLAY</span><small data-i18n="menu.playSub">Quick duel vs a bot</small></button>
     <div class="menu-row">
-      <button class="btn btn-sec" data-panel="modes">Modes</button>
-      <button class="btn btn-sec" data-panel="fighter">Fighter</button>
-      <button class="btn btn-sec online-only" data-panel="online">Online</button>
-      <button class="btn btn-sec" data-panel="settings">Settings</button>
+      <button class="btn btn-sec" data-panel="modes" data-i18n="menu.modes">Modes</button>
+      <button class="btn btn-sec" data-panel="fighter" data-i18n="menu.fighter">Fighter</button>
+      <button class="btn btn-sec online-only" data-panel="online" data-i18n="menu.online">Online</button>
+      <button class="btn btn-sec" data-panel="settings" data-i18n="menu.settings">Settings</button>
     </div>
-    <button id="btn-training" class="btn btn-ghost">Training &amp; tutorial</button>
+    <button id="btn-training" class="btn btn-ghost" data-i18n="menu.training">Training &amp; tutorial</button>
   </div>
   <div class="menu-right">
     <div class="profile-card">
       <div class="pc-name" id="pc-name">Fighter</div>
       <div class="pc-line"><span id="pc-level">Lv 1</span><span class="pc-bar"><i id="pc-xp"></i></span></div>
-      <div class="pc-stats"><span>🪙 <b id="pc-gold">0</b></span><span>🏆 <b id="pc-wins">0</b> wins</span><span>⚔ <b id="pc-rp">0</b> RP</span></div>
+      <div class="pc-stats"><span>🪙 <b id="pc-gold">0</b></span><span>🏆 <span id="pc-wins"></span></span><span>⚔ <b id="pc-rp">0</b> RP</span></div>
       <div class="pc-class" id="pc-class">Normal</div>
     </div>
     <div class="missions-card" id="missions-card"></div>
     <div class="hint-keys">
-      <div><kbd>WASD</kbd> move <kbd>Mouse</kbd> look</div>
-      <div><kbd>Space</kbd> jump ×2 · hold to glide</div>
-      <div><kbd>L-Click</kbd> spear dash</div>
-      <div><kbd>R-Click</kbd>/<kbd>Shift</kbd> mace slam</div>
-      <div><kbd>F</kbd> parry <kbd>V</kbd> camera <kbd>P</kbd> pause</div>
+      <div data-i18n-keys="hint.menu1"></div>
+      <div data-i18n-keys="hint.menu2"></div>
+      <div data-i18n-keys="hint.menu3"></div>
+      <div data-i18n-keys="hint.menu4"></div>
+      <div data-i18n-keys="hint.menu5"></div>
     </div>
   </div>
 </div>
@@ -73,115 +73,116 @@
 <!-- ============ panels ============ -->
 <div id="panel-modes" class="panel hidden">
   <div class="panel-card">
-    <h2>Modes</h2>
+    <h2 data-i18n="menu.modes">Modes</h2>
     <div class="mode-grid">
       <div class="mode-card" data-mode="duel">
-        <h3>Duel</h3><p>1 vs 1. First to 3 knockouts.</p>
+        <h3 data-i18n="mode.duel">Duel</h3><p data-i18n="modeDesc.duel">1 vs 1. First to 3 knockouts.</p>
         <div class="seg" id="duel-level">
-          <button data-level="easy">Easy</button><button data-level="normal" class="on">Normal</button><button data-level="pro">Pro</button><button data-level="god">God</button>
+          <button data-level="easy" data-i18n="bot.easy">Easy</button><button data-level="normal" class="on" data-i18n="bot.normal">Normal</button><button data-level="pro" data-i18n="bot.pro">Pro</button><button data-level="god" data-i18n="bot.god">God</button>
         </div>
-        <button class="btn btn-go" data-start="duel">Fight</button>
+        <button class="btn btn-go" data-start="duel" data-i18n="btn.fight">Fight</button>
       </div>
       <div class="mode-card" data-mode="brawl">
-        <h3>Brawl</h3><p>Free-for-all against 3 bots. First to 7 knockouts.</p>
+        <h3 data-i18n="mode.brawl">Brawl</h3><p data-i18n="modeDesc.brawl">Free-for-all against 3 bots. First to 7 knockouts.</p>
         <div class="seg" id="brawl-level">
-          <button data-level="easy">Easy</button><button data-level="normal" class="on">Normal</button><button data-level="pro">Pro</button>
+          <button data-level="easy" data-i18n="bot.easy">Easy</button><button data-level="normal" class="on" data-i18n="bot.normal">Normal</button><button data-level="pro" data-i18n="bot.pro">Pro</button>
         </div>
-        <button class="btn btn-go" data-start="brawl">Fight</button>
+        <button class="btn btn-go" data-start="brawl" data-i18n="btn.fight">Fight</button>
       </div>
       <div class="mode-card" data-mode="hill">
-        <h3>King of the Hill</h3><p>Hold the glowing zone alone to score. First to 45 points against 3 bots.</p>
+        <h3 data-i18n="mode.hill">King of the Hill</h3><p data-i18n="modeDesc.hill">Hold the glowing zone alone to score. First to 45 points against 3 bots.</p>
         <div class="seg" id="hill-level">
-          <button data-level="easy">Easy</button><button data-level="normal" class="on">Normal</button><button data-level="pro">Pro</button>
+          <button data-level="easy" data-i18n="bot.easy">Easy</button><button data-level="normal" class="on" data-i18n="bot.normal">Normal</button><button data-level="pro" data-i18n="bot.pro">Pro</button>
         </div>
-        <button class="btn btn-go" data-start="hill">Fight</button>
+        <button class="btn btn-go" data-start="hill" data-i18n="btn.fight">Fight</button>
       </div>
       <div class="mode-card" data-mode="stand">
-        <h3>Last Stand</h3><p>Everyone gets 2 lives. Be the last fighter standing against 3 bots.</p>
+        <h3 data-i18n="mode.stand">Last Stand</h3><p data-i18n="modeDesc.stand">Everyone gets 2 lives. Be the last fighter standing against 3 bots.</p>
         <div class="seg" id="stand-level">
-          <button data-level="easy">Easy</button><button data-level="normal" class="on">Normal</button><button data-level="pro">Pro</button>
+          <button data-level="easy" data-i18n="bot.easy">Easy</button><button data-level="normal" class="on" data-i18n="bot.normal">Normal</button><button data-level="pro" data-i18n="bot.pro">Pro</button>
         </div>
-        <button class="btn btn-go" data-start="stand">Fight</button>
+        <button class="btn btn-go" data-start="stand" data-i18n="btn.fight">Fight</button>
       </div>
       <div class="mode-card" data-mode="gauntlet">
-        <h3>Gauntlet</h3><p>One life. Wave after wave of tougher bots. How far can you go?</p>
-        <div class="best">Best: <b id="gauntlet-best">0</b> waves</div>
-        <button class="btn btn-go" data-start="gauntlet">Start</button>
+        <h3 data-i18n="mode.gauntlet">Gauntlet</h3><p data-i18n="modeDesc.gauntlet">One life. Wave after wave of tougher bots. How far can you go?</p>
+        <div class="best" id="gauntlet-best"></div>
+        <button class="btn btn-go" data-start="gauntlet" data-i18n="btn.start">Start</button>
       </div>
       <div class="mode-card" data-mode="training">
-        <h3>Training</h3><p>A quick tutorial, then free practice on a dummy.</p>
-        <button class="btn btn-go" data-start="training">Practice</button>
+        <h3 data-i18n="mode.training">Training</h3><p data-i18n="modeDesc.training">A quick tutorial, then free practice on a dummy.</p>
+        <button class="btn btn-go" data-start="training" data-i18n="btn.practice">Practice</button>
       </div>
     </div>
-    <button class="btn btn-ghost panel-close">Back</button>
+    <button class="btn btn-ghost panel-close" data-i18n="btn.back">Back</button>
   </div>
 </div>
 
 <div id="panel-fighter" class="panel hidden">
   <div class="panel-card wide">
-    <h2>Fighter</h2>
+    <h2 data-i18n="menu.fighter">Fighter</h2>
     <div class="fighter-cols">
       <div>
-        <h4>Class</h4>
+        <h4 data-i18n="fighter.class">Class</h4>
         <div id="class-list" class="pick-list"></div>
         <p id="class-desc" class="desc"></p>
       </div>
       <div>
-        <h4>Look</h4>
+        <h4 data-i18n="fighter.look">Look</h4>
         <div id="skin-list" class="pick-list skins"></div>
-        <h4>Weapon glow</h4>
+        <h4 data-i18n="fighter.glow">Weapon glow</h4>
         <div id="glow-list" class="pick-list skins"></div>
-        <h4>Name</h4>
-        <div class="name-row"><input id="name-input" maxlength="16" autocomplete="off" spellcheck="false"><button id="name-save" class="btn btn-sec small">Save</button></div>
+        <h4 data-i18n="fighter.name">Name</h4>
+        <div class="name-row"><input id="name-input" maxlength="16" autocomplete="off" spellcheck="false"><button id="name-save" class="btn btn-sec small" data-i18n="btn.save">Save</button></div>
         <p id="name-msg" class="desc"></p>
       </div>
     </div>
-    <h4>Achievements <span id="ach-count"></span></h4>
+    <h4><span data-i18n="fighter.achievements">Achievements</span> <span id="ach-count"></span></h4>
     <div id="ach-list" class="ach-list"></div>
-    <button class="btn btn-ghost panel-close">Back</button>
+    <button class="btn btn-ghost panel-close" data-i18n="btn.back">Back</button>
   </div>
 </div>
 
 <div id="panel-settings" class="panel hidden">
   <div class="panel-card">
-    <h2>Settings</h2>
+    <h2 data-i18n="menu.settings">Settings</h2>
     <div class="set-list">
-      <label class="set">Sound <input type="checkbox" id="set-sound"></label>
-      <label class="set">Music <input type="checkbox" id="set-music"></label>
-      <label class="set">Master volume <input type="range" id="set-vol-master" min="0" max="1" step="0.05"><span id="set-vol-master-v"></span></label>
-      <label class="set">Effects volume <input type="range" id="set-vol-sfx" min="0" max="1" step="0.05"><span id="set-vol-sfx-v"></span></label>
-      <label class="set">Music volume <input type="range" id="set-vol-music" min="0" max="1" step="0.05"><span id="set-vol-music-v"></span></label>
-      <label class="set">Mouse sensitivity <input type="range" id="set-sens" min="0.2" max="3" step="0.05"><span id="set-sens-v"></span></label>
-      <label class="set">Field of view <input type="range" id="set-fov" min="70" max="110" step="1"><span id="set-fov-v"></span></label>
-      <label class="set">Invert look up/down <input type="checkbox" id="set-invert"></label>
-      <label class="set">Camera
-        <span class="seg" id="set-view"><button data-v="first">First person</button><button data-v="third">Third person</button></span></label>
-      <label class="set">Graphics
-        <span class="seg" id="set-quality"><button data-v="auto">Auto</button><button data-v="high">High</button><button data-v="medium">Medium</button><button data-v="low">Low</button></span></label>
-      <label class="set">Reduced motion (less shake and FOV kick) <input type="checkbox" id="set-reduced"></label>
+      <label class="set"><span class="set-name" data-i18n="set.language">Language</span> <select id="set-lang"></select></label>
+      <label class="set"><span class="set-name" data-i18n="set.sound">Sound</span> <input type="checkbox" id="set-sound"></label>
+      <label class="set"><span class="set-name" data-i18n="set.music">Music</span> <input type="checkbox" id="set-music"></label>
+      <label class="set"><span class="set-name" data-i18n="set.volMaster">Master volume</span> <input type="range" id="set-vol-master" min="0" max="1" step="0.05"><span id="set-vol-master-v"></span></label>
+      <label class="set"><span class="set-name" data-i18n="set.volSfx">Effects volume</span> <input type="range" id="set-vol-sfx" min="0" max="1" step="0.05"><span id="set-vol-sfx-v"></span></label>
+      <label class="set"><span class="set-name" data-i18n="set.volMusic">Music volume</span> <input type="range" id="set-vol-music" min="0" max="1" step="0.05"><span id="set-vol-music-v"></span></label>
+      <label class="set"><span class="set-name" data-i18n="set.sens">Mouse sensitivity</span> <input type="range" id="set-sens" min="0.2" max="3" step="0.05"><span id="set-sens-v"></span></label>
+      <label class="set"><span class="set-name" data-i18n="set.fov">Field of view</span> <input type="range" id="set-fov" min="70" max="110" step="1"><span id="set-fov-v"></span></label>
+      <label class="set"><span class="set-name" data-i18n="set.invert">Invert look up/down</span> <input type="checkbox" id="set-invert"></label>
+      <label class="set"><span class="set-name" data-i18n="set.camera">Camera</span>
+        <span class="seg" id="set-view"><button data-v="first" data-i18n="set.first">First person</button><button data-v="third" data-i18n="set.third">Third person</button></span></label>
+      <label class="set"><span class="set-name" data-i18n="set.graphics">Graphics</span>
+        <span class="seg" id="set-quality"><button data-v="auto" data-i18n="set.auto">Auto</button><button data-v="high" data-i18n="set.high">High</button><button data-v="medium" data-i18n="set.medium">Medium</button><button data-v="low" data-i18n="set.low">Low</button></span></label>
+      <label class="set"><span class="set-name" data-i18n="set.reduced">Reduced motion (less shake and FOV kick)</span> <input type="checkbox" id="set-reduced"></label>
       <p class="desc" id="quality-note"></p>
     </div>
-    <button class="btn btn-ghost panel-close">Back</button>
+    <button class="btn btn-ghost panel-close" data-i18n="btn.back">Back</button>
   </div>
 </div>
 
 <div id="panel-online" class="panel hidden">
   <div class="panel-card">
-    <h2>Play with friends</h2>
-    <p class="desc">Make a room and send the invite link, or type a friend's room code.</p>
+    <h2 data-i18n="online.title">Play with friends</h2>
+    <p class="desc" data-i18n="online.desc">Make a room and send the invite link, or type a friend's room code.</p>
     <div class="online-box">
-      <button id="btn-host" class="btn btn-go">Create room</button>
-      <div class="name-row"><input id="room-input" maxlength="8" placeholder="ROOM CODE" autocomplete="off" spellcheck="false"><button id="btn-join" class="btn btn-sec small">Join</button></div>
+      <button id="btn-host" class="btn btn-go" data-i18n="online.create">Create room</button>
+      <div class="name-row"><input id="room-input" maxlength="8" placeholder="ROOM CODE" data-i18n-placeholder="online.placeholder" autocomplete="off" spellcheck="false"><button id="btn-join" class="btn btn-sec small" data-i18n="online.join">Join</button></div>
       <div id="online-status" class="desc"></div>
       <div id="room-info" class="room-info hidden">
-        <div>Room code: <b id="room-code"></b></div>
-        <div class="name-row"><input id="room-link" readonly><button id="btn-copy" class="btn btn-sec small">Copy link</button></div>
+        <div><span data-i18n="online.roomCode">Room code:</span> <b id="room-code"></b></div>
+        <div class="name-row"><input id="room-link" readonly><button id="btn-copy" class="btn btn-sec small" data-i18n="online.copy">Copy link</button></div>
         <div id="room-players" class="desc"></div>
-        <span class="seg" id="room-mode"><button data-v="ko" class="on">Knockouts</button><button data-v="hill">King of the Hill</button></span>
-        <button id="btn-room-start" class="btn btn-go">Start match</button>
+        <span class="seg" id="room-mode"><button data-v="ko" class="on" data-i18n="online.modeKo">Knockouts</button><button data-v="hill" data-i18n="mode.hill">King of the Hill</button></span>
+        <button id="btn-room-start" class="btn btn-go" data-i18n="online.startMatch">Start match</button>
       </div>
     </div>
-    <button class="btn btn-ghost panel-close" id="online-back">Back</button>
+    <button class="btn btn-ghost panel-close" id="online-back" data-i18n="btn.back">Back</button>
   </div>
 </div>
 
@@ -190,9 +191,8 @@
   <div id="crosshair"><i></i><i></i><i></i><i></i></div>
   <div id="hitmarker"></div>
   <div id="dmgdir"><i></i></div>
-  <div id="slam-meter"><b id="slam-dmg">0</b><span>SLAM</span></div>
-  <div id="scorebar"></div>
-  <div id="timer"></div>
+  <div id="slam-meter"><b id="slam-dmg">0</b><span data-i18n="hud.slam">SLAM</span></div>
+  <div id="topbar"><div id="scorebar"></div><div id="timer"></div></div>
   <div id="killfeed"></div>
   <div id="banner"><div class="b-title"></div><div class="b-sub"></div></div>
   <div id="countdown"></div>
@@ -210,70 +210,70 @@
   </div>
   <div id="ctl-hints" class="hidden"></div>
   <div id="tutorial" class="hidden">
-    <div class="tu-top"><span id="tu-count"></span><button id="tu-skip" class="btn btn-ghost small">Skip tutorial</button></div>
+    <div class="tu-top"><span id="tu-count"></span><button id="tu-skip" class="btn btn-ghost small" data-i18n="tu.skip">Skip tutorial</button></div>
     <div class="tu-title" id="tu-title"></div>
     <div class="tu-keys" id="tu-keys"></div>
     <div class="tu-text" id="tu-text"></div>
   </div>
   <div id="tu-done" class="hidden">
-    <div class="tu-title">You're ready!</div>
-    <p>Keep practising here, or jump into a real fight.</p>
-    <button id="tu-play" class="btn btn-go">Quick Play</button>
-    <button id="tu-menu" class="btn btn-ghost small">Menu</button>
+    <div class="tu-title" data-i18n="tu.ready">You're ready!</div>
+    <p data-i18n="tu.keep">Keep practising here, or jump into a real fight.</p>
+    <button id="tu-play" class="btn btn-go" data-i18n="mode.quick">Quick Play</button>
+    <button id="tu-menu" class="btn btn-ghost small" data-i18n="btn.menu">Menu</button>
   </div>
   <div id="revive" class="hidden">
-    <div class="rv-title">Knocked out!</div>
-    <button id="btn-revive" class="btn btn-ad">▶ Revive with full health<small>Watch a short ad. Your knockout won't count.</small></button>
+    <div class="rv-title" data-i18n="rv.title">Knocked out!</div>
+    <button id="btn-revive" class="btn btn-ad">▶ <span data-i18n="rv.btn">Revive with full health</span><small data-i18n="rv.btnSub">Watch a short ad. Your knockout won't count.</small></button>
     <div class="rv-timer" id="rv-timer"></div>
   </div>
   <div id="scoreboard" class="hidden"></div>
-  <button id="btn-pause-touch" class="touch-only round-btn" aria-label="Pause">❚❚</button>
+  <button id="btn-pause-touch" class="touch-only round-btn" aria-label="Pause" data-i18n-aria="pause.title">❚❚</button>
 </div>
 
 <!-- ============ touch controls ============ -->
 <div id="touch" class="hidden">
   <div class="t-zone"></div>
   <div class="t-stick"><div class="t-knob"></div></div>
-  <button class="t-btn t-jump" data-act="jump">JUMP</button>
-  <button class="t-btn t-spear" data-act="spear">SPEAR</button>
-  <button class="t-btn t-mace" data-act="mace">MACE</button>
-  <button class="t-btn t-parry" data-act="parry">PARRY</button>
+  <button class="t-btn t-jump" data-act="jump" data-i18n="touch.jump">JUMP</button>
+  <button class="t-btn t-spear" data-act="spear" data-i18n="touch.spear">SPEAR</button>
+  <button class="t-btn t-mace" data-act="mace" data-i18n="touch.mace">MACE</button>
+  <button class="t-btn t-parry" data-act="parry" data-i18n="touch.parry">PARRY</button>
   <button class="t-btn t-view" data-act="view">👁</button>
-  <button class="t-btn t-size hidden" data-act="size" id="t-size">BIG</button>
+  <button class="t-btn t-size hidden" data-act="size" id="t-size" data-i18n="touch.big">BIG</button>
 </div>
 
 <!-- ============ pause ============ -->
 <div id="pause" class="panel hidden">
   <div class="panel-card">
-    <h2>Paused</h2>
-    <button id="btn-resume" class="btn btn-go">Resume</button>
-    <button class="btn btn-sec" data-panel="settings">Settings</button>
+    <h2 data-i18n="pause.title">Paused</h2>
+    <button id="btn-resume" class="btn btn-go" data-i18n="pause.resume">Resume</button>
+    <button class="btn btn-sec" data-panel="settings" data-i18n="menu.settings">Settings</button>
     <div class="hint-keys inline">
-      <div><kbd>L-Click</kbd> spear dash (aim where you look) · <kbd>R-Click</kbd>/<kbd>Shift</kbd> mace slam in the air, swing on the ground</div>
-      <div><kbd>Space</kbd> jump, again for a wind jump, hold to glide · <kbd>F</kbd> parry · <kbd>V</kbd> camera · <kbd>Tab</kbd> scores</div>
+      <div data-i18n-keys="pause.hint1"></div>
+      <div data-i18n-keys="pause.hint2"></div>
     </div>
-    <button id="btn-quit" class="btn btn-ghost">Leave match</button>
+    <button id="btn-quit" class="btn btn-ghost" data-i18n="pause.leave">Leave match</button>
   </div>
 </div>
 
 <!-- ============ results ============ -->
 <div id="results" class="panel hidden">
   <div class="panel-card wide">
-    <h2 id="res-title">VICTORY</h2>
+    <h2 id="res-title"></h2>
     <div id="res-sub" class="desc"></div>
     <div id="res-table"></div>
     <div id="res-rewards"></div>
     <div class="res-buttons">
-      <button id="res-double" class="btn btn-ad hidden">▶ Double your gold<small>Watch a short ad</small></button>
-      <button id="res-revive" class="btn btn-ad hidden">▶ Revive and keep going<small>Watch a short ad: full health, same wave</small></button>
-      <button id="res-again" class="btn btn-go">Play again</button>
-      <button id="res-train" class="btn btn-sec hidden">Learn the moves (1 min)</button>
-      <button id="res-menu" class="btn btn-ghost">Menu</button>
+      <button id="res-double" class="btn btn-ad hidden">▶ <span data-i18n="res.double">Double your gold</span><small data-i18n="res.doubleSub">Watch a short ad</small></button>
+      <button id="res-revive" class="btn btn-ad hidden">▶ <span data-i18n="res.revive">Revive and keep going</span><small data-i18n="res.reviveSub">Watch a short ad: full health, same wave</small></button>
+      <button id="res-again" class="btn btn-go" data-i18n="res.again">Play again</button>
+      <button id="res-train" class="btn btn-sec hidden" data-i18n="res.learn">Learn the moves (1 min)</button>
+      <button id="res-menu" class="btn btn-ghost" data-i18n="btn.menu">Menu</button>
     </div>
   </div>
 </div>
 
-<div id="click-to-play" class="hidden"><div>Click to keep playing</div></div>
+<div id="click-to-play" class="hidden"><div data-i18n="pause.clickToPlay">Click to keep playing</div></div>
 <div id="toast"></div>
 
 <script type="module" src="src/main.js"></script>

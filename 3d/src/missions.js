@@ -5,16 +5,17 @@
 
 import { profile } from './profile.js';
 
+// The wording is in i18n.js (mission.<id>)
 const POOL = [
-    { id: 'win2',    text: 'Win 2 matches',                 goal: 2, gold: 120, key: 'wins' },
-    { id: 'slam5',   text: 'Land 5 mace slams',             goal: 5, gold: 80,  key: 'slamsLanded' },
-    { id: 'spear8',  text: 'Land 8 spear hits',             goal: 8, gold: 80,  key: 'dashesLanded' },
-    { id: 'big60',   text: 'Land a slam for 60+ damage',    goal: 1, gold: 100, key: 'bigSlams' },
-    { id: 'void3',   text: 'Knock 3 rivals into the void',  goal: 3, gold: 100, key: 'voidKos' },
-    { id: 'parry3',  text: 'Parry 3 attacks',               goal: 3, gold: 90,  key: 'parries' },
-    { id: 'crit3',   text: 'Land 3 critical spear hits',    goal: 3, gold: 90,  key: 'crits' },
-    { id: 'wave4',   text: 'Reach wave 4 in Gauntlet',      goal: 4, gold: 150, key: 'wave', best: true },
-    { id: 'ko10',    text: 'Score 10 knockouts',            goal: 10, gold: 110, key: 'kos' }
+    { id: 'win2',    goal: 2, gold: 120, key: 'wins' },
+    { id: 'slam5',   goal: 5, gold: 80,  key: 'slamsLanded' },
+    { id: 'spear8',  goal: 8, gold: 80,  key: 'dashesLanded' },
+    { id: 'big60',   goal: 1, gold: 100, key: 'bigSlams' },
+    { id: 'void3',   goal: 3, gold: 100, key: 'voidKos' },
+    { id: 'parry3',  goal: 3, gold: 90,  key: 'parries' },
+    { id: 'crit3',   goal: 3, gold: 90,  key: 'crits' },
+    { id: 'wave4',   goal: 4, gold: 150, key: 'wave', best: true },
+    { id: 'ko10',    goal: 10, gold: 110, key: 'kos' }
 ];
 
 function today() {
@@ -69,7 +70,7 @@ export const missions = {
                 m.progress = def.goal;
                 m.done = true;
                 profile.data.gold += def.gold;
-                done.push({ text: def.text, gold: def.gold });
+                done.push({ id: def.id, gold: def.gold });
             }
         }
         profile.save();

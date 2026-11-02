@@ -8,6 +8,16 @@ Spear-Mace: Sky Arena
 ## Short description (one line)
 Dash with a wind spear, slam down from the clouds with a storm mace, and knock your rivals off floating sky islands.
 
+## Short description in other languages
+- **Spanish (es):** Embiste con una lanza de viento, cae desde las nubes con una maza de tormenta y echa a tus rivales de las islas flotantes.
+- **Brazilian Portuguese (pt-BR):** Avance com uma lança de vento, desça das nuvens com uma maça da tempestade e derrube seus rivais das ilhas flutuantes.
+- **French (fr):** Fonce avec une lance de vent, abats-toi depuis les nuages avec une masse de tempête et éjecte tes rivaux des îles flottantes.
+- **German (de):** Stürme mit dem Windspeer los, schlag mit der Sturmkeule aus den Wolken zu und stoß deine Rivalen von schwebenden Himmelsinseln.
+- **Russian (ru):** Делай рывки с копьём ветра, обрушивайся с облаков с булавой бури и сбрасывай соперников с парящих небесных островов.
+- **Turkish (tr):** Rüzgâr mızrağıyla atıl, fırtına topuzuyla bulutlardan çök ve rakiplerini uçan gök adalarından düşür.
+- **Polish (pl):** Pędź z włócznią wiatru, spadaj z chmur z buzdyganem burzy i zrzucaj rywali z unoszących się niebiańskich wysp.
+- **Indonesian (id):** Terjang dengan tombak angin, hantam dari awan dengan gada badai, dan jatuhkan lawan dari pulau langit yang melayang.
+
 ## Long description
 Spear-Mace: Sky Arena is a fast 3D arena brawler set on islands floating above the clouds.
 

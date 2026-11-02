@@ -8,6 +8,11 @@ import { Game } from './game.js';
 import { audio } from './audio.js';
 import { crazyGames } from './crazygames.js';
 import { OnlineRoom, onlineAvailable } from './online.js';
+import { profile } from './profile.js';
+import { t, initLanguage, setPortalLocale, applyDom } from './i18n.js';
+
+initLanguage({ saved: profile.settings.lang, browser: navigator.language });
+applyDom();
 
 const canvas = document.getElementById('game');
 const input = new InputController(canvas, document.getElementById('touch'));
@@ -17,7 +22,11 @@ try {
     game = new Game(canvas, ui, input);
 } catch (e) {
     console.error(e);
-    document.getElementById('loading').innerHTML = '<div class="logo-sub" style="letter-spacing:0.1em">This browser can\'t run 3D graphics (WebGL). Try Chrome, Edge, Firefox or Safari.</div>';
+    const msg = document.createElement('div');
+    msg.className = 'logo-sub';
+    msg.style.letterSpacing = '0.1em';
+    msg.textContent = t('err.webgl');
+    document.getElementById('loading').replaceChildren(msg);
     throw e;
 }
 ui.bind(game);
@@ -47,7 +56,8 @@ if (onlineAvailable()) {
     document.querySelectorAll('.online-only').forEach((el) => el.classList.add('hidden'));
 }
 
-crazyGames.init();
+// the portal's language is only known once its SDK has started
+crazyGames.init().then(() => { if (setPortalLocale(crazyGames.locale())) ui.applyLanguage(); });
 document.getElementById('loading').classList.add('hidden');
 ui.showMenu();
 window.SMA_READY = true;

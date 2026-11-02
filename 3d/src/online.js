@@ -9,6 +9,7 @@
 
 import { SPEAR, PARRY, PHYS, MATCH } from './config.js';
 import { profile } from './profile.js';
+import { t } from './i18n.js';
 
 const PREFIX = 'spear-mace-3d-';
 const SEND_HZ = 30;
@@ -57,7 +58,7 @@ export class OnlineRoom {
     acceptGuest(conn) {
         conn.on('open', () => {
             if (this.guests.size >= 3 || this.inMatch) {
-                conn.send({ t: 'full', why: this.inMatch ? 'The match already started.' : 'The room is full (4 players).' });
+                conn.send({ t: 'full', why: this.inMatch ? 'started' : 'full' });
                 setTimeout(() => conn.close(), 300);
                 return;
             }
@@ -74,14 +75,14 @@ export class OnlineRoom {
         this.code = String(code || '').trim().toUpperCase();
         this.peer = new window.Peer();
         clearTimeout(this.joinTimer);
-        const timer = this.joinTimer = setTimeout(() => { if (!this.hostConn || !this.hostConn.open) this.status("Couldn't reach that room. Check the code and that your friend's room is still open."); }, 12000);
+        const timer = this.joinTimer = setTimeout(() => { if (!this.hostConn || !this.hostConn.open) this.status('online.unreachable'); }, 12000);
         this.peer.on('open', () => {
             const conn = this.peer.connect(PREFIX + this.code, { reliable: true });
             this.hostConn = conn;
             conn.on('open', () => { clearTimeout(timer); conn.send({ t: 'hello', ...this.me() }); onJoined(); });
             conn.on('data', (m) => this.onGuestMessage(m));
-            conn.on('close', () => this.closed('The host left the room.'));
-            conn.on('error', () => this.closed('The connection to the host was lost.'));
+            conn.on('close', () => this.closed('online.hostLeft'));
+            conn.on('error', () => this.closed('online.hostLost'));
         });
         this.peer.on('error', (e) => { clearTimeout(timer); this.status(describe(e)); });
     }
@@ -119,7 +120,8 @@ export class OnlineRoom {
         if (this.onClosed) this.onClosed(reason, wasPlaying);
     }
 
-    status(t) { if (this.onStatus) this.onStatus(t); }
+    // key: a string table key; each player reads it in their own language
+    status(key, vars) { if (this.onStatus) this.onStatus(key, vars); }
 
     pushLobby() {
         this.lobby = [this.me().name, ...[...this.guests.values()].map(g => g.name)];
@@ -143,7 +145,7 @@ export class OnlineRoom {
             if (f) {
                 f.alive = false; f.respawnT = Infinity; f.pos.y = -999; f.left = true;
                 if (this.game.models[f.id]) this.game.models[f.id].root.visible = false;
-                this.ui.toast(`${f.name} left the match.`);
+                this.ui.toast(t('online.playerLeft', { name: f.name }));
                 this.broadcast({ t: 'left', i: f.id });
                 if (this.guests.size === 0) this.game.endMatch();
             }
@@ -332,7 +334,7 @@ export class OnlineRoom {
         if (!m || typeof m !== 'object') return;
         const g = this.game;
         if (m.t === 'lobby') { this.lobby = m.p || []; if (this.onLobby) this.onLobby(this.lobby, false); return; }
-        if (m.t === 'full') { this.status(m.why || 'That room is full.'); this.leave(true); return; }
+        if (m.t === 'full') { this.status(m.why === 'started' ? 'online.matchStarted' : 'online.roomFull'); this.leave(true); return; }
         if (m.t === 'start') { this.begin(m.roster, m.you | 0, m.kos | 0, m.layout, m.theme, m.mode); return; }
         if (!this.inMatch) return;
         const me = g.local;
@@ -386,7 +388,7 @@ export class OnlineRoom {
             if (g.models[f.id]) g.models[f.id].root.visible = f !== me || g.rig.mode !== 'first';
         } else if (m.t === 'left') {
             const f = g.fighters[m.i];
-            if (f) { f.alive = false; f.left = true; if (g.models[f.id]) g.models[f.id].root.visible = false; this.ui.toast(`${f.name} left the match.`); }
+            if (f) { f.alive = false; f.left = true; if (g.models[f.id]) g.models[f.id].root.visible = false; this.ui.toast(t('online.playerLeft', { name: f.name })); }
         } else if (m.t === 'end') {
             this.inMatch = false;
             if (Array.isArray(m.s)) m.s.forEach((v, i) => { const f = g.fighters[i]; if (f && Array.isArray(v)) { f.kos = v[0] | 0; f.deaths = v[1] | 0; f.hill = v[2] | 0; } });
@@ -470,9 +472,9 @@ function cleanName(n) {
 
 function describe(err) {
     const type = err && err.type;
-    if (type === 'peer-unavailable') return 'Room not found. Check the code, or ask your friend to make the room again.';
-    if (type === 'unavailable-id') return 'That room code is taken. Make a new room.';
-    if (type === 'network' || type === 'server-error' || type === 'socket-error' || type === 'socket-closed') return "Couldn't reach the online server. Check your internet connection.";
-    if (type === 'browser-incompatible') return "This browser can't play online. Try Chrome, Edge, Firefox or Safari.";
-    return 'Online connection error. Please try again.';
+    if (type === 'peer-unavailable') return 'online.errNotFound';
+    if (type === 'unavailable-id') return 'online.errTaken';
+    if (type === 'network' || type === 'server-error' || type === 'socket-error' || type === 'socket-closed') return 'online.errNetwork';
+    if (type === 'browser-incompatible') return 'online.errBrowser';
+    return 'online.errGeneric';
 }
